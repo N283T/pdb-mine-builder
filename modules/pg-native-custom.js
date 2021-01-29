@@ -21,9 +21,6 @@ export function Client(config) {
   // allow custom type converstion to be passed in
   this._types = config.types || types
 
-  // allow config to specify returning results
-  // as an array of values instead of a hash
-  this.arrayMode = config.arrayMode || false
   this._resultCount = 0
   this._rows = undefined
   this._results = undefined
@@ -167,7 +164,7 @@ Client.prototype._stopReading = function () {
 }
 
 Client.prototype._consumeQueryResults = function (pq) {
-  return buildResult(pq, this._types, this.arrayMode)
+  return buildResult(pq, this._types, this.rowMode)
 }
 
 Client.prototype._emitResult = function (pq) {
@@ -328,8 +325,24 @@ Client.prototype._onReadyForQuery = function () {
   }
 }
 
-function buildResult(pq, types) {
+function buildResult(pq, types, rowMode) {
   const nfields = pq.nfields(), nrows = pq.ntuples(), table = {};
+  if (rowMode) {
+    var i, j, row, func, rawValue;
+    table.rows = [];
+    table.columns = [];
+    for (j=0; j<nfields; j++) table.columns.push(pq.fname(j));
+    for (i=0; i<nrows; i++) {
+      table.rows.push(row=[]);
+      for (j=0; j<nfields; j++) {
+        func = types.getTypeParser(pq.ftype(j))
+        rawValue = pq.getvalue(i, j);
+        if (rawValue === '' && pq.getisnull(i, j)) row.push(null);
+        else row.push(func(rawValue));
+      }
+    }
+    return table;
+  }
   var i, j, col, func, rawValue;
   for (j=0; j<nfields; j++) {
     col = table[pq.fname(j)] = [];
