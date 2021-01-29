@@ -43,9 +43,11 @@ nativePSQLpool.prototype.connect = async function() {
   }
 };
 
-nativePSQLpool.prototype.query = async function(text, values) {
+nativePSQLpool.prototype.query = async function(text, values, rowMode) {
   const client = await this.connect();
+  client.rowMode = rowMode;
   const output = await client.query(text, values);
+  client.rowMode = false;
   client.release();
   return output;
 };

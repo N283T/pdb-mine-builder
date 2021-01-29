@@ -331,7 +331,7 @@ export async function init(config, rdb_def, doschema) {
   }
 
   var workers = [], worker;
-  const obj = {workers, rdb_def, jobs: [], scandone: false, jobId: jobcontainer.length, config, waiter: new general.Deferred()}; jobcontainer.push(obj);
+  const obj = {workers, rdb_def, jobs: [], entries_processed: [], scandone: false, jobId: jobcontainer.length, config, waiter: new general.Deferred()}; jobcontainer.push(obj);
 
   cluster.setupMaster({
     exec: './modules/rdb-worker.js',
@@ -343,9 +343,12 @@ export async function init(config, rdb_def, doschema) {
     worker.on("message", respond2Worker);
     worker.on("error", console.error);
     workers.push(worker);
-    worker.on("exit", function() {
+    worker.on("exit", async function() {
       obj.workers.splice(obj.workers.indexOf(this), 1);
-      if (obj.workers.length == 0) obj.waiter.resolve();
+      if (obj.workers.length == 0) {
+        await removeObsolete(obj);
+        obj.waiter.resolve();
+      }
     });
   }
 
@@ -363,6 +366,10 @@ function respond2Worker(msg) {
       console.log("unknown jobId", msg.jobId);
       process.exit();
     }
+    if (msg.entryId) {
+      jc.entries_processed.push(msg.entryId);
+      delete msg.entryId;
+    }
     if (jc.jobs.length == 0) {
       if (jc.scandone) return this.send({cmd: "done"});
       else {
@@ -374,6 +381,20 @@ function respond2Worker(msg) {
       this.send({cmd: "job", payload: jc.jobs.shift()});
     }
   }
+}
+
+export async function removeObsolete(jc) {
+  if (__primaryKey__ === undefined) [sql_typing, sql_PK, sql_PKref, sql_struct, index_elementFields, index_attribFields, keyword_fields, brief_summary_update_date_IDX, mineSchema, __primaryKey__, rdbRef] = rdbHelper.init(jc.rdb_def);
+  const pool = new rdbHelper.nativePSQLpool(jc.config.rdb.constring, 1);
+  
+  const in_pdb = new Set(jc.entries_processed);
+  const remove_ids = (await pool.query(`select ${__primaryKey__} from ${mineSchema}.brief_summary`))[__primaryKey__].filter(x=>(! in_pdb.has(x)));
+  if (remove_ids.length) {
+    const stuff = remove_ids.map((x,i)=>`$${i+1}`).join(",");
+    await pool.query(`delete from ${mineSchema}.brief_summary where ${__primaryKey__} in (${stuff})`, remove_ids);
+  }
+
+  pool.end();
 }
 
 

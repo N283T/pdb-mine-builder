@@ -59,7 +59,7 @@ async function processEntry(payload) {
   
   //console.log("done", memObj.entryId);
   
-  getJob();
+  getJob(memObj.entryId);
 }
 
 // compare the contents of the SQL data with the mmjson data for a single table/category
@@ -291,8 +291,8 @@ async function respond2Main(msg) {
   }
 }
 
-function getJob() {
-  process.send({cmd: "getjob", jobId});
+function getJob(entryId) {
+  process.send({cmd: "getjob", jobId, entryId});
 }
 
 async function init(payload) {
