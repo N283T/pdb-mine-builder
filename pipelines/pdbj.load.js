@@ -22,7 +22,10 @@ export async function pipeline_exec(config) {
   var dir = config.pipelines.pdb.data.replace("${CWD}", config.CWD);
   if (! dir.endsWith("/")) dir += "/";
   
-  (await fsp.readdir(dir)).forEach(x => jm.jobs.push({path: dir+x, entryId: x.split("-")[0]}));
+  var dir_plus = config.pipelines.pdb["data-plus"].replace("${CWD}", config.CWD);
+  if (! dir_plus.endsWith("/")) dir_plus += "/";
+  const plusFiles = Object.fromEntries((await fsp.readdir(dir_plus)).map(x=>[x.split("-")[0].split(".")[0], dir_plus+x]));
+  (await fsp.readdir(dir)).forEach(x => jm.jobs.push({path: dir+x, pathPlus: plusFiles[x.split("-")[0].split(".")[0]], entryId: x.split("-")[0]}));
 
   jm.scandone = true;
   await jm.waiter.promise;
@@ -150,6 +153,8 @@ export function brief_summary(memObj, __primaryKey__) {
 }
 
 export async function load_data(payload, config) {
-  return JSON.parse((await general.gunzip(await fsp.readFile(payload.path))).toString());
+  const mmjson = JSON.parse((await general.gunzip(await fsp.readFile(payload.path))).toString());
+  if (payload.pathPlus) Object.assign(mmjson, JSON.parse((await general.gunzip(await fsp.readFile(payload.pathPlus))).toString()));
+  return mmjson;
 }
 

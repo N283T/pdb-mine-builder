@@ -7,7 +7,8 @@ obabel: /usr/bin/obabel
 pipelines:
   pdb:
     deffile: ${CWD}schemas/rdb.pdbj.def.yml
-    data: ${CWD}data/plus-noatom/
+    data: ${CWD}data/noatom/
+    data-plus: ${CWD}data/plus/
   cc:
     deffile: ${CWD}schemas/rdb.cc.def.yml
     data: ${CWD}data/cc/

@@ -2,7 +2,8 @@
 # fetch data from pdbj's ftp
 mkdir -p data
 cd data
-rsync -a --delete ftp.pdbj.org::rsync/mine2/data/mmjson/plus-noatom .
+rsync -a --delete ftp.pdbj.org::rsync/mine2/data/mmjson/noatom .
+rsync -a --delete ftp.pdbj.org::rsync/mine2/data/mmjson/plus-add/ plus
 rsync -a --delete ftp.pdbj.org::rsync/mine2/data/cc/mmjson/ cc
 rsync -a --delete ftp.pdbj.org::rsync/mine2/data/ccmodel/mmjson/ ccmodel
 rsync -a --delete ftp.pdbj.org::rsync/mine2/data/prd/mmjson/ prd
