@@ -8,15 +8,23 @@ var scriptStartDate = new Date();
 // HELPER FUNCTIONS
 
 // code to upgrade the RDB schema
-async function upgradeSchema(config) {
+async function upgradeSchema(config, usePool) {
   var fkbad = new Set(), fkref = {}, nukedtables = new Set();
   
-  const pool = new rdbHelper.nativePSQLpool(config.rdb.constring, 1);
+  if (usePool) var pool = usePool;
+  else var pool = new rdbHelper.nativePSQLpool(config.rdb.constring, 1);
   const client = await pool.connect();
   
   var tmp1, tmp2, i, queries = [], q;
+  
+  tmp1 = await client.query("SELECT ccu.table_name as tablename, tc.table_name as reftable, tc.constraint_name FROM information_schema.table_constraints AS tc JOIN information_schema.constraint_column_usage AS ccu ON ccu.constraint_name = tc.constraint_name WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.constraint_schema = '"+mineSchema.replace(/"/g, "")+"'");
+  const FKTblIds = {};
+  for (i=0; i<tmp1.tablename.length; i++) {
+    if (! (tmp1.tablename[i] in FKTblIds)) FKTblIds[tmp1.tablename[i]] = [];
+    FKTblIds[tmp1.tablename[i]].push([tmp1.reftable[i], tmp1.constraint_name[i]]);
+  }
 
-  tmp1 = await client.query("SELECT tc.table_name, kcu.column_name FROM information_schema.table_constraints tc LEFT JOIN information_schema.key_column_usage kcu ON tc.constraint_catalog = kcu.constraint_catalog AND tc.constraint_schema = kcu.constraint_schema AND tc.constraint_name = kcu.constraint_name WHERE tc.table_schema = '"+mineSchema.replace(/"/g, "")+"' AND tc.constraint_type = 'PRIMARY KEY'");
+  tmp1 = await client.query("SELECT tc.table_name FROM information_schema.table_constraints tc WHERE tc.table_schema = '"+mineSchema.replace(/"/g, "")+"' AND tc.constraint_type = 'PRIMARY KEY'");
 
   if (tmp1.table_name.length == 0) {
     queries.push(`CREATE SCHEMA IF NOT EXISTS ${mineSchema};`);
@@ -27,8 +35,9 @@ async function upgradeSchema(config) {
     tmp2.add(tmp1.table_name[i]);
   }
   
+  const deletedConstraints = new Set();
   for (let i of tmp2) {
-    if (! sql_PK.hasOwnProperty(i)) await upgradeSchema_deleteTable(queries, i, client);//queries.push(`DROP TABLE "${i}";`);
+    if (! sql_PK.hasOwnProperty(i)) await upgradeSchema_deleteTable(queries, i, FKTblIds, deletedConstraints);
   }    
   
   for (i in sql_PK) {
@@ -50,7 +59,7 @@ async function upgradeSchema(config) {
     if (queries[i].indexOf(' ADD FOREIGN KEY ("') != -1 && queries[i].indexOf('") REFERENCES ') != -1) q2.push(queries[i]);
     else q1.push(queries[i]);
   }
-
+  
   if (queries.length) {
 
     await client.query("BEGIN");
@@ -90,7 +99,7 @@ async function upgradeSchema(config) {
   }
   
   client.release();
-  pool.end();
+  if (! usePool) pool.end();
 }
 
 // create a new table
@@ -124,17 +133,15 @@ function upgradeSchema_createTable(queries, tableName) { // create new table...
   }
 }
 
-var deletedTables = [];
-async function upgradeSchema_deleteTable(queries, tableName, client) {
+async function upgradeSchema_deleteTable(queries, tableName, FKTblIds, deletedConstraints) {
   // delete foreign keys that refer to the to-be-deleted table
-  var tmp1 = await client.query("SELECT tc.table_name, tc.constraint_name FROM information_schema.table_constraints AS tc JOIN information_schema.constraint_column_usage AS ccu ON ccu.constraint_name = tc.constraint_name WHERE tc.constraint_type = 'FOREIGN KEY' AND tc.constraint_schema = '"+mineSchema.replace(/"/g, "")+"' AND ccu.table_name=$1 group by tc.constraint_name, tc.table_name;", [tableName]);
-
-  for (var i=0; i<tmp1.constraint_name.length; i++) {
-    if (deletedTables.indexOf(tmp1.table_name[i]) != -1) continue; // skip already deleted tables
-    queries.push(`ALTER TABLE ${mineSchema}."${tmp1.table_name[i]}" DROP CONSTRAINT "${tmp1.constraint_name[i]}";`);
+  for (const [reftable, constraint_name] of (FKTblIds[tableName] || [])) {
+    if (deletedConstraints.has(constraint_name) || deletedConstraints.has("table:"+reftable)) continue; // skip already dropped constraints/tables
+    queries.push(`ALTER TABLE ${mineSchema}."${reftable}" DROP CONSTRAINT "${constraint_name}";`);
+    deletedConstraints.add(constraint_name);
   }
-  
-  deletedTables.push(tableName);
+
+  deletedConstraints.add("table:"+tableName);
   queries.push(`DROP TABLE ${mineSchema}."${tableName}";`);
 }
 
@@ -324,11 +331,14 @@ async function fkTable(queries, tableName, client, fkref) {
 
 var jobcontainer = [];
 
-export async function init(config, rdb_def, doschema) {
-  if (doschema) {
-    [sql_typing, sql_PK, sql_PKref, sql_struct, index_elementFields, index_attribFields, keyword_fields, brief_summary_update_date_IDX, mineSchema, __primaryKey__, rdbRef] = rdbHelper.init(rdb_def);
-    await upgradeSchema(config);
-  }
+export async function schemaPrep(config, rdb_def, dbconnect) {
+  [sql_typing, sql_PK, sql_PKref, sql_struct, index_elementFields, index_attribFields, keyword_fields, brief_summary_update_date_IDX, mineSchema, __primaryKey__, rdbRef] = rdbHelper.init(rdb_def);
+  if (config.argv["skip-schema"]) console.warn("Skipping schema upgrade for", mineSchema);
+  else await upgradeSchema(config, dbconnect);
+}
+
+export async function init(config, rdb_def) {
+  await schemaPrep(config, rdb_def);
 
   var workers = [], worker;
   const obj = {workers, rdb_def, jobs: [], entries_processed: [], scandone: false, jobId: jobcontainer.length, config, waiter: new general.Deferred()}; jobcontainer.push(obj);
@@ -384,7 +394,6 @@ function respond2Worker(msg) {
 }
 
 export async function removeObsolete(jc) {
-  if (__primaryKey__ === undefined) [sql_typing, sql_PK, sql_PKref, sql_struct, index_elementFields, index_attribFields, keyword_fields, brief_summary_update_date_IDX, mineSchema, __primaryKey__, rdbRef] = rdbHelper.init(jc.rdb_def);
   const pool = new rdbHelper.nativePSQLpool(jc.config.rdb.constring, 1);
   
   const in_pdb = new Set(jc.entries_processed);
@@ -399,7 +408,3 @@ export async function removeObsolete(jc) {
 
 
 var sql_typing, sql_PK, sql_PKref, sql_struct, index_elementFields, index_attribFields, keyword_fields , brief_summary_update_date_IDX, rdbRef, mineSchema, __primaryKey__;
-
-
-// this has to be setup somehow..
-//var [sql_typing, sql_PK, sql_PKref, sql_struct, index_elementFields, index_attribFields, keyword_fields , brief_summary_update_date_IDX, rdbRef] = rdbHelper.init();

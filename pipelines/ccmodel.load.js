@@ -9,10 +9,10 @@ const general = await import("../modules/general.js");
 const rdbLoader = await import("../modules/rdb-loader.js");
 
 export async function pipeline_exec(config) {
-  const rdb_def = yaml.safeLoad(await fsp.readFile(config.pipelines.ccmodel.deffile.replace("${CWD}", config.CWD), 'utf8'));
+  const rdb_def = yaml.safeLoad(await fsp.readFile(general.expandPath(config.pipelines.ccmodel.deffile), 'utf8'));
   var jm = await rdbLoader.init(config, rdb_def, true);
   
-  var dir = config.pipelines.ccmodel.data.replace("${CWD}", config.CWD);
+  var dir = general.expandPath(config.pipelines.ccmodel.data);
   if (! dir.endsWith("/")) dir += "/";
   
   (await fsp.readdir(dir)).forEach(x => jm.jobs.push({path: dir+x, entryId: x.split(".")[0]}));

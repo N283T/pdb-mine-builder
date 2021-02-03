@@ -16,13 +16,13 @@ var chain_type_mapping = {"polypeptide(D)": 1, "polypeptide(L)": 2, "polydeoxyri
 var exptl_method_mapping = {"X-RAY DIFFRACTION": 1, "NEUTRON DIFFRACTION": 2, "FIBER DIFFRACTION": 3, "ELECTRON CRYSTALLOGRAPHY": 4, "ELECTRON MICROSCOPY": 5, "SOLUTION NMR": 6, "SOLID-STATE NMR": 7, "SOLUTION SCATTERING": 8, "POWDER DIFFRACTION": 9, "INFRARED SPECTROSCOPY": 10, "EPR": 11, "FLUORESCENCE TRANSFER": 12, "THEORETICAL MODEL": 13, "HYBRID": 14, "THEORETICAL MODEL (obsolete)": 15};
 
 export async function pipeline_exec(config) {
-  const rdb_def = yaml.safeLoad(await fsp.readFile(config.pipelines.pdb.deffile.replace("${CWD}", config.CWD), 'utf8'));
+  const rdb_def = yaml.safeLoad(await fsp.readFile(general.expandPath(config.pipelines.pdb.deffile), 'utf8'));
   var jm = await rdbLoader.init(config, rdb_def, true);
 
-  var dir = config.pipelines.pdb.data.replace("${CWD}", config.CWD);
+  var dir = general.expandPath(config.pipelines.pdb.data);
   if (! dir.endsWith("/")) dir += "/";
   
-  var dir_plus = config.pipelines.pdb["data-plus"].replace("${CWD}", config.CWD);
+  var dir_plus = general.expandPath(config.pipelines.pdb["data-plus"]);
   if (! dir_plus.endsWith("/")) dir_plus += "/";
   const plusFiles = Object.fromEntries((await fsp.readdir(dir_plus)).map(x=>[x.split("-")[0].split(".")[0], dir_plus+x]));
   (await fsp.readdir(dir)).forEach(x => jm.jobs.push({path: dir+x, pathPlus: plusFiles[x.split("-")[0].split(".")[0]], entryId: x.split("-")[0]}));

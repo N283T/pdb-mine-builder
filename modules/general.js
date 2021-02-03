@@ -8,6 +8,11 @@ const Long = (await import("long")).default;
 const http = await import("http");
 const https = await import("https");
 
+export function expandPath(pth) {
+  for (let [name, repl] of Object.entries(global.config.defines || {})) pth = pth.replace("${"+name+"}", repl);
+  return pth;
+}
+
 export function arbitraryPooler(mx) {
   if (new.target === undefined) return new arbitraryPooler(mx);
   this.max = mx;
