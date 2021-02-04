@@ -286,7 +286,7 @@ export async function loadCIFdic(dic) {
   
   for (var e in dic) {
     for (e2 in dic[e]) {
-      if (dic[e][e2] == "int") {
+      if (dic[e][e2] == "int" || dic[e][e2] == "positive_int") {
         if (! typing.hasOwnProperty(e)) typing[e] = {};
         typing[e][e2] = parseInt;
       }
@@ -301,6 +301,10 @@ export async function loadCIFdic(dic) {
       else if (dic[e][e2] == "float-range") {
         if (! typing.hasOwnProperty(e)) typing[e] = {};
         typing[e][e2] = parseFloatRange;
+      }
+      else if (dic[e][e2] == "boolean") {
+        if (! typing.hasOwnProperty(e)) typing[e] = {};
+        typing[e][e2] = parseBoolean;
       }
     }
   }
@@ -325,6 +329,10 @@ function parseFloatRange(inp) {
     return [parseFloat(inp.substr(0, pos)), parseFloat(inp.substr(pos+1))];
   }
   catch (e) {return [parseFloat(inp)];}
+}
+
+function parseBoolean(inp) {
+  return inp.toLowerCase() == "yes";
 }
 
 export async function loadCIF(data, noCnT) {

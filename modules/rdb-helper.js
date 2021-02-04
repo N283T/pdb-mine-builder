@@ -441,7 +441,7 @@ export function init(rdb_setup) {
       else if (rdb_setup.tables[i].columns[j][1] == "date") data_type = enforceDate;
       else if (rdb_setup.tables[i].columns[j][1] == "timestamp without time zone" || rdb_setup.tables[i].columns[j][1] == "timestamp with time zone") data_type = enforceTimestamp;
       else if (rdb_setup.tables[i].columns[j][1] == "text[]") data_type = enforceStringArray;
-      else if (rdb_setup.tables[i].columns[j][1] == "boolean") data_type = enforceInteger;
+      else if (rdb_setup.tables[i].columns[j][1] == "boolean") data_type = enforceBoolean;
       else data_type = defaultType;
       sql_typing[rdb_setup.tables[i].name][cn] = data_type;
       if (cn != __primaryKey__) sql_struct[rdb_setup.tables[i].name].push([rdb_setup.tables[i].columns[j][0], cn]);
@@ -573,6 +573,12 @@ function enforceInteger(i) {
   if (i == null) return null;
   var tmp = parseInt(i);
   return isNaN(tmp) ? null : tmp;
+}
+
+function enforceBoolean(i) {
+  if (i === true || i === 1 || (i+"").toLowerCase() === "true") return true;
+  if (i === false || i === 0 || (i+"").toLowerCase() === "false") return false;
+  return null;
 }
 
 function enforceIntegerPK(i) {
