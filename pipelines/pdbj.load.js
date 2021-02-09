@@ -17,7 +17,7 @@ var exptl_method_mapping = {"X-RAY DIFFRACTION": 1, "NEUTRON DIFFRACTION": 2, "F
 
 export async function pipeline_exec(config) {
   const rdb_def = yaml.safeLoad(await fsp.readFile(general.expandPath(config.pipelines.pdb.deffile), 'utf8'));
-  var jm = await rdbLoader.init(config, rdb_def, true);
+  var jm = await rdbLoader.init(config, rdb_def);
 
   var dir = general.expandPath(config.pipelines.pdb.data);
   if (! dir.endsWith("/")) dir += "/";

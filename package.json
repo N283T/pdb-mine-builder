@@ -20,11 +20,13 @@
   "dependencies": {
     "basic-ftp": "^4.6.3",
     "dateformat": "^4.4.1",
+    "fast-glob": "^3.2.5",
     "js-yaml": "^3.14.0",
     "libpq": "^1.8.9",
     "long": "^4.0.0",
     "minimist": "^1.2.5",
     "pg-format": "^1.0.4",
-    "pg-types": "^3.0.1"
+    "pg-types": "^3.0.1",
+    "xml2js": "^0.4.23"
   }
 }

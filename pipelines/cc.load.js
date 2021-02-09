@@ -10,7 +10,7 @@ const rdbLoader = await import("../modules/rdb-loader.js");
 
 export async function pipeline_exec(config) {
   const rdb_def = yaml.safeLoad(await fsp.readFile(general.expandPath(config.pipelines.cc.deffile), 'utf8'));
-  var jm = await rdbLoader.init(config, rdb_def, true);
+  var jm = await rdbLoader.init(config, rdb_def);
   
   var dir = general.expandPath(config.pipelines.cc.data);
   if (! dir.endsWith("/")) dir += "/";
@@ -56,7 +56,7 @@ export async function brief_summary(memObj, __primaryKey__, config) {
   // add support for fingerprints...
   if (config.obabel) {
     await general.cc2mdl(memObj);
-    var fp2 = general.mdl2fp(memObj.mdl, config.obabel);
+    var fp2 = await general.mdl2fp(memObj.mdl, config.obabel);
     tbl.byte0 = [fp2[0]];
     tbl.byte1 = [fp2[1]];
     tbl.byte2 = [fp2[2]];

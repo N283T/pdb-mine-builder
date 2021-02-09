@@ -20,4 +20,5 @@ pipelines:
     data: ${CWD}data/prd/
   vrpt:
     deffile: ${CWD}schemas/rdb.vrpt.def.yml
-    data: ${CWD}data/vrpt/
+    dic: ${CWD}data/mmcif_pdbx_validation_v3.dic
+    data: ${CWD}/data/vrpt/

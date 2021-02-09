@@ -10,7 +10,7 @@ const rdbLoader = await import("../modules/rdb-loader.js");
 
 export async function pipeline_exec(config) {
   const rdb_def = yaml.safeLoad(await fsp.readFile(general.expandPath(config.pipelines.ccmodel.deffile), 'utf8'));
-  var jm = await rdbLoader.init(config, rdb_def, true);
+  var jm = await rdbLoader.init(config, rdb_def);
   
   var dir = general.expandPath(config.pipelines.ccmodel.data);
   if (! dir.endsWith("/")) dir += "/";

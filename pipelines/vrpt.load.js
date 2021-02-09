@@ -1,5 +1,3 @@
-// script to load mmjson-plus-noatom data into the rdb...
-
 const yaml = (await import("js-yaml")).default;
 const fs = await import("fs");
 const fsp = fs.promises;
@@ -7,16 +5,22 @@ const fsp = fs.promises;
 const rdbHelper = await import("../modules/rdb-helper.js");
 const general = await import("../modules/general.js");
 const rdbLoader = await import("../modules/rdb-loader.js");
+const cif = await import("../modules/cif.js");
+
+await cif.loadCIFdic(cif.parseCIFdictionary(cif.parse((await fsp.readFile(general.expandPath(global.config.pipelines["vrpt"].dic))).toString())));
 
 export async function pipeline_exec(config) {
-  const rdb_def = yaml.safeLoad(await fsp.readFile(general.expandPath(config.pipelines.vrpt.deffile), 'utf8'));
-  var jm = await rdbLoader.init(config, rdb_def, true);
-  
-  var dir = general.expandPath(config.pipelines.vrpt.data);
-  if (! dir.endsWith("/")) dir += "/";
-  
-  (await fsp.readdir(dir)).forEach(x => jm.jobs.push({path: dir+x, entryId: x.split("-")[0]}));
+  const rdb_def = await rdbHelper.import_rdb_def(config.pipelines["vrpt"].deffile, config);
+  var jm = await rdbLoader.init(config, rdb_def);
 
+  for await (const ciffile of general.walkdir(general.expandPath(config.pipelines["vrpt"].data))) {
+    const fname = ciffile.split("/").slice(-1)[0];
+    if (! fname.endsWith(".cif.gz")) continue;
+    const pdbid = fname.split("-")[0];
+    const stat1 = await fsp.stat(ciffile);
+    jm.jobs.push({path: ciffile, entryId: pdbid, mode: "cif", mtime: stat1.mtime.getTime()/1000});
+  }
+  
   jm.scandone = true;
   await jm.waiter.promise;
 };
@@ -34,6 +38,24 @@ export function brief_summary(memObj, __primaryKey__) {
 }
 
 export async function load_data(payload, config) {
-  return JSON.parse((await general.gunzip(await fsp.readFile(payload.path))).toString());
-}
+  const parser = new cif.CIFparser();
+  try {
+    await general.readlineGZ(payload.path, function(line) {
+      parser.parseLine(line);
+      if (parser.error) {
+        console.error(`Error found in line ${parser.error[1]}:`);
+        console.error("  ", parser.error[2]);
+        console.log("  ", parser.error[0]);
+        parser.error = null;
+      }
+    });
+  }
+  catch (e) {
+    console.log(payload.path);
+    return null;
+  }
 
+  cif.cleanJSON_withDict(parser.data);
+
+  return parser.data;
+}
