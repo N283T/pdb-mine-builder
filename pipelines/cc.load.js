@@ -57,22 +57,22 @@ export async function brief_summary(memObj, __primaryKey__, config) {
   if (config.obabel) {
     await general.cc2mdl(memObj);
     var fp2 = await general.mdl2fp(memObj.mdl, config.obabel);
-    tbl.byte0 = [fp2[0]];
-    tbl.byte1 = [fp2[1]];
-    tbl.byte2 = [fp2[2]];
-    tbl.byte3 = [fp2[3]];
-    tbl.byte4 = [fp2[4]];
-    tbl.byte5 = [fp2[5]];
-    tbl.byte6 = [fp2[6]];
-    tbl.byte7 = [fp2[7]];
-    tbl.byte8 = [fp2[8]];
-    tbl.byte9 = [fp2[9]];
-    tbl.byte10 = [fp2[10]];
-    tbl.byte11 = [fp2[11]];
-    tbl.byte12 = [fp2[12]];
-    tbl.byte13 = [fp2[13]];
-    tbl.byte14 = [fp2[14]];
-    tbl.byte15 = [fp2[15]];
+    tbl.byte0 = [BigInt(fp2[0])];
+    tbl.byte1 = [BigInt(fp2[1])];
+    tbl.byte2 = [BigInt(fp2[2])];
+    tbl.byte3 = [BigInt(fp2[3])];
+    tbl.byte4 = [BigInt(fp2[4])];
+    tbl.byte5 = [BigInt(fp2[5])];
+    tbl.byte6 = [BigInt(fp2[6])];
+    tbl.byte7 = [BigInt(fp2[7])];
+    tbl.byte8 = [BigInt(fp2[8])];
+    tbl.byte9 = [BigInt(fp2[9])];
+    tbl.byte10 = [BigInt(fp2[10])];
+    tbl.byte11 = [BigInt(fp2[11])];
+    tbl.byte12 = [BigInt(fp2[12])];
+    tbl.byte13 = [BigInt(fp2[13])];
+    tbl.byte14 = [BigInt(fp2[14])];
+    tbl.byte15 = [BigInt(fp2[15])];
   }
 }
 

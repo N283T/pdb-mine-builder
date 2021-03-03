@@ -3,7 +3,6 @@
 const yaml = (await import("js-yaml")).default;
 const fs = await import("fs");
 const fsp = fs.promises;
-const fg = (await import("fast-glob")).default;
 
 const xml2js = await import("xml2js");
 
@@ -16,9 +15,9 @@ export async function pipeline_exec(config) {
   var jm = await rdbLoader.init(config, rdb_def);
 
   const emdb_data = general.expandPath(config.pipelines.emdb.data);
-  for (const path of await fg(emdb_data)) {
-    const entryId = path.split("/").slice(-1)[0].split("-v")[0].toUpperCase();
-    jm.jobs.push({path, entryId});
+  for (const file of await general.walkPattern(emdb_data)) {
+    const entryId = file.path.split("/").slice(-1)[0].split("-v")[0].toUpperCase();
+    jm.jobs.push({path: file.path, entryId});
   }
 
   jm.scandone = true;

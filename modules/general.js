@@ -1,16 +1,70 @@
 const fs = await import("fs");
 const fsp = fs.promises;
 const readline = await import("readline");
-const zlib = await import("zlib");
-const child_process = await import("child_process");
-const Long = (await import("long")).default;
-
 const http = await import("http");
 const https = await import("https");
+const path = await import("path");
+const zlib = await import("zlib");
+const child_process = await import("child_process");
+
+const Long = (await import("long")).default;
+const picomatch = (await import("picomatch")).default;
+
+
+export async function walkPattern(pattern, options={}) {
+  const base = pattern.substr(0, pattern.indexOf("*"));
+  const matchObj = picomatch(pattern);
+  
+  const files = [], counter = [0];
+  const pattern_handler = function(pth, container) {
+    if (! matchObj(pth)) return;
+    const obj = {path: pth, name: path.basename(pth)};
+    if (options.stats) obj.stats = fsp.stat(pth);
+    files.push(obj);
+  };
+  
+  walk(base, {counter, pattern_handler});
+  while (counter[0]) {await sleep(Math.round(counter[0]*.1));}
+  if (options.stats) {for (const file of files) file.stats = await file.stats;}
+  return files;
+}
+
+export async function walk(cwd, container) {
+  container.counter[0]++;
+  for (const item of await fsp.readdir(cwd, {withFileTypes: true})) {
+    const pth = cwd+item.name;
+    if (item.isDirectory()) walk(pth+"/", container);
+    else container.pattern_handler(pth, container);
+  }
+  container.counter[0]--;
+}
+
+export function solveDefines(defines) {
+  let N = 0;
+  while (true) {
+    let bad = false;
+    for (const [k,v] of Object.entries(defines)) {
+      if (v.indexOf("${") != -1) {
+        bad = true;
+        defines[k] = expandPath(v);
+      }
+    }
+    if (! bad) break;
+    N++;
+    if (N > 10) {console.error("Cannot resolve defines..."); process.exit();}
+  }
+  for (const [k,v] of Object.entries(defines)) defines[k] = path.normalize(expandPath(v));
+}
+
+export async function exists(loc) {
+  try {await fsp.access(loc, fs.constants.F_OK);}
+  catch (e) {return false;}
+  return true;
+}
 
 export function expandPath(pth) {
   for (let [name, repl] of Object.entries(global.config.defines || {})) pth = pth.replace("${"+name+"}", repl);
-  return pth;
+  return path.normalize(pth);
 }
 
 export function arbitraryPooler(mx) {
@@ -33,10 +87,22 @@ arbitraryPooler.prototype.request = async function() {
   }
 };
 
-export async function httpRequest(url, options) {
+export function httpRequest(url, options) {
   const promise = new Deferred();
   const obj = url.startsWith("https://") ? https : http;
   obj.request(url, options, (res) => {promise.resolve(res);}).on("error", (err) => {promise.reject(err);}).end();
+  return promise.promise;
+}
+
+export function httpRequestBody(msg) {
+  const promise = new Deferred();
+  var body = "";
+  msg.on('data', function(d) {
+    body += d;
+  });
+  msg.on('end', function() {
+    promise.resolve(body);
+  });
   return promise.promise;
 }
 

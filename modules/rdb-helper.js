@@ -86,7 +86,7 @@ export function deltaTable(table, memObj, sql_PK, sql_struct, __primaryKey__, sq
   var inserts = [], updates = [], deletes = [], cols, c, r_m, r_s, m_v, s_v;
   var pk = sql_PK[table], k, nor, rpk, r, isdate = pk.map(x => false);
   nor = from_sql ? from_sql[__primaryKey__].length : 0;
-  
+
   for (r=0; r<nor; r++) {
     rpk = [];
     bad = false;
@@ -94,7 +94,7 @@ export function deltaTable(table, memObj, sql_PK, sql_struct, __primaryKey__, sq
       if (! (pk[k][0] in from_sql)) {bad=true; break;}
       s_v = from_sql[pk[k][0]][r];
       if (from_sql[pk[k][0]][r] instanceof Date) {
-        s_v = (new Date(s_v.getTime() - s_v.getTimezoneOffset()*60000)).getTime();
+        s_v = s_v.getTime();
         isdate[k] = true;
       }
       rpk.push(s_v);
@@ -112,8 +112,8 @@ export function deltaTable(table, memObj, sql_PK, sql_struct, __primaryKey__, sq
       if (! (pk[k][1] in from_mmjson)) {bad=true; break;}
       m_v = from_mmjson[pk[k][1]][r];
       if (isdate[k]) {
-        if (sqlMode) m_v = (new Date(m_v.getTime() - m_v.getTimezoneOffset()*60000)).getTime();
-        else m_v = new Date(m_v).getTime()
+        if (sqlMode) m_v = m_v.getTime();
+        else m_v = new Date(m_v).getTime();
       }
       rpk.push(m_v);
     }
@@ -132,9 +132,8 @@ export function deltaTable(table, memObj, sql_PK, sql_struct, __primaryKey__, sq
         m_v = tbl_struct[c][1] in from_mmjson ? from_mmjson[tbl_struct[c][1]][r_m] : null;
         
         if (s_v instanceof Date) {
-          s_v = new Date(s_v.getTime() - s_v.getTimezoneOffset()*60000);
-          if (sqlMode) m_v = new Date(m_v.getTime() - m_v.getTimezoneOffset()*60000);
-          if (s_v.getTime() != new Date(m_v).getTime()) cols.push(c);
+          if (! sqlMode) m_v = new Date(m_v);
+          if (s_v.getTime() != m_v.getTime()) cols.push(c);
         }
         else if (s_v instanceof Array) {
           if ((s_v.length || m_v.length) && (s_v.length != m_v.length || ! s_v.every(function(element, idx) {return element === m_v[idx];}))) {
@@ -180,7 +179,6 @@ export async function updateRDB(memObj, setDate, sql_PK, sql_struct, mineSchema,
     client = await dbconnect.connect();
     await client.query("BEGIN");
   }
-  
   
   for (ins of memObj.inserts) {
     table = ins[0];
@@ -588,13 +586,13 @@ function enforceIntegerPK(i) {
 
 function enforceBigInteger(i) {
   if (i == null) return null;
-  var tmp = parseInt(i); // TODO: use the `Long` API
+  var tmp = BigInt(i);
   return isNaN(tmp) ? null : tmp;
 }
 
 function enforceBigIntegerPK(i) {
   if (i == null) return 0;
-  else return parseInt(i); // TODO: use the `Long` API
+  else return BigInt(i);
 }
 
 function defaultType(i) {return i;}

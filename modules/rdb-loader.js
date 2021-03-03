@@ -355,7 +355,7 @@ export async function init(config, rdb_def) {
     workers.push(worker);
     worker.on("exit", async function() {
       obj.workers.splice(obj.workers.indexOf(this), 1);
-      if (obj.workers.length == 0) {
+      if (obj.workers.length == 0 && ! ("test-entry" in config.argv)) {
         await removeObsolete(obj);
         obj.waiter.resolve();
       }

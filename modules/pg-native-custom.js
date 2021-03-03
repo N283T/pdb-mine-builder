@@ -6,6 +6,17 @@ const types = (await import('pg-types')).default;
 
 const general = await import("./general.js");
 
+types.setTypeParser(20, BigInt);
+types.setTypeParser(1082, date => date); // don't process date object...
+types.setTypeParser(1184, function(x) { // fix timezone
+  const date = new Date(x);
+  return new Date(date.getTime() - date.getTimezoneOffset()*60000);
+});
+types.setTypeParser(1114, function(x) { // fix timezone
+  const date = new Date(x);
+  return new Date(date.getTime() - date.getTimezoneOffset()*60000);
+});
+
 export function Client(config) {
   if (!(this instanceof Client)) {
     return new Client(config)
