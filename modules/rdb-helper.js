@@ -628,8 +628,8 @@ function enforceTimestamp(i) {
 }
 
 export function enforceStringArray(col) {
-  //??
-  console.error("enforceStringArray not implemented...");
+  if (! (col instanceof Array)) col = [col];
+  return col.map(x => x ? x+"" : null);
 }
 
 // pg util

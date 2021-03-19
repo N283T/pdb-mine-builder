@@ -39,11 +39,7 @@ async function processEntry(payload) {
       }
       col_nfo = tbl_nfo[columnName];
       if (! col_nfo) continue; // skip unknown columns
-      for (r=0; r<nor; r++) {
-        if (column[r] instanceof Array) { // deal with arrays, since the xsd can't
-          if (column[r][0] == null) column[r] = null;
-          else column[r] = rdbHelper.removeNull(column[r]).join("-");
-        }
+      for (r=0; r<nor; r++) { 
         column[r] = col_nfo(column[r]);
       }
     } 
