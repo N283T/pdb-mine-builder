@@ -87,25 +87,6 @@ arbitraryPooler.prototype.request = async function() {
   }
 };
 
-export function httpRequest(url, options) {
-  const promise = new Deferred();
-  const obj = url.startsWith("https://") ? https : http;
-  obj.request(url, options, (res) => {promise.resolve(res);}).on("error", (err) => {promise.reject(err);}).end();
-  return promise.promise;
-}
-
-export function httpRequestBody(msg) {
-  const promise = new Deferred();
-  var body = "";
-  msg.on('data', function(d) {
-    body += d;
-  });
-  msg.on('end', function() {
-    promise.resolve(body);
-  });
-  return promise.promise;
-}
-
 export function sleep(ms) {return new Promise(resolve=>{setTimeout(resolve,ms)});}
 export function wait() {return new Promise(resolve=>{setImmediate(resolve)});}
 
