@@ -6,19 +6,19 @@ obabel: /usr/bin/obabel
   
 pipelines:
   pdb:
-    deffile: ${CWD}schemas/rdb.pdbj.def.yml
-    data: ${CWD}data/noatom/
+    deffile: ${CWD}schemas/pdbj.def.yml
+    data: ${CWD}data/mmjson-noatom/
     data-plus: ${CWD}data/plus/
   cc:
-    deffile: ${CWD}schemas/rdb.cc.def.yml
+    deffile: ${CWD}schemas/cc.def.yml
     data: ${CWD}data/cc/
   ccmodel:
-    deffile: ${CWD}schemas/rdb.ccmodel.def.yml
+    deffile: ${CWD}schemas/ccmodel.def.yml
     data: ${CWD}data/ccmodel/
   prd:
-    deffile: ${CWD}schemas/rdb.prd.def.yml
+    deffile: ${CWD}schemas/prd.def.yml
     data: ${CWD}data/prd/
   vrpt:
-    deffile: ${CWD}schemas/rdb.vrpt.def.yml
+    deffile: ${CWD}schemas/vrpt.def.yml
     dic: ${CWD}data/mmcif_pdbx_validation_v3.dic
     data: ${CWD}/data/vrpt/
