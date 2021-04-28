@@ -22,26 +22,35 @@ export function sendQuery(client, query, values, options) {
 }
 
 export function nativePSQLpool(constring, max) {
+  if (new.target === undefined) return new nativePSQLpool(constring, max);
   this.constring = constring;
   this.max = max || 1;
   this.clients = [];
   this.pool = [];
+  this.queue = [];
 }
 
 nativePSQLpool.prototype.connect = async function() {
-  var client; const poolObj = this;
+  if (this.pool.length) return this.pool.shift();
   if (this.clients.length < this.max) {
-    client = pgnat.Client(); client.release = function() {poolObj.pool.push(this);}; this.clients.push(client);
-    await client.connect(this.constring);
-    return client;
+    const poolObj = this;
+    const pgnat = await import("./pg-native-custom.js");
+    if (this.clients.length < this.max) {
+      const client = pgnat.Client();
+      client.release = function() {
+        if (poolObj.queue.length) poolObj.queue.shift().resolve(this);
+        else poolObj.pool.push(this);
+      }; 
+      this.clients.push(client);
+      await client.connect(this.constring);
+      return client;
+    }
   }
   
-  while (true) {
-    if (this.pool.length) return this.pool.shift();
-    await general.wait();
-  }
-};
-
+  const waiter = new general.Deferred();
+  this.queue.push(waiter);
+  return waiter.promise;
+}
 nativePSQLpool.prototype.query = async function(text, values, rowMode) {
   const client = await this.connect();
   client.rowMode = rowMode;
