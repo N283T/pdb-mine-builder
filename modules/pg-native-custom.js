@@ -1,4 +1,6 @@
+const baka = console.log; console.log = function() {}; // workaround to old libpq being noisy
 const Libpq = (await import('libpq')).default;
+console.log = baka;
 const EventEmitter = (await import('events')).EventEmitter;
 const util = await import('util');
 const assert = await import('assert');

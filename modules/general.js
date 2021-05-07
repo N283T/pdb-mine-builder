@@ -1,3 +1,8 @@
+/*
+  Copyright (C) 2021 Gert-Jan Bekker
+  gertjan.bekker@gmail.com
+*/
+
 const fs = await import("fs");
 const fsp = fs.promises;
 const readline = await import("readline");
@@ -206,6 +211,7 @@ M END`;
 
   memObj.mdl = mol;
   memObj.mdl_noH = noha > 1 ? "-d" : "";
+  memObj.mdl_Natoms = Natoms;
 };
 
 // end cc
