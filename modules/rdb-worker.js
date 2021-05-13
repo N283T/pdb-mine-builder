@@ -93,7 +93,8 @@ function processKeywords(memObj) {
   
   // clean keywords
   tbl.keywords = rdbHelper.cleanArray(tbl.keywords.unique());
-  for (var i=0; i<tbl.keywords.length; i++) tbl.keywords[i] = tbl.keywords[i].toLowerCase();
+  tbl.keywords = tbl.keywords.map(x=>x.toLowerCase().replace(/\n/g, " "));
+  tbl.keywords = tbl.keywords.filter(x=>(isNaN(x - parseFloat(x)) || x.length > 4)); // filter out numbers, unless it's a large number, which might correspond to some external id
   tbl.keywords = tbl.keywords.unique();
   tbl.keywords.sort();
   tbl.keywords = [tbl.keywords];

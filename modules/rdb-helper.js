@@ -72,7 +72,7 @@ export function arrayModifier(arr, func) {
 }
 
 const cif2sqlTypeConversion = {line_array: "text[]", int: "integer", positive_int: "integer", bigint: "bigint", float: "double precision", double: "double precision", date: "date", "yyyy-mm-dd": "date", timestamp: "timestamp with time zone", "yyyy-mm-dd:hh:mm": "timestamp with time zone", "yyyy-mm-dd:hh:mm-flex": "text", serial: "serial", boolean: "boolean"};
-const cif_kwTypes = new Set(["text", "orcid_id", "pdbx_PDB_obsoleted_db_id", "pdbx_related_db_id", "exp_data_doi", "pdb_id", "author", "emd_id"]);
+const cif_kwTypes = new Set(["line", "text", "orcid_id", "pdbx_PDB_obsoleted_db_id", "pdbx_related_db_id", "exp_data_doi", "pdb_id", "author", "emd_id"]);
 
 function is_subset_of(list, parent) {
   var tmp = new Set(parent);
@@ -264,6 +264,8 @@ export async function import_rdb_def(deffile, config) {
   var typeRefRef = {}, doc, i, catName, tblRef = {}, tbl, typeRef = {}, mandatoryRef = new Set(), typecode, colName, fgroups, ilgl, id, fkey_cache, fkey, key, part, child_tab, child_col, parent_tab, parent_col, id1, id2, ok;
   
   var cifDicts = rdb_def.config.cifDicts || {};
+  
+  const skipKeywords = new Set(rdb_def["skip-keywords"] || []);
 
   for (let dict of cifDicts) {
     const parser = new cif.CIFparser();
@@ -328,7 +330,7 @@ export async function import_rdb_def(deffile, config) {
         try {if (doc[i].item.mandatory_code[0] == "yes") mandatoryRef.add(`${catName}.${colName}`);}
         catch (e) {}
         
-        if (cif_kwTypes.has(typecode) && ! doc[i].item_enumeration) tbl.keywords.push(colName);
+        if (cif_kwTypes.has(typecode) && ! doc[i].item_enumeration && ! skipKeywords.has(`${catName}.${colName}`)) tbl.keywords.push(colName);
       }
       else tbl.pkout = true;
     }
@@ -339,9 +341,6 @@ export async function import_rdb_def(deffile, config) {
       for (i=0; i<ilgl.child_category_id.length; i++) {
         id = ilgl.child_category_id[i]+":"+ilgl.parent_category_id[i]+":"+ilgl.link_group_id[i];
         if (! (id in fgroups)) fgroups[id] = [];
-        
-        //if (ilgl.parent_category_id[i] == "entity_poly_seq" && ilgl.child_category_id[i] == "pdbx_poly_seq_scheme") console.log(ilgl.child_name[i].slice(1), ilgl.parent_name[i].slice(1));
-        
         fgroups[id].push([ilgl.child_name[i].slice(1), ilgl.parent_name[i].slice(1)])
       }
       
