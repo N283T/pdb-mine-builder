@@ -34,30 +34,31 @@ nativePSQLpool.prototype.connect = async function() {
   if (this.pool.length) return this.pool.shift();
   if (this.clients.length < this.max) {
     const poolObj = this;
-    const pgnat = await import("./pg-native-custom.js");
-    if (this.clients.length < this.max) {
-      const client = pgnat.Client();
-      client.release = function() {
-        if (poolObj.queue.length) poolObj.queue.shift().resolve(this);
-        else poolObj.pool.push(this);
-      }; 
-      this.clients.push(client);
-      await client.connect(this.constring);
-      return client;
-    }
+    const client = pgnat.Client();
+    this.clients.push(client);
+    client.release = function() {
+      this.rowMode = false;
+      if (poolObj.queue.length) poolObj.queue.shift().resolve(this);
+      else poolObj.pool.push(this);
+    }; 
+    await client.connect(this.constring);
+    return client;
   }
   
   const waiter = new general.Deferred();
   this.queue.push(waiter);
   return waiter.promise;
 }
+
 nativePSQLpool.prototype.query = async function(text, values, rowMode) {
   const client = await this.connect();
   client.rowMode = rowMode;
-  const output = await client.query(text, values);
-  client.rowMode = false;
-  client.release();
-  return output;
+  try {
+    return await client.query(text, values);
+  }
+  finally {
+    client.release();
+  }
 };
 
 nativePSQLpool.prototype.end = async function() {
