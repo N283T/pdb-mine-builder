@@ -264,7 +264,7 @@ export async function import_rdb_def(deffile, config) {
   var primaryKey = rdb_def.config.primaryKey, primaryKeyFormat = rdb_def.config.primaryKeyFormat || "text";
   var typeRefRef = {}, doc, i, catName, tblRef = {}, tbl, typeRef = {}, mandatoryRef = new Set(), typecode, colName, fgroups, ilgl, id, fkey_cache, fkey, key, part, child_tab, child_col, parent_tab, parent_col, id1, id2, ok;
   
-  var cifDicts = rdb_def.config.cifDicts || {};
+  var cifDicts = rdb_def.config.cifDicts || [];
   
   const skipKeywords = new Set(rdb_def["skip-keywords"] || []);
 
@@ -455,7 +455,9 @@ export function init(rdb_setup) {
     }
         
     keyword_fields[rdb_setup.tables[i].name] = {};
-    for (j=0; j<rdb_setup.tables[i].keywords.length; j++) keyword_fields[rdb_setup.tables[i].name][rdb_setup.tables[i].keywords[j]] = true;
+    if (rdb_setup.tables[i].keywords) {
+      for (j=0; j<rdb_setup.tables[i].keywords.length; j++) keyword_fields[rdb_setup.tables[i].name][rdb_setup.tables[i].keywords[j]] = true;
+    }
   }
   
   index_elementFields = {};
@@ -470,7 +472,9 @@ export function init(rdb_setup) {
     for (var i=0; i<rdb_setup.index_attribFields[e].length; i++) index_attribFields[e][rdb_setup.index_attribFields[e][i]] = true;
   }
   
-  for (i=0; i<sql_struct.brief_summary.length; i++) if (sql_struct.brief_summary[i][0] == "update_date") {brief_summary_update_date_IDX = i; break;}
+  if (sql_struct.brief_summary) {
+    for (i=0; i<sql_struct.brief_summary.length; i++) if (sql_struct.brief_summary[i][0] == "update_date") {brief_summary_update_date_IDX = i; break;}
+  }
   
   return [sql_typing, sql_PK, sql_PKref, sql_struct, index_elementFields, index_attribFields, keyword_fields , brief_summary_update_date_IDX, mineSchema, __primaryKey__, rdbRef];
 }

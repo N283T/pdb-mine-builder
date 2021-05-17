@@ -24,11 +24,8 @@ async function upgradeSchema(config, usePool) {
     FKTblIds[tmp1.tablename[i]].push([tmp1.reftable[i], tmp1.constraint_name[i]]);
   }
 
-  tmp1 = await client.query("SELECT tc.table_name FROM information_schema.table_constraints tc WHERE tc.table_schema = '"+mineSchema.replace(/"/g, "")+"' AND tc.constraint_type = 'PRIMARY KEY'");
-
-  if (tmp1.table_name.length == 0) {
-    queries.push(`CREATE SCHEMA IF NOT EXISTS ${mineSchema};`);
-  }
+  tmp1 = await client.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = '${mineSchema.replace(/"/g, "")}'`);
+  if (tmp1.table_name.length == 0) queries.push(`CREATE SCHEMA IF NOT EXISTS ${mineSchema};`);
 
   tmp2 = new Set();
   for (i=0; i<tmp1.table_name.length; i++) {
@@ -38,7 +35,7 @@ async function upgradeSchema(config, usePool) {
   const deletedConstraints = new Set();
   for (let i of tmp2) {
     if (! sql_PK.hasOwnProperty(i)) await upgradeSchema_deleteTable(queries, i, FKTblIds, deletedConstraints);
-  }    
+  }
   
   for (i in sql_PK) {
     if (! tmp2.has(i)) upgradeSchema_createTable(queries, i);
@@ -107,29 +104,34 @@ function upgradeSchema_createTable(queries, tableName) { // create new table...
   var query = "", i, tmp1, tmp2;
   
   query += `CREATE TABLE ${mineSchema}."${tableName}" (\n`;
-  for (i=0; i<rdbRef[tableName].columns.length; i++) {
-    query += `  "${rdbRef[tableName].columns[i][0]}" ${rdbRef[tableName].columns[i][1]},\n`;
-  }
+  
+  for (const column of rdbRef[tableName].columns) query += `  "${column[0]}" ${column[1]},\n`;
   
   // unique
-  for (i=0; i<rdbRef[tableName].unique_keys.length; i++) {
-    tmp1 = rdbHelper.arrayModifier(rdbRef[tableName].unique_keys[i], function(j) {return `"${j}"`;}).join(",");
+  for (const key of (rdbRef[tableName].unique_keys || [])) {
+    tmp1 = rdbHelper.arrayModifier(key, function(j) {return `"${j}"`;}).join(",");
     query += `  UNIQUE (${tmp1}),\n`;
   }
   
   // primary
   tmp1 = rdbHelper.arrayModifier(rdbRef[tableName].primary_key, function(i) {return `"${i}"`;});
-  query += `  PRIMARY KEY (${tmp1})\n);`;
+  if (tmp1.length) query += `  PRIMARY KEY (${tmp1})\n);`;
+  else query = query.slice(0, -2) + "\n);"
   queries.push(query);
   
-  for (i=0; i<rdbRef[tableName].foreign_keys.length; i++) {
-    tmp1 = rdbRef[tableName].foreign_keys[i][0].map(j => {return `"${j}"`}).join(",");
-    tmp2 = rdbRef[tableName].foreign_keys[i][2].map(j => {return `"${j}"`}).join(",");
+  for (const key of (rdbRef[tableName].foreign_keys || [])) {
+    tmp1 = key[0].map(j => {return `"${j}"`}).join(",");
+    tmp2 = key[2].map(j => {return `"${j}"`}).join(",");
     
-    //tmp1 = rdbHelper.arrayModifier(rdbRef[tableName].foreign_keys[i][0], function(j) {return `"${j}"`;}).join(",");
-    //tmp2 = rdbHelper.arrayModifier(rdbRef[tableName].foreign_keys[i][2], function(j) {return `"${j}"`;}).join(",");
-    if (tmp1 == '"'+__primaryKey__+'"' && tmp2 == '"'+__primaryKey__+'"' && rdbRef[tableName].foreign_keys[i][1] == "brief_summary") queries.push(`ALTER TABLE ${mineSchema}."${tableName}" ADD FOREIGN KEY (${tmp1}) REFERENCES ${mineSchema}."${rdbRef[tableName].foreign_keys[i][1]}" (${tmp2}) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;`);
-    else queries.push(`ALTER TABLE ${mineSchema}."${tableName}" ADD FOREIGN KEY (${tmp1}) REFERENCES ${mineSchema}."${rdbRef[tableName].foreign_keys[i][1]}" (${tmp2}) DEFERRABLE INITIALLY DEFERRED;`);
+    //tmp1 = rdbHelper.arrayModifier(key[0], function(j) {return `"${j}"`;}).join(",");
+    //tmp2 = rdbHelper.arrayModifier(key[2], function(j) {return `"${j}"`;}).join(",");
+    if (tmp1 == '"'+__primaryKey__+'"' && tmp2 == '"'+__primaryKey__+'"' && key[1] == "brief_summary") queries.push(`ALTER TABLE ${mineSchema}."${tableName}" ADD FOREIGN KEY (${tmp1}) REFERENCES ${mineSchema}."${key[1]}" (${tmp2}) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;`);
+    else queries.push(`ALTER TABLE ${mineSchema}."${tableName}" ADD FOREIGN KEY (${tmp1}) REFERENCES ${mineSchema}."${key[1]}" (${tmp2}) DEFERRABLE INITIALLY DEFERRED;`);
+  }
+  
+  for (const index of (rdbRef[tableName].indexes || [])) {
+    const columns = index.map(x=>`"${x}"`).join(",");
+    queries.push(`create index on ${mineSchema}."${tableName}" (${columns});`);
   }
 }
 
@@ -256,7 +258,9 @@ async function upgradeSchema_checkTable(queries, tableName, client, fkbad, fkref
   for (i=0; i<tmp1.constraint_name.length; i++) tmp4[bakaCopySortString(tmp1.array_agg[i])] = i;
 
   tmp5 = {};
-  for (i=0; i<rdbRef[tableName].unique_keys.length; i++) tmp5[bakaCopySortString(rdbRef[tableName].unique_keys[i])] = i;
+  if (rdbRef[tableName].unique_keys) {
+    for (i=0; i<rdbRef[tableName].unique_keys.length; i++) tmp5[bakaCopySortString(rdbRef[tableName].unique_keys[i])] = i;
+  }
   
   for (i in tmp4) {// delete uk not in yaml
     if (! tmp5.hasOwnProperty(i)) {
@@ -306,8 +310,10 @@ async function fkTable(queries, tableName, client, fkref) {
   }
   
   tmp5 = {}; // hash for yaml keys
-  for (i=0; i<rdbRef[tableName].foreign_keys.length; i++) {
-    tmp5[bakaCopySortString(rdbRef[tableName].foreign_keys[i][0]) + rdbRef[tableName].foreign_keys[i][1] + bakaCopySortString(rdbRef[tableName].foreign_keys[i][2])] = i;
+  if (rdbRef[tableName].foreign_keys) {
+    for (i=0; i<rdbRef[tableName].foreign_keys.length; i++) {
+      tmp5[bakaCopySortString(rdbRef[tableName].foreign_keys[i][0]) + rdbRef[tableName].foreign_keys[i][1] + bakaCopySortString(rdbRef[tableName].foreign_keys[i][2])] = i;
+    }
   }
 
   for (i in tmp4) {// delete fk not in yaml
