@@ -101,6 +101,8 @@ async function upgradeSchema(config, usePool) {
 
 // create a new table
 function upgradeSchema_createTable(queries, tableName) { // create new table... 
+  if (tableName == "brief_summary_with_hit_score") return;
+  
   var query = "", i, tmp1, tmp2;
   
   query += `CREATE TABLE ${mineSchema}."${tableName}" (\n`;
@@ -136,6 +138,8 @@ function upgradeSchema_createTable(queries, tableName) { // create new table...
 }
 
 async function upgradeSchema_deleteTable(queries, tableName, FKTblIds, deletedConstraints) {
+  if (tableName == "brief_summary_with_hit_score") return;
+  
   // delete foreign keys that refer to the to-be-deleted table
   for (const [reftable, constraint_name] of (FKTblIds[tableName] || [])) {
     if (deletedConstraints.has(constraint_name) || deletedConstraints.has("table:"+reftable)) continue; // skip already dropped constraints/tables
@@ -151,6 +155,8 @@ function bakaCopySortString(arr) {return JSON.stringify(JSON.parse(JSON.stringif
 
 // modify an existing table
 async function upgradeSchema_checkTable(queries, tableName, client, fkbad, fkref, nukedtables) {
+  if (tableName == "brief_summary_with_hit_score") return;
+  
   var columns = {}, i, data_type, tmp1, tmp2, tmp3, tmp4, tmp5;
 
   // identify modified columns
@@ -290,6 +296,8 @@ async function upgradeSchema_checkTable(queries, tableName, client, fkbad, fkref
 }
 
 async function fkTable(queries, tableName, client, fkref) {
+  if (tableName == "brief_summary_with_hit_score") return;
+  
   var tmp1, tmp2, tmp3, tmp4, tmp5, i;
   tmp1 = await client.query(`select array_agg(att2.attname) as "columns", cl.relname as "foreign_table", array_agg(att.attname) as "foreign_columns", con.conname from (select unnest(con1.conkey) as "parent", unnest(con1.confkey) as "child", con1.confrelid, con1.conrelid, relname as "child_table", con1.conname from pg_class cl join pg_namespace ns on cl.relnamespace = ns.oid join pg_constraint con1 on con1.conrelid = cl.oid where ns.nspname = '${mineSchema.replace(/"/g, "")}' and con1.contype = 'f' and relname = $1) con join pg_attribute att on att.attrelid = con.confrelid and att.attnum = con.child join pg_class cl on cl.oid = con.confrelid join pg_attribute att2 on att2.attrelid = con.conrelid and att2.attnum = con.parent group by con.confrelid, cl.relname, con.conname;`, [tableName]);
   

@@ -348,15 +348,21 @@ export async function import_rdb_def(deffile, config) {
       fkey_cache = new Set();
       
       for ([id, fkey] of Object.entries(fgroups)) {
-        key = [["pdbid"], null, ["pdbid"]];
+        key = [[primaryKey], null, [primaryKey]];
+        const parentPK = new Set();
         for (part of fkey) {
           [child_tab, child_col] = part[0].split(".", 2);
           [parent_tab, parent_col] = part[1].split(".", 2);
           child_col = child_col.replace(/\[/g, "").replace(/\]/g, "").replace(/\//g, "").replace(/\%/g, "");
           parent_col = parent_col.replace(/\[/g, "").replace(/\]/g, "").replace(/\//g, "").replace(/\%/g, "");
- 
-          key[0].push(child_col);
+          
           key[1] = parent_tab;
+          
+          if (child_col == primaryKey || parent_col == primaryKey) {
+            if (parent_col != primaryKey) parentPK.add(parent_col);
+            continue; 
+          }
+          key[0].push(child_col);
           key[2].push(parent_col);
         }
         if (key[1] == null) continue; // skip junk
@@ -364,7 +370,7 @@ export async function import_rdb_def(deffile, config) {
         id1 = `${child_tab}(${[...key[0]].sort().join("|")})${parent_tab}(${[...key[2]].sort().join("|")})`;
         id2 = `${parent_tab}(${[...key[2]].sort().join("|")})${child_tab}(${[...key[2]].sort().join("|")})`;
         if (fkey_cache.has(id1) || fkey_cache.has(id2)) continue; // is this really what we want? shouldn't this be directional? (so only id1 should be checked, not also id2....)
-      
+    
         ok = true;
         for (i=0; i<key[0].length; i++) {
           if (typeRef[child_tab][key[0][i]] != typeRef[parent_tab][key[2][i]]) ok = false;
@@ -373,7 +379,7 @@ export async function import_rdb_def(deffile, config) {
         }
         
         if (key[0].unique().length != key[0].length || key[2].unique().length != key[2].length) ok = false; // number of items is not unique
-        if (! is_subset_of(tblRef[parent_tab].primary_key, key[2])) ok = false; // items not unique
+        if (! is_subset_of(tblRef[parent_tab].primary_key.filter(x=>!parentPK.has(x)), key[2])) ok = false; // items not unique
         if (! ok) continue;
         
         fkey_cache.add(id1);
