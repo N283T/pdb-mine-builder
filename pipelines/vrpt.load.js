@@ -13,14 +13,12 @@ export async function pipeline_exec(config) {
   const rdb_def = await rdbHelper.import_rdb_def(config.pipelines["vrpt"].deffile, config);
   var jm = await rdbLoader.init(config, rdb_def);
 
-  for await (const ciffile of general.walkdir(general.expandPath(config.pipelines["vrpt"].data))) {
-    const fname = ciffile.split("/").slice(-1)[0];
-    if (! fname.endsWith(".cif.gz")) continue;
-    const pdbid = fname.split("-")[0];
-    const stat1 = await fsp.stat(ciffile);
-    jm.jobs.push({path: ciffile, entryId: pdbid, mode: "cif", mtime: stat1.mtime.getTime()/1000});
+  const files = await general.walkPattern(general.expandPath(config.pipelines["vrpt"].data), {stats: true});
+
+  for (const ciffile of files) {
+    const pdbid = ciffile.name.split("_")[0];
+    jm.jobs.push({path: ciffile.path, entryId: pdbid, mode: "cif", mtime: ciffile.stats.mtime.getTime()/1000});
   }
-  
   jm.scandone = true;
   await jm.waiter.promise;
 };

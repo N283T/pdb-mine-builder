@@ -7,6 +7,8 @@ rsync -a --delete data.pdbjbk1.pdbj.org::rsync/pdbjplus/data/pdb/mmjson-plus/ pl
 rsync -a --delete data.pdbjbk1.pdbj.org::rsync/pdbjplus/data/cc/mmjson/ cc
 rsync -a --delete data.pdbjbk1.pdbj.org::rsync/pdbjplus/data/ccmodel/mmjson/ ccmodel
 rsync -a --delete data.pdbjbk1.pdbj.org::rsync/pdbjplus/data/prd/mmjson/ prd
+rsync -a --delete data.pdbjbk1.pdbj.org::rsync/pdbjplus/data/prd/mmjson/ prd
+#rsync -a --delete data.pdbjbk1.pdbj.org::ftp/validation_reports/*/*/*_validation.cif.gz vrpt
 cd ..
 rsync -a --delete data.pdbjbk1.pdbj.org::rsync/pdbjplus/mine2/schemas .
 
@@ -23,3 +25,6 @@ node --max-old-space-size=8192 mine2.js ccmodel.load
 
 # update prd schema (BIRD, Biologically Interesting Molecule Reference Dictionary)
 node --max-old-space-size=8192 mine2.js prd.load
+
+# update vrpt schema (wwPDB validation reports)
+#node --max-old-space-size=8192 mine2.js vrpt.load
