@@ -20,7 +20,7 @@ export async function walkPattern(pattern, options={}) {
   const base = pattern.substr(0, pattern.indexOf("*"));
   const matchObj = picomatch(pattern);
   
-  const files = [], counter = [0];
+  const files = [];
   const pattern_handler = function(pth, container) {
     if (! matchObj(pth)) return;
     const obj = {path: pth, name: path.basename(pth)};
@@ -28,20 +28,19 @@ export async function walkPattern(pattern, options={}) {
     files.push(obj);
   };
   
-  walk(base, {counter, pattern_handler});
-  while (counter[0]) {await sleep(Math.round(counter[0]*.1));}
+  await walk(base, {pattern_handler});
   if (options.stats) {for (const file of files) file.stats = await file.stats;}
   return files;
 }
 
 export async function walk(cwd, container) {
-  container.counter[0]++;
+  const jobs = [];
   for (const item of await fsp.readdir(cwd, {withFileTypes: true})) {
     const pth = cwd+item.name;
-    if (item.isDirectory()) walk(pth+"/", container);
+    if (item.isDirectory()) jobs.push(walk(pth+"/", container));
     else container.pattern_handler(pth, container);
   }
-  container.counter[0]--;
+  await Promise.all(jobs);
 }
 
 export function solveDefines(defines) {

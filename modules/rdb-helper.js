@@ -142,7 +142,7 @@ export function deltaTable(table, memObj, sql_PK, sql_struct, __primaryKey__, sq
         m_v = tbl_struct[c][1] in from_mmjson ? from_mmjson[tbl_struct[c][1]][r_m] : null;
         
         if (s_v instanceof Date) {
-          if (! sqlMode) m_v = new Date(m_v);
+          if (! sqlMode) m_v = from_mmjson[tbl_struct[c][1]][r_m] = new Date(m_v);
           if (s_v.getTime() != m_v.getTime()) cols.push(c);
         }
         else if (s_v instanceof Array) {
