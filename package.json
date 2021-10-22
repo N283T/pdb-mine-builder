@@ -18,10 +18,8 @@
   "homepage": "https://gitlab.com/pdbjapan/mine2updater#readme",
   "type": "module",
   "dependencies": {
-    "basic-ftp": "^4.6.3",
-    "dateformat": "^4.4.1",
-    "fast-glob": "^3.2.5",
-    "js-yaml": "^3.14.0",
+    "dateformat": "^5.0.1",
+    "js-yaml": "^4.1.0",
     "libpq": "^1.8.9",
     "long": "^4.0.0",
     "minimist": "^1.2.5",

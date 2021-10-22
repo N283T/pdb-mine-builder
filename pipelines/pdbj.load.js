@@ -16,7 +16,7 @@ var chain_type_mapping = {"polypeptide(D)": 1, "polypeptide(L)": 2, "polydeoxyri
 var exptl_method_mapping = {"X-RAY DIFFRACTION": 1, "NEUTRON DIFFRACTION": 2, "FIBER DIFFRACTION": 3, "ELECTRON CRYSTALLOGRAPHY": 4, "ELECTRON MICROSCOPY": 5, "SOLUTION NMR": 6, "SOLID-STATE NMR": 7, "SOLUTION SCATTERING": 8, "POWDER DIFFRACTION": 9, "INFRARED SPECTROSCOPY": 10, "EPR": 11, "FLUORESCENCE TRANSFER": 12, "THEORETICAL MODEL": 13, "HYBRID": 14, "THEORETICAL MODEL (obsolete)": 15};
 
 export async function pipeline_exec(config) {
-  const rdb_def = yaml.safeLoad(await fsp.readFile(general.expandPath(config.pipelines.pdb.deffile), 'utf8'));
+  const rdb_def = yaml.load(await fsp.readFile(general.expandPath(config.pipelines.pdb.deffile), 'utf8'));
   var jm = await rdbLoader.init(config, rdb_def);
 
   var dir = general.expandPath(config.pipelines.pdb.data);

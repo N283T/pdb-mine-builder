@@ -17,7 +17,7 @@ const picomatch = (await import("picomatch")).default;
 
 
 export async function walkPattern(pattern, options={}) {
-  const base = pattern.substr(0, pattern.indexOf("*"));
+  const base = path.dirname(pattern.substr(0, pattern.indexOf("*")))+"/";
   const matchObj = picomatch(pattern);
   
   const files = [];

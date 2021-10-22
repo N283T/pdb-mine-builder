@@ -9,7 +9,7 @@ const general = await import("../modules/general.js");
 const rdbLoader = await import("../modules/rdb-loader.js");
 
 export async function pipeline_exec(config) {
-  const rdb_def = yaml.safeLoad(await fsp.readFile(general.expandPath(config.pipelines.cc.deffile), 'utf8'));
+  const rdb_def = yaml.load(await fsp.readFile(general.expandPath(config.pipelines.cc.deffile), 'utf8'));
   var jm = await rdbLoader.init(config, rdb_def);
   
   var dir = general.expandPath(config.pipelines.cc.data);

@@ -8,7 +8,7 @@ const path = await import("path");
 const url = await import("url");
 
 (async function() {
-  const config = yaml.safeLoad(await fsp.readFile("config.yml", 'utf8'));
+  const config = yaml.load(await fsp.readFile("config.yml", 'utf8'));
   global.config = config;
   config.argv = argv;
   config.defines = config.defines || {}; 

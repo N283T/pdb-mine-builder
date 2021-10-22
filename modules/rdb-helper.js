@@ -258,7 +258,7 @@ export async function updateRDB(memObj, setDate, sql_PK, sql_struct, mineSchema,
 // end rdb-worker stuff
 
 export async function import_rdb_def(deffile, config) {
-  const rdb_def = yaml.safeLoad(await fsp.readFile(general.expandPath(deffile), 'utf8'));
+  const rdb_def = yaml.load(await fsp.readFile(general.expandPath(deffile), 'utf8'));
   rdb_def.tables = rdb_def.tables || {};
 
   var primaryKey = rdb_def.config.primaryKey, primaryKeyFormat = rdb_def.config.primaryKeyFormat || "text";
