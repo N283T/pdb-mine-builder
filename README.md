@@ -2,7 +2,7 @@
 This is the repository for the new Mine 2 RDB updater system, replacing the old dump & delta file system.
 
 ### Requirements
-- PostgreSQL 12 or newer
+- PostgreSQL 12 or newer (with libpq-dev)
 - Nodejs 14 or newer
 - Openbabel (for chem_comp fingerprinting)
 

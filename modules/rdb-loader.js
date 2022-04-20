@@ -131,7 +131,8 @@ function upgradeSchema_createTable(queries, tableName) { // create new table...
     else queries.push(`ALTER TABLE ${mineSchema}."${tableName}" ADD FOREIGN KEY (${tmp1}) REFERENCES ${mineSchema}."${key[1]}" (${tmp2}) DEFERRABLE INITIALLY DEFERRED;`);
   }
   
-  for (const index of (rdbRef[tableName].indexes || [])) {
+  for (let index of (rdbRef[tableName].indexes || [])) {
+    if (typeof(index) == "string") index = [index];
     const columns = index.map(x=>`"${x}"`).join(",");
     queries.push(`create index on ${mineSchema}."${tableName}" (${columns});`);
   }

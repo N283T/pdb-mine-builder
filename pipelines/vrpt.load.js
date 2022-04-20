@@ -7,7 +7,8 @@ const general = await import("../modules/general.js");
 const rdbLoader = await import("../modules/rdb-loader.js");
 const cif = await import("../modules/cif.js");
 
-await cif.loadCIFdic(cif.parseCIFdictionary(cif.parse((await fsp.readFile(general.expandPath(global.config.pipelines["vrpt"].dic))).toString())));
+if (global.config.pipelines["vrpt"].dic.endsWith(".gz")) await cif.loadCIFdic(cif.parseCIFdictionary(cif.parse((await general.gunzip(await fsp.readFile(general.expandPath(global.config.pipelines["vrpt"].dic)))).toString())));
+else await cif.loadCIFdic(cif.parseCIFdictionary(cif.parse((await fsp.readFile(general.expandPath(global.config.pipelines["vrpt"].dic))).toString())));
 
 export async function pipeline_exec(config) {
   const rdb_def = await rdbHelper.import_rdb_def(config.pipelines["vrpt"].deffile, config);

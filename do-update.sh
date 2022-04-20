@@ -11,6 +11,7 @@ rsync -a --delete data.pdbjbk1.pdbj.org::rsync/pdbjplus/data/prd/mmjson/ prd
 #rsync -a --delete data.pdbjbk1.pdbj.org::ftp/validation_reports/*/*/*_validation.cif.gz vrpt
 cd ..
 rsync -a --delete data.pdbjbk1.pdbj.org::rsync/pdbjplus/mine2/schemas .
+rsync -a --delete data.pdbjbk1.pdbj.org::rsync/pdbjplus/dictionaries .
 
 # RDB updater modules, comment out whatever is not required
 
