@@ -21,10 +21,10 @@
     "dateformat": "^5.0.1",
     "js-yaml": "^4.1.0",
     "libpq": "^1.8.9",
-    "long": "^4.0.0",
+    "long": "^5.2.0",
     "minimist": "^1.2.5",
     "pg-format": "^1.0.4",
-    "pg-types": "^3.0.1",
+    "pg-types": "^4.0.0",
     "picomatch": "^2.3.1",
     "xml2js": "^0.4.23"
   }
