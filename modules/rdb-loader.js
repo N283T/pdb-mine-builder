@@ -252,7 +252,7 @@ async function upgradeSchema_checkTable(queries, tableName, client, fkbad, fkref
   if (bakaCopySortString(pkeys) != bakaCopySortString(rdbRef[tableName].primary_key)) {
     // add a new primary key
     pkey_tmp = rdbHelper.arrayModifier(rdbRef[tableName].primary_key, function(j) {return `"${j}"`;}).join(",");
-    queries.push(`ALTER TABLE ${mineSchema}."${tableName}" ADD PRIMARY KEY (${pkey_tmp});`); ////
+    if (pkey_tmp.length) queries.push(`ALTER TABLE ${mineSchema}."${tableName}" ADD PRIMARY KEY (${pkey_tmp});`); ////
     // remove the NOT NULL constraint on the removed keys...
     for (i=0; i<pkeys.length; i++) if (rdbRef[tableName].primary_key.indexOf(pkeys[i]) == -1 && pkeys[i] in columns) queries.push(`ALTER TABLE ${mineSchema}."${tableName}" ALTER COLUMN "${pkeys[i]}" DROP NOT NULL;`);
   }
