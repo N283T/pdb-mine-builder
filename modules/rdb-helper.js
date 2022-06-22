@@ -401,12 +401,10 @@ export async function import_rdb_def(deffile, config) {
     }
   }
   
-  // final workaround for crappy pdbx_struct_assembly_gen data --> there is no meaning in EVERYTHING being in the primary key ->  so now, nothing is.
-  for (const k of rdb_def.trash_pkeys || []) tblRef[k].primary_key = [];
+  for (const k of rdb_def.trash_pkeys || []) tblRef[k].pk_trashed = true;
   
   delete rdb_def.hashPKey;
   delete rdb_def.cifDicts;
-  delete rdb_def.trash_pkeys;
   
   return rdb_def;
 }

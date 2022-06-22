@@ -116,7 +116,7 @@ function upgradeSchema_createTable(queries, tableName) { // create new table...
   }
   
   // primary
-  tmp1 = rdbHelper.arrayModifier(rdbRef[tableName].primary_key, function(i) {return `"${i}"`;});
+  tmp1 = rdbHelper.arrayModifier(rdbRef[tableName].pk_trashed ? [] : rdbRef[tableName].primary_key, function(i) {return `"${i}"`;});
   if (tmp1.length) query += `  PRIMARY KEY (${tmp1})\n);`;
   else query = query.slice(0, -2) + "\n);"
   queries.push(query);
@@ -174,7 +174,7 @@ async function upgradeSchema_checkTable(queries, tableName, client, fkbad, fkref
     pname = pkey_tmp.constraint_name[0];
     pkeys = pkey_tmp.array_agg[0];
   }
-  if (bakaCopySortString(pkeys) != bakaCopySortString(rdbRef[tableName].primary_key)) {
+  if (bakaCopySortString(pkeys) != bakaCopySortString(rdbRef[tableName].pk_trashed ? [] : rdbRef[tableName].primary_key)) {
     if (pname) { // drop the old primary key
       queries.push(`ALTER TABLE ${mineSchema}."${tableName}" DROP CONSTRAINT "${pname}";`);
     }
@@ -249,9 +249,9 @@ async function upgradeSchema_checkTable(queries, tableName, client, fkbad, fkref
   
   // primary keys part 2
 
-  if (bakaCopySortString(pkeys) != bakaCopySortString(rdbRef[tableName].primary_key)) {
+  if (bakaCopySortString(pkeys) != bakaCopySortString(rdbRef[tableName].pk_trashed ? [] : rdbRef[tableName].primary_key)) {
     // add a new primary key
-    pkey_tmp = rdbHelper.arrayModifier(rdbRef[tableName].primary_key, function(j) {return `"${j}"`;}).join(",");
+    pkey_tmp = rdbHelper.arrayModifier(rdbRef[tableName].pk_trashed ? [] : rdbRef[tableName].primary_key, function(j) {return `"${j}"`;}).join(",");
     if (pkey_tmp.length) queries.push(`ALTER TABLE ${mineSchema}."${tableName}" ADD PRIMARY KEY (${pkey_tmp});`); ////
     // remove the NOT NULL constraint on the removed keys...
     for (i=0; i<pkeys.length; i++) if (rdbRef[tableName].primary_key.indexOf(pkeys[i]) == -1 && pkeys[i] in columns) queries.push(`ALTER TABLE ${mineSchema}."${tableName}" ALTER COLUMN "${pkeys[i]}" DROP NOT NULL;`);
