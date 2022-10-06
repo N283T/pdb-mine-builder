@@ -118,8 +118,9 @@ export function brief_summary(memObj, __primaryKey__) {
   tbl.pdbx_descriptor = [rdbHelper.cleanArray(mmjson.entity.pdbx_description.unique()).join(', ')];
   
   tbl.struct_title = [mmjson.struct.title[0]];
-
-  tbl.ligand = [rdbHelper.cleanArray(rdbHelper.mmjsonAt_IC(mmjson.chem_comp, "name", "type", "non-polymer").concat(rdbHelper.mmjsonAt_IC(mmjson.chem_comp, "pdbx_synonyms", "type", "non-polymer")).concat(rdbHelper.mmjsonAt_IC(mmjson.chem_comp, "id", "type", "non-polymer")))];
+  
+  tmp = (mmjson.chem_comp.type || []).map((x,i) => x == "peptide linking" || x == "L-peptide linking" || x == "DNA linking" || x == "RNA linking" ? -1 : i).filter(x=>x!=-1);
+  tbl.ligand = [rdbHelper.cleanArray(tmp.map(x=>mmjson.chem_comp.name[x]).concat(tmp.map(x=>mmjson.chem_comp.pdbx_synonyms[x])).concat(tmp.map(x=>mmjson.chem_comp.id[x])))];
 
   tmp = rdbHelper.cleanArray(rdbHelper.mmjsonGet(mmjson.exptl, "method")); if (tmp.length > 1) tmp.push("HYBRID");
   tbl.exptl_method = [tmp];
