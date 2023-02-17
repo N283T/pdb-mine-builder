@@ -151,6 +151,112 @@ export function brief_summary(memObj, __primaryKey__) {
   tbl.db_pfam = [rdbHelper.cleanArray(rdbHelper.mmjsonAt(mmjson.struct_ref_pdbmlplus, "pdbx_db_accession", "db_name", "Pfam"))];
 
   tbl.group_id = [mmjson.pdbx_deposit_group && mmjson.pdbx_deposit_group.group_id ? mmjson.pdbx_deposit_group.group_id[0] : null];
+  
+  tbl.plus_fields = [{}];
+  tbl.plus_fields[0].bu_mw = calculateMW4BU(mmjson);
+}
+
+
+function calculateMW4BU(pdbxData) {
+  var BUassemblies = {}, length;
+  try {length = pdbxData.pdbx_struct_assembly_gen.assembly_id.length;} catch (e) {length = 0;}
+  
+  var tmp, tmp1, tmp2, c, inp, j, i, mats, k;
+  var xpnd = function(inp) {
+    tmp2 = [];
+    inp = inp.split(",");
+    for (j=0; j<inp.length; j++) {
+      if (inp[j].indexOf("-") != -1) {
+        inp[j] = inp[j].replace("(", "").replace(")", "").split("-");
+        for (k=parseInt(inp[j][0]); k<parseInt(inp[j][1])+1; k++) tmp2.push(k)
+      }
+      else tmp2.push(inp[j].replace("(", "").replace(")", ""));
+    }
+    return tmp2;
+  }
+  
+  for (var i=0; i<length; i++) {
+    if (! BUassemblies.hasOwnProperty(pdbxData.pdbx_struct_assembly_gen.assembly_id[i])) BUassemblies[pdbxData.pdbx_struct_assembly_gen.assembly_id[i]] = [];
+    
+    mats = [];
+    if (pdbxData.pdbx_struct_assembly_gen.oper_expression[i].indexOf(")(") != -1) {
+      tmp1 = pdbxData.pdbx_struct_assembly_gen.oper_expression[i].split(")(");
+      tmp1[0] = xpnd(tmp1[0].substr(1));
+      tmp1[1] = xpnd(tmp1[1].substr(0, tmp1[1].length-1));
+      for (j=0; j<tmp1[0].length; j++) for (k=0; k<tmp1[1].length; k++) mats.push(tmp1[0][j]+"-"+tmp1[1][k]);
+    }
+    else mats = xpnd(pdbxData.pdbx_struct_assembly_gen.oper_expression[i]);
+    BUassemblies[pdbxData.pdbx_struct_assembly_gen.assembly_id[i]].push([mats, pdbxData.pdbx_struct_assembly_gen.asym_id_list[i].split(",")]);
+  }
+  
+  var assembly_id = null;
+
+  if (pdbxData.pdbx_struct_assembly) {
+    var tst = pdbxData.pdbx_struct_assembly || {details: []};
+    for (var i=0; i<tst.details.length; i++) {
+      if (tst.details[i].substr(0, 19) == "author_and_software") {assembly_id = tst.id[i]; break;}
+    }
+    if (assembly_id == null) {
+      for (var i=0; i<tst.details.length; i++) {
+        if (tst.details[i].substr(0, 6) == "author") {assembly_id = tst.id[i]; break;}
+      }
+    }
+    if (assembly_id == null) {
+      for (var i=0; i<tst.details.length; i++) {
+        if (tst.details[i].substr(0, 8) == "software") {assembly_id = tst.id[i]; break;}
+      }
+    }
+  }
+
+  if (assembly_id == null) {
+    var sinfo = {}, norInfo = {};
+    if (pdbxData.entity_poly && pdbxData.entity_poly.entity_id) {
+      for (var i=0; i<pdbxData.entity_poly.entity_id.length; i++) sinfo[pdbxData.entity_poly.entity_id[i]] = pdbxData.entity_poly.pdbx_seq_one_letter_code_can[i].replace(/\s/g, '').length;
+    }
+    for (var i=0; i<pdbxData.struct_asym.id.length; i++) norInfo[pdbxData.struct_asym.id[i]] = sinfo[pdbxData.struct_asym.entity_id[i]] || 0;
+        
+    var largest = [null, 0];        
+        
+    for (var aid in BUassemblies) {
+      var nor, sz = 0;
+      if (isNaN(parseInt(aid, 10))) continue;
+      for (var i=0,j; i<BUassemblies[aid].length; i++) {
+        nor = 0;
+        for (j=0; j<BUassemblies[aid][i][1].length; j++) nor += norInfo[BUassemblies[aid][i][1][j]] || 0;
+        sz += BUassemblies[aid][i][0].length * nor;
+      }
+      if (sz > largest[1]) {largest[0] = aid; largest[1] = sz;}
+    }
+    if (largest[0] != null) assembly_id = largest[0];
+  }
+
+  if (assembly_id == null) return 0.0;
+
+  var poly_asym_ids = [];  
+  if (pdbxData.hasOwnProperty("entity_poly")) {
+    var poly = pdbxData.entity_poly.entity_id;
+    for (var i=0; i<pdbxData.struct_asym.id.length; i++) {if (poly.indexOf(pdbxData.struct_asym.entity_id[i]) != -1) poly_asym_ids.push(pdbxData.struct_asym.id[i]);}
+  }
+  
+  var asym2mw = {};
+  if (pdbxData.struct_asym && pdbxData.struct_asym && pdbxData.entity) {
+    for (var c=0; c<pdbxData.struct_asym.entity_id.length; c++) asym2mw[pdbxData.struct_asym.id[c]] = pdbxData.entity.formula_weight[pdbxData.entity.id.indexOf(pdbxData.struct_asym.entity_id[c])];
+  }
+  
+  var MW = 0;
+  for (var i=0; i<BUassemblies[assembly_id].length; i++) {
+    tmp = 0;
+    tmp2 = 0;
+    for (c=0; c<BUassemblies[assembly_id][i][1].length; c++) {
+      if (poly_asym_ids.indexOf(BUassemblies[assembly_id][i][1][c]) != -1) tmp++;
+      tmp2 += asym2mw[BUassemblies[assembly_id][i][1][c]] || 0;
+    }
+    MW += tmp2*BUassemblies[assembly_id][i][0].length;
+  }
+  
+  if (assembly_id == -1) console.log(pdbxData.entry.pdbid, MW);
+
+  return MW;
 }
 
 export async function load_data(payload, config) {
