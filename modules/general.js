@@ -34,8 +34,11 @@ export async function walkPattern(pattern, options={}) {
 }
 
 export async function walk(cwd, container) {
+  let items;
+  try {items = await fsp.readdir(cwd, {withFileTypes: true});}
+  catch (e) {console.error(e); return;}
   const jobs = [];
-  for (const item of await fsp.readdir(cwd, {withFileTypes: true})) {
+  for (const item of items) {
     const pth = cwd+item.name;
     if (item.isDirectory()) jobs.push(walk(pth+"/", container));
     else container.pattern_handler(pth, container);
