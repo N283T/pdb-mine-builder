@@ -154,6 +154,8 @@ export function brief_summary(memObj, __primaryKey__) {
   
   tbl.plus_fields = [{}];
   tbl.plus_fields[0].bu_mw = calculateMW4BU(mmjson);
+
+  tbl.keywords = ["pdb_"+memObj.entryId.rjust(8, "0")]; // make sure new 8-char pdbids are also added to the keywords list
 }
 
 

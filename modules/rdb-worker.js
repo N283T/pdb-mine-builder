@@ -63,7 +63,7 @@ function processKeywords(memObj) {
   
   var eF, aF, cat, pkref, t, tbl_nfo, nor, c, r, pk, col_nfo;
   
-  tbl.keywords = [];
+  tbl.keywords = tbl.keywords || [];
   
   // extract additional data from mmjson
   for (t in memObj.mmjson) {
