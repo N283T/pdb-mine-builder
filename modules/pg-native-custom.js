@@ -175,6 +175,7 @@ Client.prototype._stopReading = function () {
 }
 
 Client.prototype._consumeQueryResults = function (pq) {
+  if (this.rowMode == -1) return yieldResults(pq, this._types);
   return buildResult(pq, this._types, this.rowMode)
 }
 
@@ -333,6 +334,20 @@ Client.prototype._onReadyForQuery = function () {
 
   if (cb) {
     cb(err, rows || [], results)
+  }
+}
+
+function* yieldResults(pq, types) {
+  const nfields = pq.nfields(), nrows = pq.ntuples(), table = {};
+  for (let i=0; i<nrows; i++) {
+    const row = [];
+    for (let j=0; j<nfields; j++) {
+      const func = types.getTypeParser(pq.ftype(j))
+      const rawValue = pq.getvalue(i, j);
+      if (rawValue === '' && pq.getisnull(i, j)) row.push(null);
+      else row.push(func(rawValue));
+    }
+    yield row;
   }
 }
 
