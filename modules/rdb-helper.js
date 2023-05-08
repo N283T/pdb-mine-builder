@@ -489,13 +489,13 @@ export function init(rdb_setup) {
 }
 
 export function gen_docid(inp) {
-  inp = inp.ljust(4, " ");
-  var components = []
-  for (var i=0; i<4; i++) {
+  inp = inp.ljust(4, " ").rjust(8, "0");
+  let components = []
+  for (let i=0; i<8; i++) {
     if (inp[i] == " ") components.push(36); // an empty space is classified as char type 36
     else components.push(parseInt(inp[i], 36)); // ranges from 0-35
   }
-  return components[0] << 24 | components[1] << 16 | components[2] << 8 | components[3];
+  return components[0] << 64 | components[1] << 48 | components[2] << 32 | components[3] | components[4] << 24 | components[5] << 16 | components[6] << 8 | components[7];
 }
 
 export function mmjsonAt(table, get_field, cond_field, cond_val) {
