@@ -52,6 +52,8 @@ export function brief_summary(memObj, __primaryKey__) {
   tbl.content = [shallowCopy];
   
   tbl.update_date = [null];
+  
+  tbl.keywords = [];
 }
 
 export async function load_data(payload, config) {

@@ -382,8 +382,10 @@ export async function import_rdb_def(deffile, config) {
         if (! is_subset_of(tblRef[parent_tab].primary_key.filter(x=>!parentPK.has(x)), key[2])) ok = false; // items not unique
         if (! ok) continue;
         
-        fkey_cache.add(id1);
-        tblRef[child_tab].foreign_keys.push(key);
+        if (! rdb_def.config.skip_foreign_keys) {
+          fkey_cache.add(id1);
+          tblRef[child_tab].foreign_keys.push(key);
+        }
         if (tblRef[parent_tab].primary_key.length != key[2].length && tblRef[parent_tab].unique_keys.filter(x => JSON.stringify(x) == JSON.stringify(key[2])) == 0) tblRef[parent_tab].unique_keys.push(key[2]);
       }
     }
