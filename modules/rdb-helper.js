@@ -263,6 +263,7 @@ export async function import_rdb_def(deffile, config) {
 
   var primaryKey = rdb_def.config.primaryKey, primaryKeyFormat = rdb_def.config.primaryKeyFormat || "text";
   var typeRefRef = {}, doc, i, catName, tblRef = {}, tbl, typeRef = {}, mandatoryRef = new Set(), typecode, colName, fgroups, ilgl, id, fkey_cache, fkey, key, part, child_tab, child_col, parent_tab, parent_col, id1, id2, ok;
+  const type_overwrites = rdb_def.config.type_overwrites || {};
   
   var cifDicts = rdb_def.config.cifDicts || [];
   
@@ -326,6 +327,7 @@ export async function import_rdb_def(deffile, config) {
         }
 
         typeRef[catName][colName] = cif2sqlTypeConversion[typecode] || "text";
+        if (`${catName}.${colName}` in type_overwrites) typeRef[catName][colName] = type_overwrites[`${catName}.${colName}`];
         tbl.columns.push([colName, typeRef[catName][colName]]);
         
         try {if (doc[i].item.mandatory_code[0] == "yes") mandatoryRef.add(`${catName}.${colName}`);}
@@ -611,7 +613,7 @@ function enforceIntegerPK(i) {
 function enforceBigInteger(i) {
   if (i == null) return null;
   var tmp = BigInt(i);
-  return isNaN(tmp) ? null : tmp;
+  return Number.isNaN(tmp) ? null : tmp;
 }
 
 function enforceBigIntegerPK(i) {
