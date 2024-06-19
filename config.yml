@@ -22,3 +22,7 @@ pipelines:
     deffile: ${CWD}schemas/vrpt.def.yml
     data: ${CWD}/data/vrpt/*
     dic: ${CWD}dictionaries/mmcif_pdbx_vrpt.dic.gz
+  emdb:
+    deffile: ${CWD}schemas/emdb.def.yml
+    data: ${CWD}data/emdb/
+
