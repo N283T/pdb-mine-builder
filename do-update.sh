@@ -2,16 +2,16 @@
 # fetch data from pdbj's ftp
 mkdir -p data
 cd data
-rsync -a --delete data.pdbjbk1.pdbj.org::rsync/pdbjplus/data/pdb/mmjson-noatom .
-rsync -a --delete data.pdbjbk1.pdbj.org::rsync/pdbjplus/data/pdb/mmjson-plus/ plus
-rsync -a --delete data.pdbjbk1.pdbj.org::rsync/pdbjplus/data/cc/mmjson/ cc
-rsync -a --delete data.pdbjbk1.pdbj.org::rsync/pdbjplus/data/ccmodel/mmjson/ ccmodel
-rsync -a --delete data.pdbjbk1.pdbj.org::rsync/pdbjplus/data/prd/mmjson/ prd
-rsync -a --delete data.pdbjbk1.pdbj.org::rsync/pdbjplus/data/prd/mmjson/ prd
-#rsync -a --delete data.pdbjbk1.pdbj.org::ftp/validation_reports/*/*/*_validation.cif.gz vrpt
+rsync -a --delete data.pdbjlc1.pdbj.org::rsync/pdbjplus/data/pdb/mmjson-noatom .
+rsync -a --delete data.pdbjlc1.pdbj.org::rsync/pdbjplus/data/pdb/mmjson-plus/ plus
+rsync -a --delete data.pdbjlc1.pdbj.org::rsync/pdbjplus/data/cc/mmjson/ cc
+rsync -a --delete data.pdbjlc1.pdbj.org::rsync/pdbjplus/data/ccmodel/mmjson/ ccmodel
+rsync -a --delete data.pdbjlc1.pdbj.org::rsync/pdbjplus/data/prd/mmjson/ prd
+rsync -a --delete data.pdbjlc1.pdbj.org::rsync/pdbjplus/data/prd/mmjson/ prd
+#rsync -a --delete data.pdbjlc1.pdbj.org::ftp/validation_reports/*/*/*_validation.cif.gz vrpt
 cd ..
-rsync -a --delete data.pdbjbk1.pdbj.org::rsync/pdbjplus/mine2/schemas .
-rsync -a --delete data.pdbjbk1.pdbj.org::rsync/pdbjplus/dictionaries .
+rsync -a --delete data.pdbjlc1.pdbj.org::rsync/pdbjplus/mine2/schemas .
+rsync -a --delete data.pdbjlc1.pdbj.org::rsync/pdbjplus/dictionaries .
 
 # RDB updater modules, comment out whatever is not required
 
