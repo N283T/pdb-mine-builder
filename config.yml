@@ -25,4 +25,7 @@ pipelines:
   emdb:
     deffile: ${CWD}schemas/emdb.def.yml
     data: ${CWD}data/emdb/
+  ihm:
+    deffile: ${CWD}schemas/ihm.def.yml
+    data: ${CWD}data/ihm/
 

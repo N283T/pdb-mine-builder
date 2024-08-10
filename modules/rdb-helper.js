@@ -202,13 +202,19 @@ export async function updateRDB(memObj, setDate, sql_PK, sql_struct, mineSchema,
       cols.forEach(col => values.push(from_mmjson[col[1]][rid]));
       if (values.length >= 30000) { // chunks of ~ 30000 items...
         q = `insert into %I.%I (${colnames.map(x => "%I").join(",")}) values ${expand(values.length/colnames.length, colnames.length)}`;
-        await sendQuery(client, q, values, [mineSchema, table, ...colnames]);
+        try {
+          await sendQuery(client, q, values, [mineSchema, table, ...colnames]);
+        }
+        catch (e) {console.log(memObj.entryId); console.error(e);}
         values = [];
       }
     }
     if (values.length) {
       q = `insert into %I.%I (${colnames.map(x => "%I").join(",")}) values ${expand(values.length/colnames.length, colnames.length)}`;
-      await sendQuery(client, q, values, [mineSchema, table, ...colnames]);
+      try {
+        await sendQuery(client, q, values, [mineSchema, table, ...colnames]);
+      }
+      catch (e) {console.log(memObj.entryId); console.error(e);}
     }
   }
 
@@ -229,7 +235,10 @@ export async function updateRDB(memObj, setDate, sql_PK, sql_struct, mineSchema,
       where = keys.map((x,i)=>"%I=$"+(i+opts.length-1)).join(" AND "); opts.push(...keys);
       if (q.length == 1) q = `UPDATE %I.%I SET %I=$1 where ${where}`;
       else q = `UPDATE %I.%I SET (${q.map(x=>"%I").join(",")})=(${q.map((x,i)=>"$"+(i+1)).join(",")}) where ${where}`;
-      await sendQuery(client, q, values, opts);
+      try {
+        await sendQuery(client, q, values, opts);
+      }
+      catch (e) {console.log(memObj.entryId); console.error(e);}
     }
   }
 
@@ -242,7 +251,10 @@ export async function updateRDB(memObj, setDate, sql_PK, sql_struct, mineSchema,
       for (c of pk) {opts.push(c[0]); values.push(from_sql[c[0]][rid]);}
       where = values.map((x,i)=>"%I=$"+(i+1)).join(" AND ");
       q = "DELETE from %I.%I where "+where;
-      await sendQuery(client, q, values, opts);
+      try {
+        await sendQuery(client, q, values, opts);
+      }
+      catch (e) {console.log(memObj.entryId); console.error(e);}
     }
   }
   
@@ -326,14 +338,17 @@ export async function import_rdb_def(deffile, config) {
           catch (e) {typecode = undefined;}
         }
 
-        typeRef[catName][colName] = cif2sqlTypeConversion[typecode] || "text";
+        const colType = cif2sqlTypeConversion[typecode] || "text";
+        if (typeRef[catName][colName] === undefined) {
+          tbl.columns.push([colName, colType]);
+          if (cif_kwTypes.has(typecode) && ! doc[i].item_enumeration && ! skipKeywords.has(`${catName}.${colName}`)) tbl.keywords.push(colName);
+        }
+
+        typeRef[catName][colName] = colType;
         if (`${catName}.${colName}` in type_overwrites) typeRef[catName][colName] = type_overwrites[`${catName}.${colName}`];
-        tbl.columns.push([colName, typeRef[catName][colName]]);
         
         try {if (doc[i].item.mandatory_code[0] == "yes") mandatoryRef.add(`${catName}.${colName}`);}
         catch (e) {}
-        
-        if (cif_kwTypes.has(typecode) && ! doc[i].item_enumeration && ! skipKeywords.has(`${catName}.${colName}`)) tbl.keywords.push(colName);
       }
       else tbl.pkout = true;
     }
@@ -607,7 +622,10 @@ function enforceBoolean(i) {
 
 function enforceIntegerPK(i) {
   if (i == null) return 0;
-  else return parseInt(i);
+  else {
+    if (isNaN(parseInt(i))) console.log(i);
+    return parseInt(i);
+  }
 }
 
 function enforceBigInteger(i) {

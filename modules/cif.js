@@ -177,7 +177,7 @@ CIFparser.prototype.specialSplit = function(content) {
   var output = [["", false]], quote = false, qtype, length = content.length, isWS, olast=0;
   for (var i=0; i<length; i++) {
     isWS = content[i] == " " || content[i] == "\t";
-    if ((content[i] == "'" || content[i] == '"') && (i == 0 || content[i-1] == " " || content[i-1] == "\t" || i == length-1 || content[i+1] == " " || content[i+1] == "\t") && (! quote || (content[i] == qtype))) {quote = ! quote; qtype = content[i];}
+    if ((content[i] == "'" || content[i] == '"') && (((i == 0 || content[i-1] == " " || content[i-1] == "\t") && !quote) || ((i == length-1 || content[i+1] == " " || content[i+1] == "\t") && quote && content[i] == qtype))) {quote = ! quote; qtype = content[i];}
     else if (! quote && isWS && output[olast][0] != "") {output.push(["", false]); olast++;}
     else if (! quote && content[i] == "#" && output[olast][0] == "") break;
     else if (! isWS || quote) {output[olast][0] += content[i]; output[olast][1] = quote;}
@@ -202,7 +202,8 @@ CIFparser.prototype.processContent = function(content) {
       else this.endFrame();
     }
     else if (content[i][0] == "loop_" && ! content[i][1]) this.loopPointer = new _loop(this);
-    else if (content[i][0].substr(0, 1) == "_" && ! content[i][1]) this.setDataName(content[i][0].substr(1));
+    //else if (content[i][0].substr(0, 1) == "_" && ! content[i][1]) this.setDataName(content[i][0].substr(1));
+    else if (content[i][0].substr(0, 1) == "_" && ! content[i][1] && this.dataSet != false) this.setDataName(content[i][0].substr(1));
     else {
       if (! this.loopPointer && this.dataSet) continue;
       //console.log(content[i][0]);
