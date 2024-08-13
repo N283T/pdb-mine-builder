@@ -338,14 +338,13 @@ export async function import_rdb_def(deffile, config) {
           catch (e) {typecode = undefined;}
         }
 
-        const colType = cif2sqlTypeConversion[typecode] || "text";
+        let colType = cif2sqlTypeConversion[typecode] || "text";
+        if (`${catName}.${colName}` in type_overwrites) colType = type_overwrites[`${catName}.${colName}`];
         if (typeRef[catName][colName] === undefined) {
           tbl.columns.push([colName, colType]);
           if (cif_kwTypes.has(typecode) && ! doc[i].item_enumeration && ! skipKeywords.has(`${catName}.${colName}`)) tbl.keywords.push(colName);
         }
-
         typeRef[catName][colName] = colType;
-        if (`${catName}.${colName}` in type_overwrites) typeRef[catName][colName] = type_overwrites[`${catName}.${colName}`];
         
         try {if (doc[i].item.mandatory_code[0] == "yes") mandatoryRef.add(`${catName}.${colName}`);}
         catch (e) {}
