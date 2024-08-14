@@ -13,7 +13,7 @@ const rdbLoader = await import("../modules/rdb-loader.js");
 // update: ~ 12-15 minutes
 
 var chain_type_mapping = {"polypeptide(D)": 1, "polypeptide(L)": 2, "polydeoxyribonucleotide": 3, "polyribonucleotide": 4, "polysaccharide(D)": 5, "polysaccharide(L)": 6, "polydeoxyribonucleotide/polyribonucleotide hybrid": 7, "cyclic-pseudo-peptide": 8, "other": 9, "peptide nucleic acid": 10};
-var exptl_method_mapping = {"X-RAY DIFFRACTION": 1, "NEUTRON DIFFRACTION": 2, "FIBER DIFFRACTION": 3, "ELECTRON CRYSTALLOGRAPHY": 4, "ELECTRON MICROSCOPY": 5, "SOLUTION NMR": 6, "SOLID-STATE NMR": 7, "SOLUTION SCATTERING": 8, "POWDER DIFFRACTION": 9, "INFRARED SPECTROSCOPY": 10, "EPR": 11, "FLUORESCENCE TRANSFER": 12, "THEORETICAL MODEL": 13, "HYBRID": 14, "THEORETICAL MODEL (obsolete)": 15};
+var exptl_method_mapping = {"X-RAY DIFFRACTION": 1, "NEUTRON DIFFRACTION": 2, "FIBER DIFFRACTION": 3, "ELECTRON CRYSTALLOGRAPHY": 4, "ELECTRON MICROSCOPY": 5, "SOLUTION NMR": 6, "SOLID-STATE NMR": 7, "SOLUTION SCATTERING": 8, "POWDER DIFFRACTION": 9, "INFRARED SPECTROSCOPY": 10, "EPR": 11, "FLUORESCENCE TRANSFER": 12, "THEORETICAL MODEL": 13, "HYBRID": 14, "THEORETICAL MODEL (obsolete)": 15, "IHM": 16};
 
 export async function pipeline_exec(config) {
   const rdb_def = yaml.load(await fsp.readFile(general.expandPath(config.pipelines.pdb.deffile), 'utf8'));
@@ -38,7 +38,7 @@ export async function pipeline_exec(config) {
 
 export function brief_summary(memObj, __primaryKey__) {
   var t, tbl, pk, c, col_nfo, tbl_nfo, nor, mmjson = memObj.mmjson, tmp, sequences;
-  
+
   if (mmjson.pdbx_struct_assembly_gen) {
     tbl = mmjson.pdbx_struct_assembly_gen;
     tbl._hash_asym_id_list = tbl.asym_id_list.map(x => rdbHelper.hex_sha256(x));
@@ -82,10 +82,14 @@ export function brief_summary(memObj, __primaryKey__) {
     tbl.citation_volume_pri = rdbHelper.mmjsonAt(mmjson.citation, "journal_volume", "id", "primary");
     
     if (tbl.citation_title_pri.length == 0) {
-      tbl.citation_title_pri = [null];
-      tbl.citation_journal_pri = [null];
-      tbl.citation_year_pri = [null];
-      tbl.citation_volume_pri = [null];
+      tbl.citation_title_pri = tbl.citation_title[0];
+      tbl.citation_journal_pri = tbl.citation_journal[0];
+      tbl.citation_year_pri = tbl.citation_year[0];
+      tbl.citation_volume_pri = tbl.citation_volume[0];
+      //tbl.citation_title_pri = [null];
+      //tbl.citation_journal_pri = [null];
+      //tbl.citation_year_pri = [null];
+      //tbl.citation_volume_pri = [null];
     }
 
     tbl.db_pubmed = [rdbHelper.removeNull(mmjson.citation.pdbx_database_id_PubMed).map(x => x+"")];
@@ -129,15 +133,13 @@ export function brief_summary(memObj, __primaryKey__) {
   if (mmjson.chem_comp.id) ligInfo = ligInfo.concat(tmp.map(x=>mmjson.chem_comp.id[x]));
   tbl.ligand = [rdbHelper.cleanArray(ligInfo)];
 
-  tmp = rdbHelper.cleanArray(rdbHelper.mmjsonGet(mmjson.exptl, "method")); if (tmp.length > 1) tmp.push("HYBRID");
+  tmp = ["IHM"];
   tbl.exptl_method = [tmp];
-  tbl.exptl_method_ids = [rdbHelper.cleanArray(tmp.map(function(x) {return exptl_method_mapping[x];}))];
-  
+  tbl.exptl_method_ids = [rdbHelper.cleanArray(tmp.map(function(x) {return exptl_method_mapping[x];}))]
   
   tbl.resolution = [rdbHelper.mmjsonGet(mmjson.refine, "ls_d_res_high", 0) || rdbHelper.mmjsonGet(mmjson.em_3d_reconstruction, "resolution", 0)];
 
   tbl.biol_species = [rdbHelper.cleanArray(rdbHelper.mmjsonGet(mmjson.entity_src_gen, "pdbx_gene_src_scientific_name").concat(rdbHelper.mmjsonGet(mmjson.entity_src_gen, "gene_src_common_name")).concat(rdbHelper.mmjsonGet(mmjson.entity_src_nat, "common_name")).concat(rdbHelper.mmjsonGet(mmjson.entity_src_nat, "pdbx_organism_scientific")).concat(rdbHelper.mmjsonGet(mmjson.pdbx_entity_src_syn, "organism_common_name")).concat(rdbHelper.mmjsonGet(mmjson.pdbx_entity_src_syn, "organism_scientific"))).join(" ") || null];
-  
   
   tbl.host_species = [rdbHelper.mmjsonGet(mmjson.entity_src_gen, "pdbx_host_org_scientific_name", 0)];  
   tbl.db_ec_number = [rdbHelper.cleanArray(rdbHelper.mmjsonGet(mmjson.entity, "pdbx_ec"))];
