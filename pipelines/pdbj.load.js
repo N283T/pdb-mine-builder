@@ -156,6 +156,13 @@ export function brief_summary(memObj, __primaryKey__) {
   tbl.plus_fields[0].bu_mw = calculateMW4BU(mmjson);
 
   tbl.keywords = ["pdb_"+memObj.entryId.rjust(8, "0")]; // make sure new 8-char pdbids are also added to the keywords list
+  
+  // patches
+  if (memObj.entryId == "7ed1" && mmjson.chem_comp.id.indexOf("MET") == -1) patch(mmjson.chem_comp, {id: "MET", type: "L-peptide linking", mon_nstd_flag: "y", name: "METHIONINE", formula: "C5 H11 N O2 S", formula_weight: 149.211});
+}
+
+function patch(category, data) {
+  for (const k of Object.keys(category)) category[k].push(data[k] || null);
 }
 
 
