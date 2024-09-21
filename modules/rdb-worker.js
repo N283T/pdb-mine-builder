@@ -51,7 +51,19 @@ async function processEntry(payload) {
   processKeywords(memObj);
   
   Object.keys(sql_typing).map(e => rdbHelper.deltaTable(e, memObj, sql_PK, sql_struct, __primaryKey__));
-  await rdbHelper.updateRDB(memObj, scriptStartDate, sql_PK, sql_struct, mineSchema, __primaryKey__, dbconnect);
+  
+  try {
+    await rdbHelper.updateRDB(memObj, scriptStartDate, sql_PK, sql_struct, mineSchema, __primaryKey__, dbconnect);
+  }
+  catch (e) {
+    if (memObj.optionalFailRetry !== undefined && memObj.optionalFailRetry.length) {
+      memObj.optionalFailRetry.map(x=>delete memObj.mmjson[x]);
+      memObj.updates = []; memObj.inserts = []; memObj.deletes = [];
+      Object.keys(sql_typing).map(e => rdbHelper.deltaTable(e, memObj, sql_PK, sql_struct, __primaryKey__));
+      await rdbHelper.updateRDB(memObj, undefined, sql_PK, sql_struct, mineSchema, __primaryKey__, dbconnect);
+    }
+    else throw e;
+  }
   
   //console.log("done", memObj.entryId);
   

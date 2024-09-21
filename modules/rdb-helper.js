@@ -176,91 +176,100 @@ export function deltaTable(table, memObj, sql_PK, sql_struct, __primaryKey__, sq
 export async function updateRDB(memObj, setDate, sql_PK, sql_struct, mineSchema, __primaryKey__, dbconnect) {
   var queries = [], keys, values, table, data, from_mmjson, from_sql, rid, rid2, cidx, c, cols, where, pk, colnames, i, ins, col, upd, e, client, q, opts, chunk, del;
   
-  if (memObj.inserts.length || memObj.deletes.length || memObj.updates.length) {
-    if (setDate !== undefined) {
-      if (! memObj.newEntry) {
-        c = sql_struct.brief_summary.map(x => x[0]).indexOf("update_date");
-        for (i=0; i<memObj.updates.length; i++) if (memObj.updates[i][0] == "brief_summary") {memObj.updates[i][1][0][2].push(c); break;}
-        if (i == memObj.updates.length) memObj.updates.push(["brief_summary", [[0, 0, [c]]]]);
+  try {
+    if (memObj.inserts.length || memObj.deletes.length || memObj.updates.length) {
+      if (setDate !== undefined) {
+        if (! memObj.newEntry) {
+          c = sql_struct.brief_summary.map(x => x[0]).indexOf("update_date");
+          for (i=0; i<memObj.updates.length; i++) if (memObj.updates[i][0] == "brief_summary") {memObj.updates[i][1][0][2].push(c); break;}
+          if (i == memObj.updates.length) memObj.updates.push(["brief_summary", [[0, 0, [c]]]]);
+        }
+        memObj.mmjson.brief_summary.update_date[0] = setDate;
       }
-      memObj.mmjson.brief_summary.update_date[0] = setDate;
+      
+      client = await dbconnect.connect();
+      await client.query("BEGIN");
     }
     
-    client = await dbconnect.connect();
-    await client.query("BEGIN");
-  }
-  
-  for (ins of memObj.inserts) {
-    table = ins[0];
-    data = ins[1]; from_mmjson = memObj.mmjson[table]; 
-    values = [];
-    cols = sql_struct[table].filter(c => c[1] in from_mmjson);
-    
-    colnames = [__primaryKey__, ...cols.map(c=>c[1])];
-    for (rid of data) {
-      values.push(memObj.entryId);
-      cols.forEach(col => values.push(from_mmjson[col[1]][rid]));
-      if (values.length >= 30000) { // chunks of ~ 30000 items...
+    for (ins of memObj.inserts) {
+      table = ins[0];
+      data = ins[1]; from_mmjson = memObj.mmjson[table]; 
+      values = [];
+      cols = sql_struct[table].filter(c => c[1] in from_mmjson);
+      
+      colnames = [__primaryKey__, ...cols.map(c=>c[1])];
+      for (rid of data) {
+        values.push(memObj.entryId);
+        cols.forEach(col => values.push(from_mmjson[col[1]][rid]));
+        if (values.length >= 30000) { // chunks of ~ 30000 items...
+          q = `insert into %I.%I (${colnames.map(x => "%I").join(",")}) values ${expand(values.length/colnames.length, colnames.length)}`;
+          try {
+            await sendQuery(client, q, values, [mineSchema, table, ...colnames]);
+          }
+          catch (e) {console.log(memObj.entryId); console.error(e);}
+          values = [];
+        }
+      }
+      if (values.length) {
         q = `insert into %I.%I (${colnames.map(x => "%I").join(",")}) values ${expand(values.length/colnames.length, colnames.length)}`;
         try {
           await sendQuery(client, q, values, [mineSchema, table, ...colnames]);
         }
         catch (e) {console.log(memObj.entryId); console.error(e);}
-        values = [];
       }
     }
-    if (values.length) {
-      q = `insert into %I.%I (${colnames.map(x => "%I").join(",")}) values ${expand(values.length/colnames.length, colnames.length)}`;
-      try {
-        await sendQuery(client, q, values, [mineSchema, table, ...colnames]);
-      }
-      catch (e) {console.log(memObj.entryId); console.error(e);}
-    }
-  }
 
-  for (upd of memObj.updates) {
-    table = upd[0]; cols = sql_struct[table]; pk = sql_PK[table];
-    data = upd[1]; from_mmjson = memObj.mmjson[table]; from_sql = memObj.sql[table];
+    for (upd of memObj.updates) {
+      table = upd[0]; cols = sql_struct[table]; pk = sql_PK[table];
+      data = upd[1]; from_mmjson = memObj.mmjson[table]; from_sql = memObj.sql[table];
+      
+      for ([rid, rid2, cidx] of data) {
+        keys = []; values = [];
+        for (col of cidx) {
+          keys.push(cols[col][0]);
+          if (cols[col][0] in from_mmjson) values.push(from_mmjson[cols[col][0]][rid2]);
+          else values.push(null);
+        }
+        q = keys; 
+        opts = [mineSchema, table, ...keys]; keys = [__primaryKey__]; values.push(memObj.entryId);
+        for (c of pk) {keys.push(c[0]); values.push(from_sql[c[0]][rid]);}
+        where = keys.map((x,i)=>"%I=$"+(i+opts.length-1)).join(" AND "); opts.push(...keys);
+        if (q.length == 1) q = `UPDATE %I.%I SET %I=$1 where ${where}`;
+        else q = `UPDATE %I.%I SET (${q.map(x=>"%I").join(",")})=(${q.map((x,i)=>"$"+(i+1)).join(",")}) where ${where}`;
+        try {
+          await sendQuery(client, q, values, opts);
+        }
+        catch (e) {console.log(memObj.entryId); console.error(e);}
+      }
+    }
+
+    for (del of memObj.deletes) {
+      table = del[0]; pk = sql_PK[table]
+      data = del[1]; from_sql = memObj.sql[table];
+
+      for (rid of data) {
+        opts = [mineSchema, table, __primaryKey__]; values = [memObj.entryId];
+        for (c of pk) {opts.push(c[0]); values.push(from_sql[c[0]][rid]);}
+        where = values.map((x,i)=>"%I=$"+(i+1)).join(" AND ");
+        q = "DELETE from %I.%I where "+where;
+        try {
+          await sendQuery(client, q, values, opts);
+        }
+        catch (e) {console.log(memObj.entryId); console.error(e);}
+      }
+    }
     
-    for ([rid, rid2, cidx] of data) {
-      keys = []; values = [];
-      for (col of cidx) {
-        keys.push(cols[col][0]);
-        if (cols[col][0] in from_mmjson) values.push(from_mmjson[cols[col][0]][rid2]);
-        else values.push(null);
-      }
-      q = keys; 
-      opts = [mineSchema, table, ...keys]; keys = [__primaryKey__]; values.push(memObj.entryId);
-      for (c of pk) {keys.push(c[0]); values.push(from_sql[c[0]][rid]);}
-      where = keys.map((x,i)=>"%I=$"+(i+opts.length-1)).join(" AND "); opts.push(...keys);
-      if (q.length == 1) q = `UPDATE %I.%I SET %I=$1 where ${where}`;
-      else q = `UPDATE %I.%I SET (${q.map(x=>"%I").join(",")})=(${q.map((x,i)=>"$"+(i+1)).join(",")}) where ${where}`;
-      try {
-        await sendQuery(client, q, values, opts);
-      }
-      catch (e) {console.log(memObj.entryId); console.error(e);}
+    if (client) {
+      await client.query("COMMIT");
+      client.release();
     }
   }
-
-  for (del of memObj.deletes) {
-    table = del[0]; pk = sql_PK[table]
-    data = del[1]; from_sql = memObj.sql[table];
-
-    for (rid of data) {
-      opts = [mineSchema, table, __primaryKey__]; values = [memObj.entryId];
-      for (c of pk) {opts.push(c[0]); values.push(from_sql[c[0]][rid]);}
-      where = values.map((x,i)=>"%I=$"+(i+1)).join(" AND ");
-      q = "DELETE from %I.%I where "+where;
-      try {
-        await sendQuery(client, q, values, opts);
-      }
-      catch (e) {console.log(memObj.entryId); console.error(e);}
+  catch (e) {
+    if (client) {
+      await client.query("ROLLBACK");
+      client.release();
     }
-  }
-  
-  if (client) {
-    await client.query("COMMIT");
-    client.release();
+    throw e;
   }
 
   //console.log('done', memObj.entryId);
