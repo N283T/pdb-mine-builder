@@ -269,6 +269,11 @@ export function parse(data) {
   return parser.data;
 }
 
+export async function __loadCIFdic(dic) {
+  if (__CIFDICT__ != null) return;
+  await loadCIFdic(dic);
+}
+
 export async function loadCIFdic(dic,reset=true) {
   if (! dic || typeof dic == "string") {
     const request = await fetch(dic);
