@@ -8,6 +8,7 @@ rsync -a --delete data.pdbj.org::rsync/pdbjplus/data/cc/mmjson/ cc
 rsync -a --delete data.pdbj.org::rsync/pdbjplus/data/ccmodel/mmjson/ ccmodel
 rsync -a --delete data.pdbj.org::rsync/pdbjplus/data/prd/mmjson/ prd
 rsync -a --delete data.pdbj.org::ftp/validation_reports/*/*/*_validation.cif.gz vrpt
+rsync -a --delete data.pdbj.org::rsync/pdbjplus/data/pdb/contacts .
 cd ..
 rsync -a --delete data.pdbj.org::rsync/pdbjplus/mine2/schemas .
 rsync -a --delete data.pdbj.org::rsync/pdbjplus/dictionaries .
@@ -28,3 +29,6 @@ node --max-old-space-size=8192 mine2.js prd.load
 
 # update vrpt schema (wwPDB validation reports)
 node --max-old-space-size=8192 mine2.js vrpt.load
+
+# update contacts schema (intermolecular contacts in the AU)
+node --max-old-space-size=8192 mine2.js contacts.load

@@ -1,7 +1,7 @@
 rdb:
-  nworkers: 12
+  nworkers: 16
   constring: "dbname='mine2' user='pdbj' password='pdbj_pwd' port=5432"
-  
+
 obabel: /usr/bin/obabel
   
 pipelines:
@@ -28,4 +28,7 @@ pipelines:
   ihm:
     deffile: ${CWD}schemas/ihm.def.yml
     data: ${CWD}data/ihm/
+  contacts:
+    deffile: ${CWD}schemas/contacts.def.yml
+    data: ${CWD}data/contacts/
 
