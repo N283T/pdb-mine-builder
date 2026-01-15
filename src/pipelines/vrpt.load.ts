@@ -22,7 +22,6 @@ type VRPTMMJson = Record<string, AnyCategory>;
 interface VRPTPayload extends JobPayload {
   path: string;
   mode: string;
-  mtime: number;
 }
 
 // Load CIF dictionary at module initialization
@@ -74,7 +73,12 @@ export async function pipeline_exec(config: Config): Promise<void> {
 
   if (mode === "json" || mode === "both") {
     try {
-      jsonFiles = await general.walkPattern(jsonPath, { stats: true });
+      // JSON files are in a flat directory, use readdir for speed
+      const jsonDir = jsonPath.replace(/\*.*$/, "").replace(/\/$/, "") + "/";
+      const fileNames = await fsp.readdir(jsonDir);
+      jsonFiles = fileNames
+        .filter((name) => name.endsWith(".json.gz") || name.endsWith(".json"))
+        .map((name) => ({ path: jsonDir + name, name }));
     } catch (e) {
       if (mode === "json") {
         console.error(`Error scanning JSON files: ${e}`);
@@ -87,7 +91,7 @@ export async function pipeline_exec(config: Config): Promise<void> {
   if (mode === "cif" || mode === "both") {
     try {
       cifFiles = cifPath
-        ? await general.walkPattern(cifPath, { stats: true })
+        ? await general.walkPattern(cifPath)
         : [];
     } catch (e) {
       if (mode === "cif") {
@@ -98,24 +102,20 @@ export async function pipeline_exec(config: Config): Promise<void> {
     }
   }
 
-  // Build maps for quick lookup (only files with stats)
-  const jsonMap = new Map<string, { path: string; stats: fs.Stats }>();
+  // Build maps for quick lookup
+  const jsonMap = new Map<string, string>();
   for (const file of jsonFiles) {
-    if (file.stats) {
-      const pdbid = file.name.split("_")[0];
-      if (!jsonMap.has(pdbid)) {
-        jsonMap.set(pdbid, { path: file.path, stats: file.stats });
-      }
+    const pdbid = file.name.split("_")[0];
+    if (!jsonMap.has(pdbid)) {
+      jsonMap.set(pdbid, file.path);
     }
   }
 
-  const cifMap = new Map<string, { path: string; stats: fs.Stats }>();
+  const cifMap = new Map<string, string>();
   for (const file of cifFiles) {
-    if (file.stats) {
-      const pdbid = file.name.split("_")[0];
-      if (!cifMap.has(pdbid)) {
-        cifMap.set(pdbid, { path: file.path, stats: file.stats });
-      }
+    const pdbid = file.name.split("_")[0];
+    if (!cifMap.has(pdbid)) {
+      cifMap.set(pdbid, file.path);
     }
   }
 
@@ -140,42 +140,38 @@ export async function pipeline_exec(config: Config): Promise<void> {
 
   // Add jobs with appropriate mode
   for (const pdbid of filesToProcess) {
-    const jsonFile = jsonMap.get(pdbid);
-    const cifFile = cifMap.get(pdbid);
+    const jsonFilePath = jsonMap.get(pdbid);
+    const cifFilePath = cifMap.get(pdbid);
 
     if (mode === "json") {
-      if (jsonFile) {
+      if (jsonFilePath) {
         jm.jobs.push({
-          path: jsonFile.path,
+          path: jsonFilePath,
           entryId: pdbid,
           mode: "json",
-          mtime: jsonFile.stats.mtime.getTime() / 1000,
         });
       }
     } else if (mode === "cif") {
-      if (cifFile) {
+      if (cifFilePath) {
         jm.jobs.push({
-          path: cifFile.path,
+          path: cifFilePath,
           entryId: pdbid,
           mode: "cif",
-          mtime: cifFile.stats.mtime.getTime() / 1000,
         });
       }
     } else if (mode === "both") {
       // both mode: prefer JSON, fallback to CIF
-      if (jsonFile) {
+      if (jsonFilePath) {
         jm.jobs.push({
-          path: jsonFile.path,
+          path: jsonFilePath,
           entryId: pdbid,
           mode: "json",
-          mtime: jsonFile.stats.mtime.getTime() / 1000,
         });
-      } else if (cifFile) {
+      } else if (cifFilePath) {
         jm.jobs.push({
-          path: cifFile.path,
+          path: cifFilePath,
           entryId: pdbid,
           mode: "cif",
-          mtime: cifFile.stats.mtime.getTime() / 1000,
         });
       }
     }
