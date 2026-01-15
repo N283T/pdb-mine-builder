@@ -93,6 +93,7 @@ program
   .option("-d, --drop", "Drop existing test DB before creating")
   .option("-p, --pipelines <pipelines>", "Comma-separated list of pipelines to run")
   .option("-n, --limit <number>", "Limit number of files to process per pipeline")
+  .option("-m, --mode <mode>", "Mode for vrpt pipeline (json|cif|both, default: json)")
   .action(async (options: Record<string, unknown>) => {
     try {
       // Check process.argv directly as fallback for boolean flags
@@ -114,6 +115,7 @@ program
         drop: dropFlag,
         pipelines: options.pipelines as string | undefined,
         limit: limitValue,
+        mode: options.mode as string | undefined,
       };
       await testCommand(testOptions);
     } catch (error) {

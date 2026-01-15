@@ -23,6 +23,7 @@ export interface TestOptions {
   drop?: boolean;
   pipelines?: string;
   limit?: number;
+  mode?: string;
 }
 
 interface DBConfig {
@@ -223,6 +224,10 @@ export async function testCommand(options: TestOptions): Promise<void> {
   } else {
     config.argv.limit = 10; // Default test limit
   }
+  // Set mode for vrpt pipeline (default to json)
+  if (options.mode !== undefined) {
+    config.argv.mode = options.mode;
+  }
   config.defines = config.defines || {};
 
   const __dirname = path.dirname(url.fileURLToPath(import.meta.url));
@@ -287,7 +292,8 @@ export async function testCommand(options: TestOptions): Promise<void> {
 
   // Run each pipeline
   for (const pipelineName of pipelinesToRun) {
-    console.log(`\n==> Running ${pipelineName}.load pipeline...`);
+    const modeInfo = pipelineName === "vrpt" && options.mode ? ` (mode: ${options.mode})` : "";
+    console.log(`\n==> Running ${pipelineName}.load pipeline${modeInfo}...`);
     try {
       await runPipeline(pipelineName, config);
       console.log(`==> ${pipelineName}.load completed successfully`);
