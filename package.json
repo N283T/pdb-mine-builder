@@ -2,13 +2,14 @@
   "name": "mine2updater",
   "version": "0.1.0",
   "description": "",
-  "main": "mine2.js",
+  "main": "dist/mine2.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/mine2.js",
+    "start": "node --max-old-space-size=8192 dist/mine2.js",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "postinstall": "node scripts/patch-libpq.js"
   },
   "repository": {
     "type": "git",
@@ -22,6 +23,7 @@
   "homepage": "https://gitlab.com/pdbjapan/mine2updater#readme",
   "type": "module",
   "dependencies": {
+    "commander": "^12.1.0",
     "dateformat": "^5.0.3",
     "js-yaml": "^4.1.0",
     "libpq": "^1.8.14",

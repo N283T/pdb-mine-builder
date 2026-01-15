@@ -715,6 +715,15 @@ export async function init(config: Config, rdb_def: RdbDef): Promise<JobContaine
   return obj;
 }
 
+/**
+ * Mark job container as done scanning and set totalJobs for accurate progress display.
+ * Call this after all jobs have been pushed to the queue.
+ */
+export function setScandone(jc: JobContainer): void {
+  jc.totalJobs = jc.jobs.length;
+  jc.scandone = true;
+}
+
 interface WorkerMessage {
   cmd: string;
   jobId: number;

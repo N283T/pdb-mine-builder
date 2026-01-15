@@ -8,7 +8,7 @@ import * as fs from "fs";
 import * as rdbHelper from "../modules/rdb-helper.js";
 import * as general from "../modules/general.js";
 import * as rdbLoader from "../modules/rdb-loader.js";
-import * as cif from "../modules/cif.js";
+import { setScandone } from "../modules/rdb-loader.js";
 import type { Config, PipelineMemObj } from "../types/index.js";
 import type { JobPayload } from "../modules/rdb-loader.js";
 
@@ -24,29 +24,6 @@ interface VRPTPayload extends JobPayload {
   mtime: number;
 }
 
-// Load CIF dictionary at module initialization
-async function loadDictionary(): Promise<void> {
-  const vrptConfig = global.config?.pipelines?.["vrpt"];
-  if (!vrptConfig?.dic) return;
-
-  const dicPath = general.expandPath(vrptConfig.dic as string);
-  if (dicPath.endsWith(".gz")) {
-    await cif.loadCIFdic(
-      cif.parseCIFdictionary(
-        cif.parse((await general.gunzip(await fsp.readFile(dicPath))).toString())
-      )
-    );
-  } else {
-    await cif.loadCIFdic(
-      cif.parseCIFdictionary(
-        cif.parse((await fsp.readFile(dicPath)).toString())
-      )
-    );
-  }
-}
-
-// Initialize dictionary loading
-loadDictionary().catch(console.error);
 
 export async function pipeline_exec(config: Config): Promise<void> {
   const rdb_def = await rdbHelper.import_rdb_def(
@@ -60,7 +37,17 @@ export async function pipeline_exec(config: Config): Promise<void> {
     { stats: true }
   );
 
-  for (const ciffile of files) {
+  // Get limit from argv (--limit N)
+  const argv = config.argv as Record<string, unknown>;
+  const limit = typeof argv.limit === "number" ? argv.limit : undefined;
+
+  let filesToProcess = files;
+  if (limit) {
+    filesToProcess = files.slice(0, limit);
+    console.log(`Processing ${filesToProcess.length} entries (limited)`);
+  }
+
+  for (const ciffile of filesToProcess) {
     const pdbid = ciffile.name.split("_")[0];
     jm.jobs.push({
       path: ciffile.path,
@@ -69,7 +56,7 @@ export async function pipeline_exec(config: Config): Promise<void> {
       mtime: ciffile.stats!.mtime.getTime() / 1000,
     });
   }
-  jm.scandone = true;
+  setScandone(jm);
   await jm.waiter.promise;
 }
 
@@ -92,23 +79,12 @@ export async function load_data(
   payload: VRPTPayload,
   _config: Config
 ): Promise<VRPTMMJson | null> {
-  const parser = new cif.CIFparser();
   try {
-    await general.readlineGZ(payload.path, function (line: string) {
-      parser.parseLine(line, 0);
-      if (parser.error) {
-        console.error(`Error found in line ${parser.error[1]}:`);
-        console.error("  ", parser.error[2]);
-        console.log("  ", parser.error[0]);
-        parser.error = null;
-      }
-    });
-  } catch {
-    console.log(payload.path);
+    const content = await general.gunzip(await fsp.readFile(payload.path));
+    const data = JSON.parse(content.toString()) as VRPTMMJson;
+    return data;
+  } catch (e) {
+    console.error(`Error loading JSON from ${payload.path}:`, e);
     return null;
   }
-
-  cif.cleanJSON_withDict(parser.data);
-
-  return parser.data as unknown as VRPTMMJson;
 }

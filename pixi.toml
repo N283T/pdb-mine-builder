@@ -6,11 +6,30 @@ platforms = ["osx-arm64"]
 version = "0.1.0"
 
 [tasks]
+# Python script tasks (using pixi tasks)
+cif2json-lint = "ruff check scripts/cif2json.py"
+cif2json-format = "ruff format scripts/cif2json.py"
+cif2json-typecheck = "ty check scripts/cif2json.py"
+cif2json-check = { depends-on = ["cif2json-lint", "cif2json-format-check", "cif2json-typecheck"] }
+cif2json-format-check = "ruff format --check scripts/cif2json.py"
+
+# Python script tasks (using poe)
+cif2json-poe-lint = "poe cif2json.lint"
+cif2json-poe-format = "poe cif2json.format"
+cif2json-poe-typecheck = "poe cif2json.typecheck"
+cif2json-poe-check = "poe cif2json.check"
 
 [dependencies]
 postgresql = ">=12.0.0,<13.0.0"
 nodejs = ">=18.12.1,<18.13"
 openbabel = ">=3.1.1,<4"
+gemmi = ">=0.7.4,<0.8"
+python = ">=3.10"
+
+[pypi-dependencies]
+ruff = ">=0.8.0"
+ty = "*"
+poethepoet = ">=0.25.0"
 
 [activation.env]
 PGPORT = "5433"

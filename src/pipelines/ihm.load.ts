@@ -10,6 +10,7 @@ import dateformat from "dateformat";
 import * as rdbHelper from "../modules/rdb-helper.js";
 import * as general from "../modules/general.js";
 import * as rdbLoader from "../modules/rdb-loader.js";
+import { setScandone } from "../modules/rdb-loader.js";
 import type { Config, PipelineMemObj } from "../types/index.js";
 import type { JobPayload } from "../modules/rdb-loader.js";
 
@@ -83,7 +84,7 @@ export async function pipeline_exec(config: Config): Promise<void> {
     })
   );
 
-  jm.scandone = true;
+  setScandone(jm);
   await jm.waiter.promise;
 
   const dbconnect = new rdbHelper.NativePSQLPool(config.rdb.constring, 1);

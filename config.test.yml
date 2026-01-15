@@ -20,7 +20,7 @@ pipelines:
     data: ${CWD}data/prd/
   vrpt:
     deffile: ${CWD}schemas/vrpt.def.yml
-    data: ${CWD}/data/vrpt/*
+    data: ${CWD}data/vrpt-json/*
     dic: ${CWD}dictionaries/mmcif_pdbx_vrpt.dic.gz
   emdb:
     deffile: ${CWD}schemas/emdb.def.yml

@@ -9,6 +9,7 @@ import * as fs from "fs";
 import * as rdbHelper from "../modules/rdb-helper.js";
 import * as general from "../modules/general.js";
 import * as rdbLoader from "../modules/rdb-loader.js";
+import { setScandone } from "../modules/rdb-loader.js";
 import type { Config, PipelineMemObj } from "../types/index.js";
 import type { JobPayload } from "../modules/rdb-loader.js";
 
@@ -35,7 +36,17 @@ export async function pipeline_exec(config: Config): Promise<void> {
   let dir = general.expandPath(config.pipelines.contacts.data as string);
   if (!dir.endsWith("/")) dir += "/";
 
-  for (const x of await fsp.readdir(dir)) {
+  // Get limit from argv (--limit N)
+  const argv = config.argv as Record<string, unknown>;
+  const limit = typeof argv.limit === "number" ? argv.limit : undefined;
+
+  let files = await fsp.readdir(dir);
+  if (limit) {
+    files = files.slice(0, limit);
+    console.log(`Processing ${files.length} entries (limited)`);
+  }
+
+  for (const x of files) {
     const stat = await fsp.stat(dir + x);
     jm.jobs.push({
       path: dir + x,
@@ -44,7 +55,7 @@ export async function pipeline_exec(config: Config): Promise<void> {
     });
   }
 
-  jm.scandone = true;
+  setScandone(jm);
   await jm.waiter.promise;
 }
 

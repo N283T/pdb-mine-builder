@@ -11,3 +11,4 @@ package-lock.json
 setup-db.sh
 config.yml
 dist
+.cursor
