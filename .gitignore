@@ -7,3 +7,6 @@ node_modules
 dictionaries
 data
 postgres_data_5433
+package-lock.json
+setup-db.sh
+config.yml
