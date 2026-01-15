@@ -4,8 +4,11 @@
   "description": "",
   "main": "mine2.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "typecheck": "tsc --noEmit"
+    "build": "tsc",
+    "start": "node dist/mine2.js",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
@@ -30,7 +33,13 @@
     "xml2js": "^0.6.2"
   },
   "devDependencies": {
+    "@types/dateformat": "^5.0.3",
+    "@types/js-yaml": "^4.0.9",
+    "@types/minimist": "^1.2.5",
     "@types/node": "^25.0.8",
+    "@types/pg-format": "^1.0.5",
+    "@types/picomatch": "^4.0.2",
+    "@types/xml2js": "^0.4.14",
     "typescript": "^5.9.3"
   }
 }

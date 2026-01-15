@@ -10,3 +10,4 @@ postgres_data_5433
 package-lock.json
 setup-db.sh
 config.yml
+dist
