@@ -1,0 +1,9 @@
+# pixi environments
+.pixi/*
+!.pixi/config.toml
+schemas
+docs
+node_modules
+dictionaries
+data
+postgres_data_5433
