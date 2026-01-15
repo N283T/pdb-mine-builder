@@ -1,6 +1,6 @@
 rdb:
-  nworkers: 16
-  constring: "dbname='mine2' user='pdbj' port=5433"
+  nworkers: 4  # テスト用なので少なめ
+  constring: "dbname='mine2_test' user='pdbj' port=5433"
 
 obabel: /usr/bin/obabel
   
@@ -31,4 +31,3 @@ pipelines:
   contacts:
     deffile: ${CWD}schemas/contacts.def.yml
     data: ${CWD}data/contacts/
-
