@@ -31,33 +31,38 @@ export function nativePSQLpool(constring, max) {
 }
 
 nativePSQLpool.prototype.connect = async function() {
-  if (this.pool.length) return this.pool.shift();
+  if (this.pool && this.pool.length) return this.pool.shift();
   if (this.clients.length < this.max) {
     const poolObj = this;
     const client = pgnat.Client();
     this.clients.push(client);
     client.release = function() {
       this.rowMode = false;
-      if (poolObj.queue.length) poolObj.queue.shift().resolve(this);
-      else poolObj.pool.push(this);
+      if (poolObj.queue && poolObj.queue.length) {
+        const waiter = poolObj.queue.shift();
+        if (waiter && waiter.resolve) waiter.resolve(this);
+      } else if (poolObj.pool) {
+        poolObj.pool.push(this);
+      }
     }; 
     await client.connect(this.constring);
     return client;
   }
   
   const waiter = new general.Deferred();
-  this.queue.push(waiter);
+  if (this.queue) this.queue.push(waiter);
   return waiter.promise;
 }
 
 nativePSQLpool.prototype.query = async function(text, values, rowMode) {
   const client = await this.connect();
+  if (!client) throw new Error("Failed to get database client");
   client.rowMode = rowMode;
   try {
     return await client.query(text, values);
   }
   finally {
-    client.release();
+    if (client.release) client.release();
   }
 };
 
@@ -114,7 +119,10 @@ export function deltaTable(table, memObj, sql_PK, sql_struct, __primaryKey__, sq
   }
 
   try {nor = from_mmjson ? from_mmjson[pk.length ? pk[0][0] : __primaryKey__].length : 0;}
-  catch (e) {nor = Object.values(from_mmjson)[0].length;}
+  catch (e) {
+    const vals = Object.values(from_mmjson);
+    nor = (vals.length && vals[0] !== undefined) ? vals[0].length : 0;
+  }
   for (r=0; r<nor; r++) {
     rpk = [];
     bad = false;
@@ -303,7 +311,9 @@ export async function import_rdb_def(deffile, config) {
     });
     
     // implement...
-    doc = Object.values(parser.data)[0];
+    const parserValues = Object.values(parser.data);
+    if (!parserValues.length) continue;
+    doc = parserValues[0];
 
     for (i in doc) {
       if (! i.startsWith("save_") || i[5] == "_") continue;
@@ -390,7 +400,7 @@ export async function import_rdb_def(deffile, config) {
           key[0].push(child_col);
           key[2].push(parent_col);
         }
-        if (key[1] == null) continue; // skip junk
+        if (key[1] == null || !key[0] || !key[2]) continue; // skip junk
 
         id1 = `${child_tab}(${[...key[0]].sort().join("|")})${parent_tab}(${[...key[2]].sort().join("|")})`;
         id2 = `${parent_tab}(${[...key[2]].sort().join("|")})${child_tab}(${[...key[2]].sort().join("|")})`;
@@ -398,12 +408,12 @@ export async function import_rdb_def(deffile, config) {
     
         ok = true;
         for (i=0; i<key[0].length; i++) {
-          if (typeRef[child_tab][key[0][i]] != typeRef[parent_tab][key[2][i]]) ok = false;
+          if (typeRef[child_tab] && typeRef[parent_tab] && typeRef[child_tab][key[0][i]] != typeRef[parent_tab][key[2][i]]) ok = false;
           if (! mandatoryRef.has(`${child_tab}.${key[0][i]}`)) ok = false;
           if (! mandatoryRef.has(`${parent_tab}.${key[2][i]}`)) ok = false;
         }
         
-        if (key[0].unique().length != key[0].length || key[2].unique().length != key[2].length) ok = false; // number of items is not unique
+        if (key[0] && key[2] && (typeof key[0].unique === 'function' ? key[0].unique().length : key[0].length) != key[0].length || (typeof key[2].unique === 'function' ? key[2].unique().length : key[2].length) != key[2].length) ok = false; // number of items is not unique
         if (! is_subset_of(tblRef[parent_tab].primary_key.filter(x=>!parentPK.has(x)), key[2])) ok = false; // items not unique
         if (! ok) continue;
         

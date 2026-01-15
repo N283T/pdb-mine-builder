@@ -47,10 +47,15 @@ export function brief_summary(memObj, __primaryKey__) {
 
 export async function load_data(payload) {
   const mmjson = JSON.parse((await general.gunzip(await fsp.readFile(payload.path))).toString());
-  const id = Object.keys(mmjson)[0].split("_").slice(-1)[0];
+  const keys = Object.keys(mmjson);
+  if (!keys.length) return mmjson;
+  const id = keys[0].split("_").slice(-1)[0];
 
   if ("data_PRDCC_"+id in mmjson) {
-    for (const [k,v] of Object.entries(Object.values(mmjson["data_PRDCC_"+id])[0])) mmjson["data_PRD_"+id][k] = v;
+    const prdccValues = Object.values(mmjson["data_PRDCC_"+id]);
+    if (prdccValues.length && prdccValues[0] !== undefined) {
+      for (const [k,v] of Object.entries(prdccValues[0])) mmjson["data_PRD_"+id][k] = v;
+    }
     delete mmjson["data_PRDCC_"+id];
   }
   return mmjson;

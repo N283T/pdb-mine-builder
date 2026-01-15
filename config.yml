@@ -1,6 +1,6 @@
 rdb:
   nworkers: 16
-  constring: "dbname='mine2' user='pdbj' password='pdbj_pwd' port=5432"
+  constring: "dbname='mine2' user='pdbj' port=5433"
 
 obabel: /usr/bin/obabel
   

@@ -29,7 +29,10 @@ async function processEntry(payload) {
     tbl_nfo = sql_typing[tableName];
     if (! tbl_nfo) continue; // skip unknown tables...
 
-    nor = Object.values(table)[0].length;
+    // tableが空オブジェクトの場合はスキップ
+    const tableValues = Object.values(table);
+    if (!tableValues.length || tableValues[0] === undefined) continue;
+    nor = tableValues[0].length;
     for ([columnName, column] of Object.entries(table)) {
       c_ = columnName.replace(/\[/g, "").replace(/\]/g, "");
       if (columnName != c_) {
@@ -83,7 +86,11 @@ function processKeywords(memObj) {
     cat = memObj.mmjson[t];
     tbl_nfo = sql_typing[t];
     pkref = sql_PKref[t];
-    nor = cat[Object.keys(cat)[0]].length;
+    
+    // catが空オブジェクトの場合はスキップ
+    const catValues = Object.values(cat);
+    if (!catValues.length || catValues[0] === undefined) continue;
+    nor = catValues[0].length;
 
     if (t in keyword_fields) {
       eF = keyword_fields[t];
@@ -130,7 +137,7 @@ async function respond2Main(msg) {
 }
 
 function getJob(entryId) {
-  process.send({cmd: "getjob", jobId, entryId});
+  if (process.send) process.send({cmd: "getjob", jobId, entryId});
 }
 
 async function init(payload) {
@@ -150,8 +157,8 @@ async function init(payload) {
 }
 
 if (! cluster.isMaster) {
-  process.on("message", respond2Main);
-  process.send({cmd: "init", jobId});
+  if (process.on) process.on("message", respond2Main);
+  if (process.send) process.send({cmd: "init", jobId});
 }
 
 

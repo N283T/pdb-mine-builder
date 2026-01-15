@@ -253,7 +253,9 @@ CIFparser.prototype.endData = function() {this.currentTarget = this.currentTarge
 CIFparser.prototype.endFrame = function() {this.currentTarget = this.currentTarget.slice(0, 3);};
 
 export function parseCIFdictionary(data) {
-  var ref = data[Object.keys(data)[0]], name, dic = {};
+  const keys = Object.keys(data);
+  if (!keys.length) return {};
+  var ref = data[keys[0]], name, dic = {};
   for (var e in ref) {
     if (typeof ref[e] != "object" || ref[e] instanceof Array || ! ref[e].hasOwnProperty("item_type")) continue;
     name = partition(e.substr(6), ".");

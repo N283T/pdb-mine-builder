@@ -270,7 +270,7 @@ async function upgradeSchema_checkTable(queries, tableName, client, fkbad, fkref
   }
   
   for (i in tmp4) {// delete uk not in yaml
-    if (! tmp5.hasOwnProperty(i)) {
+    if (! tmp5.hasOwnProperty(i) && tmp4[i] !== undefined) {
       queries.push(`ALTER TABLE ${mineSchema}."${tableName}" DROP CONSTRAINT "${tmp1.constraint_name[tmp4[i]]}" CASCADE;`);
     }
   }
@@ -278,7 +278,7 @@ async function upgradeSchema_checkTable(queries, tableName, client, fkbad, fkref
   var n = Object.keys(tmp4).length;
 
   for (i in tmp5) { // new uk not in rdb
-    if (! tmp4.hasOwnProperty(i)) {
+    if (! tmp4.hasOwnProperty(i) && tmp5[i] !== undefined) {
       pkeys = rdbRef[tableName].unique_keys[tmp5[i]];
       
       // add a new unique key
@@ -346,6 +346,17 @@ async function fkTable(queries, tableName, client, fkref) {
 
 var jobcontainer = [];
 
+// プログレスバー表示関数
+function showProgress(jc) {
+  const total = jc.totalJobs || jc.jobs.length + jc.entries_processed.length;
+  const done = jc.entries_processed.length;
+  const percent = total > 0 ? Math.floor(done / total * 100) : 0;
+  const barWidth = 30;
+  const filled = Math.floor(barWidth * done / total);
+  const bar = '='.repeat(filled) + '>' + ' '.repeat(Math.max(0, barWidth - filled - 1));
+  process.stdout.write(`\r[${bar}] ${percent}% (${done}/${total})`);
+}
+
 export async function schemaPrep(config, rdb_def, dbconnect) {
   [sql_typing, sql_PK, sql_PKref, sql_struct, index_elementFields, index_attribFields, keyword_fields, brief_summary_update_date_IDX, mineSchema, __primaryKey__, rdbRef] = rdbHelper.init(rdb_def);
   if (config.argv["skip-schema"]) console.warn("Skipping schema upgrade for", mineSchema);
@@ -371,6 +382,8 @@ export async function init(config, rdb_def) {
     worker.on("exit", async function() {
       obj.workers.splice(obj.workers.indexOf(this), 1);
       if (obj.workers.length == 0 && ! ("test-entry" in config.argv)) {
+        // 進捗表示をクリアして改行
+        process.stdout.write('\r' + ' '.repeat(50) + '\r');
         await removeObsolete(obj);
         obj.waiter.resolve();
       }
@@ -394,9 +407,17 @@ function respond2Worker(msg) {
     if (msg.entryId) {
       jc.entries_processed.push(msg.entryId);
       delete msg.entryId;
+      showProgress(jc);
     }
     if (jc.jobs.length == 0) {
-      if (jc.scandone) return this.send({cmd: "done"});
+      if (jc.scandone) {
+        // 全ジョブ数が確定した時点で設定
+        if (!jc.totalJobs) {
+          jc.totalJobs = jc.entries_processed.length;
+          showProgress(jc);
+        }
+        return this.send({cmd: "done"});
+      }
       else {
         var worker = this;
         return setImmediate(() => {respond2Worker.apply(worker, [msg]);});

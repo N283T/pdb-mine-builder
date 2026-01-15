@@ -120,12 +120,19 @@ export async function mdl2fp(mdl, obabel) {
     catch (e) {}
   }
 
+  // fptが空またはundefinedの場合はデフォルト値を返す
+  if (!fpt || fpt.trim() === "") {
+    return [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  }
+  
   fpt = fpt.split("\n"); fpt.splice(0, 1); fpt = fpt.join("").split(" ");
   var fpt_int = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], a, b, i=0;
   while (fpt.length) {
     a = fpt.shift();
     if (fpt.length) b = fpt.shift();
     else b = "";
+    // 空文字列の場合はスキップ
+    if ((a+b).trim() === "") continue;
     fpt_int[i] = Long.fromString(a+b, 16).toString();
     i++;
   }
