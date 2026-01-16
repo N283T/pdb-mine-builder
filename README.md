@@ -1,26 +1,156 @@
-### About
-This is the repository for the new Mine 2 RDB updater system, replacing the old dump & delta file system.
+# MINE2 Updater (TypeScript)
 
-### Requirements
-- PostgreSQL 12 or newer (with libpq-dev)
-- Nodejs 14 or newer
-- Openbabel (for chem_comp fingerprinting)
+Modern, maintainable RDB updater for MINE2. This repository is a TypeScript refactor of the original mine2updater.
 
-### Installation
-This application requires nodejs (latest LTS from https://nodejs.org/en/download/ or via your OS' package manager). 
+The CLI synchronizes data from PDBj (Protein Data Bank Japan) via rsync and loads/updates a PostgreSQL database through named pipelines.
 
-Then, obtain mine2updater:
-- `git clone https://gitlab.com/pdbjapan/mine2updater.git`  
-- `cd mine2updater`
+## Highlights
 
-And install the dependencies (via nodejs' package manager):<br />
-- `npm install`
+- TypeScript conversion with stricter types and clearer module boundaries
+- Command-based CLI for sync/update/test workflows
+- Config-driven pipelines for repeatable updates
 
-Create a psql databases and modify `rdb.constring` in `config.yml`, so that the `dbname`, `user`, `password` and `port` settings match the settings used for your database.
+## Requirements
 
-Modify `do-update.sh` and disable all schema's you do not need. Otherwise, keep the file as it is.
+- PostgreSQL 12+ (with libpq-dev)
+- Node.js 14+ (LTS recommended)
+- OpenBabel (for chemical component fingerprinting)
+- rsync
 
-### Usage
-Simply execute `bash do-update.sh`, which will download all modified entries & update all configured schemas.
+## Install
 
-Note: to upgrade from an RDB created via an old dump file, it might be necessary to execute the update for the `pdbj` schema twice, as the schema differences might in some cases be too incompatible to update in a single iteration.
+```bash
+git clone https://gitlab.com/pdbjapan/mine2updater.git
+cd mine2updater
+npm install
+npm run build
+```
+
+The `postinstall` script patches `libpq` automatically.
+
+## Configuration
+
+Edit `config.yml` to match your environment.
+
+```yaml
+rdb:
+  nworkers: 16
+  constring: "dbname='mine2' user='pdbj' port=5433"
+
+obabel: /usr/bin/obabel
+
+pipelines:
+  pdb:
+    deffile: ${CWD}schemas/pdbj.def.yml
+    data: ${CWD}data/mmjson-noatom/
+    data-plus: ${CWD}data/plus/
+```
+
+Notes:
+- The CLI pipeline name is `pdbj`, but the config key is `pipelines.pdb`.
+- `${CWD}` is resolved to the repository root at runtime.
+- `config.test.yml` is used by the `test` command by default.
+
+## Usage
+
+After building, run the CLI through npm:
+
+```bash
+npm start -- --help
+```
+
+You can also run `node dist/mine2.js ...` directly.
+
+### Sync data
+
+```bash
+npm start -- sync [targets...]
+```
+
+Targets: `pdbj`, `cc`, `ccmodel`, `prd`, `vrpt`, `contacts`, `schemas`, `dictionaries`
+
+Examples:
+
+```bash
+npm start -- sync
+npm start -- sync pdbj cc prd
+```
+
+### Update database
+
+```bash
+npm start -- update [pipelines...]
+```
+
+Pipelines: `pdbj`, `cc`, `ccmodel`, `prd`, `vrpt`, `contacts`
+
+Examples:
+
+```bash
+npm start -- update
+npm start -- update pdbj cc
+```
+
+### Full update (sync + update)
+
+```bash
+npm start -- all
+```
+
+### Test
+
+```bash
+npm start -- test [options]
+```
+
+Options:
+- `-c, --config <file>`: test config (default: `config.test.yml`)
+- `-d, --drop`: drop existing test DB before creating
+- `-p, --pipelines <pipelines>`: comma-separated pipeline list
+- `-n, --limit <number>`: limit files per pipeline
+- `-m, --mode <mode>`: vrpt mode (`json`|`cif`|`both`, default: `json`)
+
+Example:
+
+```bash
+npm start -- test -p pdbj,cc -n 5
+```
+
+### VRPT conversion (CIF to JSON)
+
+```bash
+npm start -- convert-vrpt
+```
+
+### Legacy pipeline invocation
+
+```bash
+npm start -- pdbj
+npm start -- cc
+```
+
+## Pipelines
+
+- `pdbj`: Main structure data (mmjson-noatom + mmjson-plus)
+- `cc`: Chemical component dictionary
+- `ccmodel`: Chemical component model data
+- `prd`: BIRD data
+- `vrpt`: Validation report data (JSON or CIF)
+- `contacts`: Protein contact data
+
+## Utilities
+
+- `setup-db.sh`: create a local PostgreSQL instance and database on port 5433
+- `setup-test-db.sh`: create a smaller test DB from the main database
+
+## Troubleshooting
+
+- Old dump migrations: run the `pdbj` update twice if schema differences prevent a single-pass update.
+- Memory errors: increase `--max-old-space-size` in `package.json` if needed.
+
+## Development
+
+```bash
+npm run typecheck
+npm run dev
+```
