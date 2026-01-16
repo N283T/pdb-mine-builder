@@ -45,7 +45,7 @@ def convert_file(args: tuple[str, str]) -> tuple[str, bool, str]:
 
     try:
         # gemmi can read gzip files directly
-        doc = gemmi.cif.read(cif_path)
+        doc = gemmi.cif.read(cif_path) # type: ignore
 
         # Convert to mmJSON format
         json_str = doc.as_json(mmjson=True)

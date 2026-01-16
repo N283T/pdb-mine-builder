@@ -21,7 +21,6 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/fonts-conda-ecosystem-1-0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/noarch/fonts-conda-forge-1-hc364b38_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/freetype-2.12.1-hadb7bae_2.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/gemmi-0.7.4-py311hda9ea5a_1.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/icu-70.1-h6b3803e_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/krb5-1.17.2-h17618d6_0.tar.bz2
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/libcxx-21.1.8-hf598326_0.conda
@@ -56,11 +55,12 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/xz-gpl-tools-5.8.1-h9a6d368_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/xz-tools-5.8.1-h39f12f2_2.conda
       - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zlib-1.2.13-hfb2fe0b_6.conda
-      - conda: https://conda.anaconda.org/conda-forge/osx-arm64/zlib-ng-2.3.2-hed4e4f5_1.conda
+      - pypi: https://files.pythonhosted.org/packages/46/3e/51e7914c8a640548d1b980140b1bd1419c169bee300a556cfd7f4175444d/gemmi-0.7.4-cp311-cp311-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/aa/18/a8444036c6dd65ba3624c63b734d3ba95ba63ace513078e1580590075d21/pastel-0.2.1-py2.py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/fb/bc/73327d12b176abea7a3c6c7d760e1a953992f7b59d72c0354e39d7a353b5/poethepoet-0.40.0-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/16/19/13de8e4377ed53079ee996e1ab0a9c33ec2faf808a4647b7b4c0d46dd239/pyyaml-6.0.3-cp311-cp311-macosx_11_0_arm64.whl
       - pypi: https://files.pythonhosted.org/packages/1b/9e/0cc2f1be7a7d33cae541824cf3f95b4ff40d03557b575912b5b70273c9ec/ruff-0.14.11-py3-none-macosx_11_0_arm64.whl
+      - pypi: https://files.pythonhosted.org/packages/d0/30/dc54f88dd4a2b5dc8a0279bdd7270e735851848b762aeb1c1184ed1f6b14/tqdm-4.67.1-py3-none-any.whl
       - pypi: https://files.pythonhosted.org/packages/e1/9c/f576e360441de7a8201daa6dc4ebc362853bc5305e059cceeb02ebdd9a48/ty-0.0.12-py3-none-macosx_11_0_arm64.whl
 packages:
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/bzip2-1.0.8-hd037594_8.conda
@@ -187,22 +187,11 @@ packages:
   purls: []
   size: 596430
   timestamp: 1694616332835
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/gemmi-0.7.4-py311hda9ea5a_1.conda
-  sha256: c0133d9ed7ec9023bd605cdc03def6188ce0622e7c3365af281d8d169c999d16
-  md5: 4db69a36e060fdf9c37736fe90e8ec32
-  depends:
-  - __osx >=11.0
-  - libcxx >=19
-  - python >=3.11,<3.12.0a0
-  - python >=3.11,<3.12.0a0 *_cpython
-  - python_abi 3.11.* *_cp311
-  - zlib-ng >=2.3.2,<2.4.0a0
-  license: MPL-2.0
-  license_family: OTHER
-  purls:
-  - pkg:pypi/gemmi?source=hash-mapping
-  size: 3291814
-  timestamp: 1766409112580
+- pypi: https://files.pythonhosted.org/packages/46/3e/51e7914c8a640548d1b980140b1bd1419c169bee300a556cfd7f4175444d/gemmi-0.7.4-cp311-cp311-macosx_11_0_arm64.whl
+  name: gemmi
+  version: 0.7.4
+  sha256: ee61dd8579fbe19d658806ca42013e780846a407597777db83abbeb68da7100e
+  requires_python: '>=3.8'
 - conda: https://conda.anaconda.org/conda-forge/osx-arm64/icu-70.1-h6b3803e_0.tar.bz2
   sha256: 303b558da70167473e4fa5f9a12c547217061c930c13ca3f982d55922437606e
   md5: 5fbe318a6be2e8d0f9b0b0c730a62748
@@ -554,6 +543,22 @@ packages:
   purls: []
   size: 3145523
   timestamp: 1699202432999
+- pypi: https://files.pythonhosted.org/packages/d0/30/dc54f88dd4a2b5dc8a0279bdd7270e735851848b762aeb1c1184ed1f6b14/tqdm-4.67.1-py3-none-any.whl
+  name: tqdm
+  version: 4.67.1
+  sha256: 26445eca388f82e72884e0d580d5464cd801a3ea01e63e5601bdff9ba6a48de2
+  requires_dist:
+  - colorama ; sys_platform == 'win32'
+  - pytest>=6 ; extra == 'dev'
+  - pytest-cov ; extra == 'dev'
+  - pytest-timeout ; extra == 'dev'
+  - pytest-asyncio>=0.24 ; extra == 'dev'
+  - nbval ; extra == 'dev'
+  - requests ; extra == 'discord'
+  - slack-sdk ; extra == 'slack'
+  - requests ; extra == 'telegram'
+  - ipywidgets>=6 ; extra == 'notebook'
+  requires_python: '>=3.7'
 - pypi: https://files.pythonhosted.org/packages/e1/9c/f576e360441de7a8201daa6dc4ebc362853bc5305e059cceeb02ebdd9a48/ty-0.0.12-py3-none-macosx_11_0_arm64.whl
   name: ty
   version: 0.0.12
@@ -624,14 +629,3 @@ packages:
   purls: []
   size: 78193
   timestamp: 1716874169064
-- conda: https://conda.anaconda.org/conda-forge/osx-arm64/zlib-ng-2.3.2-hed4e4f5_1.conda
-  sha256: ab481487381a6a6213d667e883252e52b8ca867b3b466c31a058126f964efffe
-  md5: 75f39a44c08cb5dc4ea847698de34ba3
-  depends:
-  - __osx >=11.0
-  - libcxx >=19
-  license: Zlib
-  license_family: Other
-  purls: []
-  size: 94882
-  timestamp: 1766076931977
