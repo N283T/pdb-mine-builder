@@ -11,33 +11,6 @@ import type { MMJsonDatablock } from "../types/index.js";
 
 const fsp = fs.promises;
 
-// Extend built-in types
-declare global {
-  interface Array<T> {
-    unique(): T[];
-  }
-  interface String {
-    ljust(length: number, chr?: string): string;
-    rjust(length: number, chr?: string): string;
-  }
-}
-
-Array.prototype.unique = function <T>(this: T[]): T[] {
-  return Array.from(new Set(this));
-};
-
-String.prototype.ljust = function (length: number, chr = " "): string {
-  const fill: string[] = [];
-  while (fill.length + this.length < length) fill[fill.length] = chr;
-  return this + fill.join("");
-};
-
-String.prototype.rjust = function (length: number, chr = " "): string {
-  const fill: string[] = [];
-  while (fill.length + this.length < length) fill[fill.length] = chr;
-  return fill.join("") + this;
-};
-
 // Type definitions
 type TypeConverter = (value: unknown) => unknown;
 type SqlTyping = Record<string, Record<string, TypeConverter>>;
@@ -717,8 +690,8 @@ export async function import_rdb_def(
         }
 
         if (
-          (key[0].unique().length !== key[0].length ||
-            key[2].unique().length !== key[2].length)
+          (uniqueArray(key[0]).length !== key[0].length ||
+            uniqueArray(key[2]).length !== key[2].length)
         )
           ok = false;
         if (
@@ -906,7 +879,7 @@ export function init(
 }
 
 export function gen_docid(inp: string): number {
-  inp = inp.ljust(4, " ").rjust(8, "0");
+  inp = inp.padEnd(4, " ").padStart(8, "0");
   const components: number[] = [];
   for (let i = 0; i < 8; i++) {
     if (inp[i] === " ") components.push(36);
@@ -986,8 +959,12 @@ export function str(inp: unknown): string {
   return inp + "";
 }
 
+export function uniqueArray<T>(array: T[]): T[] {
+  return Array.from(new Set(array));
+}
+
 export function cleanArray<T>(array: T[]): T[] {
-  let result = Array.from(new Set(array));
+  let result = uniqueArray(array);
   let idx = result.indexOf(null as unknown as T);
   if (idx !== -1) result.splice(idx, 1);
   idx = result.indexOf(undefined as unknown as T);

@@ -6,6 +6,7 @@ import {
   deltaTable,
   updateRDB,
   cleanArray,
+  uniqueArray,
   nativePSQLpool,
   NativePSQLPool,
   init as rdbInit,
@@ -230,14 +231,14 @@ function processKeywords(memObj: MemObj): void {
   }
 
   // clean keywords
-  tbl.keywords = cleanArray((tbl.keywords as string[]).unique());
+  tbl.keywords = cleanArray(uniqueArray(tbl.keywords as string[]));
   tbl.keywords = (tbl.keywords as string[]).map((x) =>
     x.toLowerCase().replace(/\n/g, " ")
   );
   tbl.keywords = (tbl.keywords as string[]).filter(
     (x) => isNaN(Number(x) - parseFloat(x)) || x.length > 4
   ); // filter out numbers, unless it's a large number
-  tbl.keywords = (tbl.keywords as string[]).unique();
+  tbl.keywords = uniqueArray(tbl.keywords as string[]);
   (tbl.keywords as string[]).sort();
   tbl.keywords = [tbl.keywords];
 }

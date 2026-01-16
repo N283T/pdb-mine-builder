@@ -243,7 +243,7 @@ export function brief_summary(
 
   tbl.pdbx_descriptor = [
     rdbHelper
-      .cleanArray((mmjson.entity?.pdbx_description || []).unique())
+      .cleanArray(rdbHelper.uniqueArray(mmjson.entity?.pdbx_description || []))
       .join(", "),
   ];
 
@@ -382,7 +382,7 @@ export function brief_summary(
   tbl.plus_fields = [{}];
   (tbl.plus_fields[0] as Record<string, number>).bu_mw = calculateMW4BU(mmjson);
 
-  tbl.keywords = ["pdb_" + memObj.entryId.rjust(8, "0")];
+  tbl.keywords = ["pdb_" + memObj.entryId.padStart(8, "0")];
 
   // patches
   if (
