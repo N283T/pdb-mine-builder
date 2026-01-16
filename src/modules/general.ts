@@ -33,8 +33,24 @@ export async function walkPattern(
   pattern: string,
   options: WalkOptions = {}
 ): Promise<WalkFile[]> {
-  const base = path.dirname(pattern.substring(0, pattern.indexOf("*"))) + "/";
-  const matchObj = picomatch(pattern);
+  let matchPattern = pattern;
+  if (!pattern.includes("*")) {
+    try {
+      const stat = await fsp.stat(pattern);
+      if (stat.isDirectory()) {
+        matchPattern = path.join(pattern, "**/*");
+      }
+    } catch {
+      // Leave pattern as-is when it does not exist or is not accessible.
+    }
+  }
+
+  const starIndex = matchPattern.indexOf("*");
+  const base =
+    starIndex === -1
+      ? path.dirname(matchPattern) + "/"
+      : path.dirname(matchPattern.substring(0, starIndex)) + "/";
+  const matchObj = picomatch(matchPattern);
 
   const files: WalkFileWithPendingStats[] = [];
   const pattern_handler = function (pth: string): void {
