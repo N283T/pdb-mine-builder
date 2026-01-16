@@ -117,7 +117,8 @@ async function processEntry(payload: JobPayload): Promise<void> {
 
   if (jso === undefined) jso = await pipeline.load_data(payload, config);
   if (jso == null) {
-    getJob();
+    // Avoid deleting existing rows for transient load failures.
+    getJob(payload.entryId);
     return;
   }
 
