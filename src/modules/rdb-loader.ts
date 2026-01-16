@@ -173,37 +173,34 @@ async function upgradeSchema(config: Config, usePool?: NativePSQLPool): Promise<
     else q1.push(queries[i]);
   }
 
-  if (queries.length) {
+  const runTransaction = async (batch: string[]): Promise<void> => {
+    if (!batch.length) return;
     await client.query("BEGIN");
-    for (const q of q1) {
-      await client.query(q);
+    try {
+      for (const q of batch) {
+        await client.query(q);
+      }
+      await client.query("COMMIT");
+    } catch (error) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {
+        // ignore rollback failures to surface the original error
+      }
+      throw error;
     }
-    for (const q of q2) {
-      await client.query(q);
-    }
-    await client.query("COMMIT");
-  }
+  };
+
+  await runTransaction([...q1, ...q2]);
 
   const queries2: string[] = [];
   for (const e of fk_tableRedo) await fkTable(queries2, e, client, {});
-  if (queries2.length) {
-    await client.query("BEGIN");
-    for (const q of queries2) {
-      await client.query(q);
-    }
-    await client.query("COMMIT");
-  }
+  await runTransaction(queries2);
 
   const queries3: string[] = [];
   for (const e of nukedtables) upgradeSchema_createTable(queries3, e);
 
-  if (queries3.length) {
-    await client.query("BEGIN");
-    for (const q of queries3) {
-      await client.query(q);
-    }
-    await client.query("COMMIT");
-  }
+  await runTransaction(queries3);
 
   client.release();
   if (!usePool) pool.end();
@@ -639,11 +636,11 @@ async function fkTable(
 
 // プログレスバー表示関数
 function showProgress(jc: JobContainer): void {
-  const total = jc.totalJobs || jc.jobs.length + jc.entries_processed.length;
+  const total = jc.totalJobs ?? jc.jobs.length + jc.entries_processed.length;
   const done = jc.entries_processed.length;
   const percent = total > 0 ? Math.floor((done / total) * 100) : 0;
   const barWidth = 30;
-  const filled = Math.floor((barWidth * done) / total);
+  const filled = total > 0 ? Math.floor((barWidth * done) / total) : 0;
   const bar =
     "=".repeat(filled) + ">" + " ".repeat(Math.max(0, barWidth - filled - 1));
   process.stdout.write(`\r[${bar}] ${percent}% (${done}/${total})`);
