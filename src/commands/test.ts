@@ -40,7 +40,18 @@ function parseConnectionString(connString: string): DBConfig {
   if (userMatch) config.user = userMatch[1];
   const portMatch = connString.match(/port=(\d+)/);
   if (portMatch) config.port = portMatch[1];
+  if (!config.user) {
+    config.user = process.env.USER || process.env.USERNAME || "";
+  }
   return config;
+}
+
+function quoteIdent(value: string): string {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function quoteLiteral(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
 }
 
 async function runPsql(
@@ -49,7 +60,11 @@ async function runPsql(
   command: string
 ): Promise<{ stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const args = ["-U", dbConfig.user, "-p", dbConfig.port, "-d", database, "-t", "-A", "-c", command];
+    const args = [];
+    if (dbConfig.user) {
+      args.push("-U", dbConfig.user);
+    }
+    args.push("-p", dbConfig.port, "-d", database, "-t", "-A", "-c", command);
     const psql = spawn("psql", args, {
       stdio: ["ignore", "pipe", "pipe"],
       env: { ...process.env, PGPASSWORD: process.env.PGPASSWORD || "" },
@@ -84,7 +99,17 @@ async function createDatabase(dbConfig: DBConfig, dbName: string): Promise<void>
   console.log(`==> Creating test database: ${dbName}...`);
   // Use current user to create database (like setup-test-db.sh does)
   const currentUser = process.env.USER || process.env.USERNAME || "postgres";
-  const args = ["-U", currentUser, "-p", dbConfig.port, "-d", "postgres", "-c", `CREATE DATABASE ${dbName} OWNER ${dbConfig.user};`];
+  const owner = dbConfig.user || currentUser;
+  const args = [
+    "-U",
+    currentUser,
+    "-p",
+    dbConfig.port,
+    "-d",
+    "postgres",
+    "-c",
+    `CREATE DATABASE ${quoteIdent(dbName)} OWNER ${quoteIdent(owner)};`,
+  ];
   
   return new Promise((resolve, reject) => {
     const psql = spawn("psql", args, {
@@ -117,7 +142,7 @@ async function dropDatabase(dbConfig: DBConfig, dbName: string): Promise<void> {
     "-p", dbConfig.port,
     "-d", "postgres",
     "-c",
-    `SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = '${dbName}' AND pid <> pg_backend_pid();`
+    `SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = ${quoteLiteral(dbName)} AND pid <> pg_backend_pid();`
   ];
   
   await new Promise<void>((resolve) => {
@@ -132,7 +157,16 @@ async function dropDatabase(dbConfig: DBConfig, dbName: string): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 500));
   
   // Now drop the database
-  const args = ["-U", currentUser, "-p", dbConfig.port, "-d", "postgres", "-c", `DROP DATABASE IF EXISTS ${dbName};`];
+  const args = [
+    "-U",
+    currentUser,
+    "-p",
+    dbConfig.port,
+    "-d",
+    "postgres",
+    "-c",
+    `DROP DATABASE IF EXISTS ${quoteIdent(dbName)};`,
+  ];
   
   return new Promise((resolve, reject) => {
     const psql = spawn("psql", args, {
@@ -252,7 +286,7 @@ export async function testCommand(options: TestOptions): Promise<void> {
     const checkResult = await runPsql(
       dbConfig,
       "postgres",
-      `SELECT 1 FROM pg_database WHERE datname = '${testDbName}';`
+      `SELECT 1 FROM pg_database WHERE datname = ${quoteLiteral(testDbName)};`
     );
     dbExists = checkResult.stdout.trim().length > 0;
   } catch (error) {
