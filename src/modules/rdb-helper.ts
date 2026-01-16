@@ -905,23 +905,14 @@ export function init(
   ];
 }
 
-export function gen_docid(inp: string): number {
+export function gen_docid(inp: string): bigint {
   inp = inp.ljust(4, " ").rjust(8, "0");
-  const components: number[] = [];
+  let out = 0n;
   for (let i = 0; i < 8; i++) {
-    if (inp[i] === " ") components.push(36);
-    else components.push(parseInt(inp[i], 36));
+    const value = inp[i] === " " ? 36 : parseInt(inp[i], 36);
+    out = (out << 8n) | BigInt(value);
   }
-  return (
-    (components[0] << 64) |
-    (components[1] << 48) |
-    (components[2] << 32) |
-    components[3] |
-    (components[4] << 24) |
-    (components[5] << 16) |
-    (components[6] << 8) |
-    components[7]
-  );
+  return out;
 }
 
 export function mmjsonAt<T>(
