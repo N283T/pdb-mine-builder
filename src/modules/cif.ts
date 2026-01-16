@@ -176,10 +176,18 @@ class _loop {
   }
 
   pushValue(value: string): void {
+    // If refList is empty, skip (this happens when loop_ is encountered but no column names are added yet)
+    if (this.length === 0 || this.refList.length === 0) {
+      return;
+    }
+    
     this.namesDefined = true;
     const target = this.nextTarget();
     if (value === "stop_") {
       this.stopPush();
+      return;
+    }
+    if (target === undefined) {
       return;
     }
     target.push(value);
@@ -305,9 +313,9 @@ export class CIFparser {
         this.loopPointer = new _loop(this);
       } else if (
         content[i][0].substring(0, 1) === "_" &&
-        !content[i][1] &&
-        this.dataSet !== false
+        !content[i][1]
       ) {
+        // Unquoted tokens starting with "_" are always data names
         this.setDataName(content[i][0].substring(1));
       } else {
         if (!this.loopPointer && this.dataSet) continue;
@@ -354,9 +362,11 @@ export class CIFparser {
     if (this.loopPointer != null) {
       this.loopPointer.pushValue(value);
     } else {
-      const tmp = this.currentTarget[
-        this.currentTarget.length - 1
-      ] as [Record<string, unknown>, string];
+      const lastElement = this.currentTarget[this.currentTarget.length - 1];
+      if (lastElement === null) {
+        return;
+      }
+      const tmp = lastElement as [Record<string, unknown>, string];
       tmp[0][tmp[1]] = [value];
       this.dataSet = true;
     }

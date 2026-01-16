@@ -1,9 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const originalLog = console.log;
-console.log = function () {}; // workaround to old libpq being noisy
 import Libpq from "libpq";
-console.log = originalLog;
-
 import { EventEmitter } from "events";
 import * as util from "util";
 import types from "pg-types";

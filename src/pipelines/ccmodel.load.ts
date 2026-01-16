@@ -9,6 +9,7 @@ import * as fs from "fs";
 import * as rdbHelper from "../modules/rdb-helper.js";
 import * as general from "../modules/general.js";
 import * as rdbLoader from "../modules/rdb-loader.js";
+import { setScandone } from "../modules/rdb-loader.js";
 import type { Config, PipelineMemObj } from "../types/index.js";
 import type { JobPayload } from "../modules/rdb-loader.js";
 
@@ -34,11 +35,21 @@ export async function pipeline_exec(config: Config): Promise<void> {
   let dir = general.expandPath(config.pipelines.ccmodel.data as string);
   if (!dir.endsWith("/")) dir += "/";
 
-  (await fsp.readdir(dir)).forEach((x) =>
+  // Get limit from argv (--limit N)
+  const argv = config.argv as Record<string, unknown>;
+  const limit = typeof argv.limit === "number" ? argv.limit : undefined;
+
+  let files = await fsp.readdir(dir);
+  if (limit) {
+    files = files.slice(0, limit);
+    console.log(`Processing ${files.length} entries (limited)`);
+  }
+
+  files.forEach((x) =>
     jm.jobs.push({ path: dir + x, entryId: x.split(".")[0] })
   );
 
-  jm.scandone = true;
+  setScandone(jm);
   await jm.waiter.promise;
 }
 
