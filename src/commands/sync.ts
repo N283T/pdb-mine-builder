@@ -49,11 +49,9 @@ const SYNC_CONFIGS: Record<SyncTarget, SyncConfig> = {
     description: "BIRD (prd)",
   },
   vrpt: {
-    source: "data.pdbj.org::ftp/validation_reports/",
+    source: "data.pdbj.org::ftp/validation_reports/*/*/*_validation.cif.gz",
     dest: "data/vrpt",
     description: "Validation Reports (vrpt)",
-    includes: ["*/", "*_validation.cif.gz"],
-    excludes: ["*"],
   },
   contacts: {
     source: "data.pdbj.org::rsync/pdbjplus/data/pdb/contacts/",
@@ -138,6 +136,7 @@ export async function convertVrptToJson(baseDir: string): Promise<void> {
     const cifDir = path.join(baseDir, "data", "vrpt");
     const jsonDir = path.join(baseDir, "data", "vrpt-json");
     const scriptPath = path.join(baseDir, "scripts", "cif2json.py");
+    const cifPattern = "*_validation.cif*";
 
     // Check if script exists
     if (!fs.existsSync(scriptPath)) {
@@ -152,20 +151,15 @@ export async function convertVrptToJson(baseDir: string): Promise<void> {
       return;
     }
 
-    // Check if there are any CIF files (recursively)
-    const hasCifFiles = (dir: string): boolean => {
-      const items = fs.readdirSync(dir, { withFileTypes: true });
-      for (const item of items) {
-        if (item.isDirectory()) {
-          if (hasCifFiles(path.join(dir, item.name))) return true;
-        } else if (item.name.endsWith(".cif.gz")) {
-          return true;
-        }
-      }
-      return false;
-    };
+    // Check if there are any CIF files in the flat directory
+    const items = fs.readdirSync(cifDir, { withFileTypes: true });
+    const hasCifFiles = items.some(
+      (item) =>
+        item.isFile() &&
+        (item.name.endsWith(".cif.gz") || item.name.endsWith(".cif"))
+    );
 
-    if (!hasCifFiles(cifDir)) {
+    if (!hasCifFiles) {
       console.log(`==> Skipping vrpt conversion: No CIF files found in ${cifDir}`);
       resolve();
       return;
@@ -174,10 +168,14 @@ export async function convertVrptToJson(baseDir: string): Promise<void> {
     console.log(`==> Converting vrpt CIF files to JSON...`);
 
     // Use uv to run the script (PEP723 support)
-    const python = spawn("uv", ["run", "--script", scriptPath, cifDir, jsonDir], {
-      cwd: baseDir,
-      stdio: "inherit",
-    });
+    const python = spawn(
+      "uv",
+      ["run", "--script", scriptPath, cifDir, jsonDir, "--pattern", cifPattern],
+      {
+        cwd: baseDir,
+        stdio: "inherit",
+      }
+    );
 
     python.on("error", (error) => {
       reject(new Error(`cif2json.py failed: ${error.message}`));

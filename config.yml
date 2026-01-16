@@ -21,7 +21,7 @@ pipelines:
   vrpt:
     deffile: ${CWD}schemas/vrpt.def.yml
     data: ${CWD}data/vrpt-json/*
-    data-cif: ${CWD}data/vrpt/**/*.cif.gz
+    data-cif: ${CWD}data/vrpt/*_validation.cif.gz
     dic: ${CWD}dictionaries/mmcif_pdbx_vrpt.dic.gz
   emdb:
     deffile: ${CWD}schemas/emdb.def.yml
@@ -32,4 +32,3 @@ pipelines:
   contacts:
     deffile: ${CWD}schemas/contacts.def.yml
     data: ${CWD}data/contacts/
-

@@ -90,9 +90,21 @@ export async function pipeline_exec(config: Config): Promise<void> {
 
   if (mode === "cif" || mode === "both") {
     try {
-      cifFiles = cifPath
-        ? await general.walkPattern(cifPath)
-        : [];
+      if (!cifPath) {
+        cifFiles = [];
+      } else {
+        const hasWildcard = cifPath.includes("*");
+        const hasWildcardDirs = /\*+\/.*/.test(cifPath);
+        if (!hasWildcard || hasWildcardDirs) {
+          cifFiles = await general.walkPattern(cifPath);
+        } else {
+          const cifDir = cifPath.replace(/\*.*$/, "").replace(/\/$/, "") + "/";
+          const fileNames = await fsp.readdir(cifDir);
+          cifFiles = fileNames
+            .filter((name) => name.endsWith(".cif.gz") || name.endsWith(".cif"))
+            .map((name) => ({ path: cifDir + name, name }));
+        }
+      }
     } catch (e) {
       if (mode === "cif") {
         console.error(`Error scanning CIF files: ${e}`);
