@@ -8,8 +8,6 @@ from typing import Any
 
 import gemmi
 import psycopg
-
-logger = logging.getLogger(__name__)
 from ccd2rdmol import read_ccd_block
 from rdkit import Chem
 from rich.console import Console
@@ -28,6 +26,7 @@ from mine2.parsers.cif import parse_block, parse_mmjson_file
 from mine2.parsers.mmjson import normalize_column_name
 from mine2.pipelines.base import BasePipeline, transform_category
 
+logger = logging.getLogger(__name__)
 console = Console()
 
 
