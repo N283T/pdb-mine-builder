@@ -164,6 +164,27 @@ Edit `src/mine2/cli.py` to add the pipeline name to `PIPELINES` list.
 
 ## Pipeline Patterns
 
+### CIF Pipelines (Alternative to mmJSON)
+
+For users who already mirror CIF files from wwPDB/PDBj, `-cif` variants are available:
+
+| Pipeline | Pattern | Source Files |
+|----------|---------|--------------|
+| pdbj-cif | File-based | `divided/mmCIF/{middle2}/{pdbid}.cif.gz` (~248k files) |
+| cc-cif | Single-file | `components.cif.gz` (~40k blocks) |
+| ccmodel-cif | Single-file | `chem_comp_model.cif.gz` |
+| prd-cif | Dual-file | `prd-all.cif.gz` + `prdcc-all.cif.gz` |
+
+**Key difference**: CIF uses plain column names, mmJSON uses bracket notation.
+
+```python
+# mmJSON: needs normalization
+transform_category(rows, table, pk, pk_col, normalize_column_name)
+
+# CIF: no normalization
+transform_category(rows, table, pk, pk_col, None)
+```
+
 ### mmJSON Data (Standard)
 
 Use for most PDBj data:
@@ -176,15 +197,35 @@ data = parse_mmjson_file(filepath)  # Row-oriented dict
 rows = data.get("category_name", [])
 ```
 
-### CIF Data
+### CIF Data (File-based)
 
-Use for validation reports:
+Use for pdbj-cif (individual CIF files):
 
 ```python
 from mine2.parsers.cif import parse_cif_file
 
 data = parse_cif_file(filepath)  # Row-oriented dict (same format as mmJSON)
 rows = data.get("category_name", [])
+```
+
+### CIF Data (Single-file with Chunks)
+
+Use for cc-cif, ccmodel-cif (large single CIF files with many blocks):
+
+```python
+import gemmi
+
+doc = gemmi.cif.read(str(cif_path))
+total_blocks = len(doc)
+
+# Process in chunks for parallel loading
+chunk_size = 100
+for start in range(0, total_blocks, chunk_size):
+    end = min(start + chunk_size, total_blocks)
+    for i in range(start, end):
+        block = doc[i]
+        entry_id = block.name
+        # Process block...
 ```
 
 ### Custom JSON Format
@@ -199,9 +240,9 @@ with gzip.open(filepath, "rt") as f:
     data = json.load(f)
 ```
 
-### Multiple Data Blocks
+### Multiple Data Blocks (mmJSON)
 
-For files with multiple data blocks (like PRD):
+For mmJSON files with multiple data blocks (like PRD):
 
 ```python
 from mine2.parsers.cif import parse_mmjson_file_blocks
@@ -211,6 +252,26 @@ blocks = parse_mmjson_file_blocks(filepath)
 
 prd_data = blocks.get(f"PRD_{entry_id}", {})
 prdcc_data = blocks.get(f"PRDCC_{entry_id}", {})
+```
+
+### Dual-File CIF (prd-cif)
+
+For CIF pipelines with related data in separate files:
+
+```python
+# prd-cif: PRD entries + PRDCC entries in separate files
+prd_doc = gemmi.cif.read(str(prd_cif_path))      # prd-all.cif.gz
+prdcc_doc = gemmi.cif.read(str(prdcc_cif_path))  # prdcc-all.cif.gz
+
+# Build PRDCC lookup by entry_id
+prdcc_lookup = {block.name: block for block in prdcc_doc}
+
+# Route tables to correct file
+PRDCC_TABLES = {"chem_comp", "chem_comp_atom", ...}
+if table.name in PRDCC_TABLES:
+    block = prdcc_lookup.get(f"PRDCC_{entry_id}")
+else:
+    block = prd_block
 ```
 
 ### Custom File Discovery

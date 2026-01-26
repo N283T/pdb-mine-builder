@@ -7,7 +7,8 @@ RDB updater for MINE2 database. Synchronizes structural biology data from PDBj (
 - Multi-process parallel data loading with configurable workers
 - Schema-driven database management from YAML definitions
 - Support for multiple data formats (mmJSON, CIF)
-- Six data pipelines: pdbj, cc, ccmodel, prd, vrpt, contacts
+- 10 data pipelines: 6 primary (mmJSON) + 4 CIF alternatives
+- CIF pipelines for users who already mirror wwPDB/PDBj CIF files
 
 ## Requirements
 
@@ -68,11 +69,13 @@ pixi run mine2 --help
 
 # Sync data from PDBj
 pixi run mine2 sync [targets...]
-# Targets: pdbj, cc, ccmodel, prd, vrpt, contacts, schemas, dictionaries
+# Targets: pdbj, pdbj-cif, pdbj-plus, cc, cc-cif, ccmodel, ccmodel-cif,
+#          prd, prd-cif, vrpt, contacts, schemas, dictionaries
 
 # Update database
 pixi run mine2 update [pipelines...]
-# Pipelines: pdbj, cc, ccmodel, prd, vrpt, contacts
+# Pipelines: pdbj, pdbj-cif, cc, cc-cif, ccmodel, ccmodel-cif,
+#            prd, prd-cif, vrpt, contacts
 
 # Full update (sync + update)
 pixi run mine2 all
@@ -102,6 +105,8 @@ pixi run mine2 update pdbj --limit 100
 
 ## Pipelines
 
+### Primary Pipelines (mmJSON)
+
 | Pipeline | Description | Data Format |
 |----------|-------------|-------------|
 | pdbj | Main structure data (mmjson-noatom + mmjson-plus) | mmJSON |
@@ -110,6 +115,17 @@ pixi run mine2 update pdbj --limit 100
 | prd | BIRD (Biologically Interesting Reference Dictionary) | mmJSON |
 | vrpt | Validation reports | CIF |
 | contacts | Protein-protein contact data | JSON |
+
+### CIF Alternative Pipelines
+
+For users who already mirror CIF files from wwPDB/PDBj:
+
+| Pipeline | Description | Data Format |
+|----------|-------------|-------------|
+| pdbj-cif | Main structure data from mmCIF (~248k files) | CIF |
+| cc-cif | Chemical component dictionary (components.cif.gz) | CIF |
+| ccmodel-cif | Chemical component models (chem_comp_model.cif.gz) | CIF |
+| prd-cif | BIRD data (prd-all.cif.gz + prdcc-all.cif.gz) | CIF |
 
 ## Database Management
 
