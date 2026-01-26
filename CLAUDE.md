@@ -47,27 +47,34 @@ docs/                   # Architecture docs
 
 ## Pipelines
 
-### mmJSON Pipelines (Primary)
+### CIF Pipelines (Default)
 
-| Pipeline | Format | Notes |
-|----------|--------|-------|
-| pdbj | mmJSON | Merges noatom + plus files via merge_data() |
-| cc | mmJSON | Chemical component dictionary |
-| ccmodel | mmJSON | Component 3D models |
-| prd | mmJSON | Has TWO data blocks (PRD + PRDCC) |
-| vrpt | CIF | Uses gemmi.CifWalk for nested directory structure |
-| contacts | JSON | Array format, not mmJSON |
-
-### CIF Pipelines (Alternative)
-
-For users who already mirror CIF files from wwPDB/PDBj:
+CIF is the default format for dual-format pipelines:
 
 | Pipeline | Source | Notes |
 |----------|--------|-------|
-| pdbj-cif | `divided/mmCIF/*.cif.gz` | File-based (~248k files), atom_site skipped |
-| cc-cif | `components.cif.gz` | Single file, ~40k blocks |
-| ccmodel-cif | `chem_comp_model.cif.gz` | Single file |
-| prd-cif | `prd-all.cif.gz` + `prdcc-all.cif.gz` | Dual file (PRD + PRDCC) |
+| pdbj | `divided/mmCIF/*.cif.gz` | File-based (~248k files), atom_site skipped |
+| cc | `components.cif.gz` | Single file, ~40k blocks |
+| ccmodel | `chem_comp_model.cif.gz` | Single file |
+| prd | `prd-all.cif.gz` + `prdcc-all.cif.gz` | Dual file (PRD + PRDCC) |
+| vrpt | `validation_reports/**/*.cif.gz` | Uses gemmi.CifWalk for nested directory structure |
+| contacts | `contacts/**/*.json` | Array format, not mmJSON |
+
+### mmJSON Pipelines (Optional)
+
+For users who prefer mmJSON format, use the `-json` suffix:
+
+| Pipeline | Format | Notes |
+|----------|--------|-------|
+| pdbj-json | mmJSON | Merges noatom + plus files via merge_data() |
+| cc-json | mmJSON | Chemical component dictionary |
+| ccmodel-json | mmJSON | Component 3D models |
+| prd-json | mmJSON | Has TWO data blocks (PRD + PRDCC) |
+
+### Backward Compatibility
+
+Legacy pipeline names (`pdbj-cif`, `cc-cif`, etc.) are still accepted but deprecated.
+They emit a warning and run the corresponding CIF pipeline.
 
 ## Key Patterns
 
@@ -117,7 +124,7 @@ smiles = Chem.MolToSmiles(mol, canonical=True)
 ```
 
 ### RDKit PostgreSQL Cartridge
-Chemical searches use RDKit extension (auto-configured on `cc`/`cc-cif` pipeline run):
+Chemical searches use RDKit extension (auto-configured on `cc`/`cc-json` pipeline run):
 ```sql
 -- Substructure search
 SELECT * FROM cc.brief_summary WHERE mol @> 'c1ccccc1'::mol;

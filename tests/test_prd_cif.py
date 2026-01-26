@@ -1,4 +1,4 @@
-"""Tests for prd-cif pipeline."""
+"""Tests for prd pipeline (CIF format)."""
 
 import gzip
 from pathlib import Path
@@ -117,7 +117,7 @@ def create_test_settings(data_dir: Path) -> Settings:
     return Settings(
         rdb=RdbConfig(nworkers=2, constring="test"),
         pipelines={
-            "prd-cif": PipelineConfig(
+            "prd": PipelineConfig(
                 deffile="schemas/prd.def.yml",
                 data=str(data_dir),
             )
@@ -220,7 +220,7 @@ class TestFindCifFiles:
         create_test_prdcc_cif_file(prdcc_path, [{"id": "PRDCC_000001"}])
 
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["prd-cif"]
+        config = settings.pipelines["prd"]
         schema_def = create_test_schema_def()
 
         pipeline = PrdCifPipeline(settings, config, schema_def)
@@ -235,7 +235,7 @@ class TestFindCifFiles:
         create_test_prd_cif_file(prd_path, [{"id": "PRD_000001"}])
 
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["prd-cif"]
+        config = settings.pipelines["prd"]
         schema_def = create_test_schema_def()
 
         pipeline = PrdCifPipeline(settings, config, schema_def)
@@ -252,7 +252,7 @@ class TestFindCifFiles:
         create_test_prd_cif_file(prd_path, [{"id": "PRD_000001"}])
 
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["prd-cif"]
+        config = settings.pipelines["prd"]
         schema_def = create_test_schema_def()
 
         pipeline = PrdCifPipeline(settings, config, schema_def)
@@ -263,7 +263,7 @@ class TestFindCifFiles:
     def test_not_found(self, tmp_path: Path) -> None:
         """Return None when PRD CIF file not found."""
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["prd-cif"]
+        config = settings.pipelines["prd"]
         schema_def = create_test_schema_def()
 
         pipeline = PrdCifPipeline(settings, config, schema_def)
@@ -275,7 +275,7 @@ class TestFindCifFiles:
     def test_directory_not_exists(self, tmp_path: Path) -> None:
         """Return None when data directory doesn't exist."""
         settings = create_test_settings(tmp_path.joinpath("nonexistent"))
-        config = settings.pipelines["prd-cif"]
+        config = settings.pipelines["prd"]
         schema_def = create_test_schema_def()
 
         pipeline = PrdCifPipeline(settings, config, schema_def)
@@ -347,7 +347,7 @@ class TestPrdCifPipelineRun:
     def test_run_returns_empty_when_no_file(self, tmp_path: Path) -> None:
         """Run returns empty list when PRD CIF file not found."""
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["prd-cif"]
+        config = settings.pipelines["prd"]
         schema_def = create_test_schema_def()
 
         pipeline = PrdCifPipeline(settings, config, schema_def)
@@ -369,7 +369,7 @@ class TestPrdCifPipelineRun:
         )
 
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["prd-cif"]
+        config = settings.pipelines["prd"]
         schema_def = create_test_schema_def()
 
         pipeline = PrdCifPipeline(settings, config, schema_def)
@@ -386,7 +386,7 @@ class TestPrdCifPipelineRun:
         )
 
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["prd-cif"]
+        config = settings.pipelines["prd"]
         schema_def = create_test_schema_def()
 
         pipeline = PrdCifPipeline(settings, config, schema_def)

@@ -6,9 +6,9 @@ RDB updater for MINE2 database. Synchronizes structural biology data from PDBj (
 
 - Multi-process parallel data loading with configurable workers
 - Schema-driven database management from YAML definitions
-- Support for multiple data formats (mmJSON, CIF)
-- 10 data pipelines: 6 primary (mmJSON) + 4 CIF alternatives
-- CIF pipelines for users who already mirror wwPDB/PDBj CIF files
+- Support for multiple data formats (CIF default, mmJSON optional)
+- 10 data pipelines: CIF default for dual-format pipelines, `-json` suffix for mmJSON
+- Works seamlessly with wwPDB/PDBj mirrored data
 
 ## Requirements
 
@@ -66,13 +66,14 @@ pixi run mine2 --help
 
 # Sync data from PDBj
 pixi run mine2 sync [targets...]
-# Targets: pdbj, pdbj-cif, pdbj-plus, cc, cc-cif, ccmodel, ccmodel-cif,
-#          prd, prd-cif, vrpt, contacts, schemas, dictionaries
+# Targets: pdbj (CIF), pdbj-json (mmJSON), pdbj-plus, cc, cc-json,
+#          ccmodel, ccmodel-json, prd, prd-json, vrpt, contacts,
+#          schemas, dictionaries
 
 # Update database
 pixi run mine2 update [pipelines...]
-# Pipelines: pdbj, pdbj-cif, cc, cc-cif, ccmodel, ccmodel-cif,
-#            prd, prd-cif, vrpt, contacts
+# Pipelines: pdbj (CIF), pdbj-json (mmJSON), cc, cc-json, ccmodel,
+#            ccmodel-json, prd, prd-json, vrpt, contacts
 
 # Full update (sync + update)
 pixi run mine2 all
@@ -102,27 +103,34 @@ pixi run mine2 update pdbj --limit 100
 
 ## Pipelines
 
-### Primary Pipelines (mmJSON)
+### Default Pipelines (CIF)
+
+CIF is the default format for dual-format pipelines:
 
 | Pipeline | Description | Data Format |
 |----------|-------------|-------------|
-| pdbj | Main structure data (mmjson-noatom + mmjson-plus) | mmJSON |
-| cc | Chemical component dictionary | mmJSON |
-| ccmodel | Chemical component model data | mmJSON |
-| prd | BIRD (Biologically Interesting Reference Dictionary) | mmJSON |
+| pdbj | Main structure data from mmCIF (~248k files) | CIF |
+| cc | Chemical component dictionary (components.cif.gz) | CIF |
+| ccmodel | Chemical component models (chem_comp_model.cif.gz) | CIF |
+| prd | BIRD data (prd-all.cif.gz + prdcc-all.cif.gz) | CIF |
 | vrpt | Validation reports | CIF |
 | contacts | Protein-protein contact data | JSON |
 
-### CIF Alternative Pipelines
+### mmJSON Pipelines (Optional)
 
-For users who already mirror CIF files from wwPDB/PDBj:
+For users who prefer mmJSON format, use the `-json` suffix:
 
 | Pipeline | Description | Data Format |
 |----------|-------------|-------------|
-| pdbj-cif | Main structure data from mmCIF (~248k files) | CIF |
-| cc-cif | Chemical component dictionary (components.cif.gz) | CIF |
-| ccmodel-cif | Chemical component models (chem_comp_model.cif.gz) | CIF |
-| prd-cif | BIRD data (prd-all.cif.gz + prdcc-all.cif.gz) | CIF |
+| pdbj-json | Main structure data (mmjson-noatom + mmjson-plus) | mmJSON |
+| cc-json | Chemical component dictionary | mmJSON |
+| ccmodel-json | Chemical component model data | mmJSON |
+| prd-json | BIRD data | mmJSON |
+
+### Backward Compatibility
+
+Legacy pipeline names (`pdbj-cif`, `cc-cif`, etc.) are still accepted but deprecated.
+They will emit a warning and run the corresponding CIF pipeline.
 
 ## Database Management
 
@@ -138,7 +146,7 @@ pixi run db-status
 
 ### RDKit Extension Setup
 
-RDKit extension and mol column are **automatically configured** when running the `cc` or `cc-cif` pipeline.
+RDKit extension and mol column are **automatically configured** when running the `cc` or `cc-json` pipeline.
 
 > **Note**: Requires superuser privileges for initial `CREATE EXTENSION rdkit`.
 > If auto-setup fails, run manually: `psql -d mine2 -f scripts/init_rdkit.sql`

@@ -1,4 +1,4 @@
-"""Tests for ccmodel-cif pipeline."""
+"""Tests for ccmodel pipeline (CIF format)."""
 
 import gzip
 from pathlib import Path
@@ -61,7 +61,7 @@ def create_test_settings(data_dir: Path) -> Settings:
     return Settings(
         rdb=RdbConfig(nworkers=2, constring="test"),
         pipelines={
-            "ccmodel-cif": PipelineConfig(
+            "ccmodel": PipelineConfig(
                 deffile="schemas/ccmodel.def.yml",
                 data=str(data_dir),
             )
@@ -123,7 +123,7 @@ class TestFindCifFile:
         create_test_ccmodel_cif_file(cif_path, [{"id": "M_DAL_00001"}])
 
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["ccmodel-cif"]
+        config = settings.pipelines["ccmodel"]
         schema_def = create_test_schema_def()
 
         pipeline = CcmodelCifPipeline(settings, config, schema_def)
@@ -139,7 +139,7 @@ class TestFindCifFile:
         create_test_ccmodel_cif_file(cif_path, [{"id": "M_DAL_00001"}])
 
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["ccmodel-cif"]
+        config = settings.pipelines["ccmodel"]
         schema_def = create_test_schema_def()
 
         pipeline = CcmodelCifPipeline(settings, config, schema_def)
@@ -155,7 +155,7 @@ class TestFindCifFile:
         create_test_ccmodel_cif_file(cif_path, [{"id": "M_DAL_00001"}])
 
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["ccmodel-cif"]
+        config = settings.pipelines["ccmodel"]
         schema_def = create_test_schema_def()
 
         pipeline = CcmodelCifPipeline(settings, config, schema_def)
@@ -166,7 +166,7 @@ class TestFindCifFile:
     def test_not_found(self, tmp_path: Path) -> None:
         """Return None when CIF file not found."""
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["ccmodel-cif"]
+        config = settings.pipelines["ccmodel"]
         schema_def = create_test_schema_def()
 
         pipeline = CcmodelCifPipeline(settings, config, schema_def)
@@ -177,7 +177,7 @@ class TestFindCifFile:
     def test_directory_not_exists(self, tmp_path: Path) -> None:
         """Return None when data directory doesn't exist."""
         settings = create_test_settings(tmp_path.joinpath("nonexistent"))
-        config = settings.pipelines["ccmodel-cif"]
+        config = settings.pipelines["ccmodel"]
         schema_def = create_test_schema_def()
 
         pipeline = CcmodelCifPipeline(settings, config, schema_def)
@@ -238,7 +238,7 @@ class TestCcmodelCifPipelineRun:
     def test_run_returns_empty_when_no_file(self, tmp_path: Path) -> None:
         """Run returns empty list when CIF file not found."""
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["ccmodel-cif"]
+        config = settings.pipelines["ccmodel"]
         schema_def = create_test_schema_def()
 
         pipeline = CcmodelCifPipeline(settings, config, schema_def)
@@ -255,7 +255,7 @@ class TestCcmodelCifPipelineRun:
         )
 
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["ccmodel-cif"]
+        config = settings.pipelines["ccmodel"]
         schema_def = create_test_schema_def()
 
         pipeline = CcmodelCifPipeline(settings, config, schema_def)
@@ -272,7 +272,7 @@ class TestCcmodelCifPipelineRun:
         )
 
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["ccmodel-cif"]
+        config = settings.pipelines["ccmodel"]
         schema_def = create_test_schema_def()
 
         pipeline = CcmodelCifPipeline(settings, config, schema_def)

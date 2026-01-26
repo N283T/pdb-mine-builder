@@ -4,25 +4,34 @@ from pathlib import Path
 
 from rich.console import Console
 
+from mine2.commands.utils import resolve_legacy_aliases
 from mine2.config import Settings
 from mine2.db.connection import close_pool, init_pool
 from mine2.db.loader import ensure_schema, load_schema_def
 
 console = Console()
 
-# Available pipelines
+# Available pipelines (CIF is default, -json suffix for mmJSON)
 AVAILABLE_PIPELINES = [
-    "pdbj",
-    "pdbj-cif",
-    "cc",
-    "cc-cif",
-    "ccmodel",
-    "ccmodel-cif",
-    "prd",
-    "prd-cif",
+    "pdbj",  # CIF (default)
+    "pdbj-json",  # mmJSON (requires suffix)
+    "cc",  # CIF (default)
+    "cc-json",  # mmJSON (requires suffix)
+    "ccmodel",  # CIF (default)
+    "ccmodel-json",  # mmJSON (requires suffix)
+    "prd",  # CIF (default)
+    "prd-json",  # mmJSON (requires suffix)
     "vrpt",
     "contacts",
 ]
+
+# Legacy aliases for backward compatibility (deprecated)
+LEGACY_ALIASES = {
+    "pdbj-cif": "pdbj",
+    "cc-cif": "cc",
+    "ccmodel-cif": "ccmodel",
+    "prd-cif": "prd",
+}
 
 
 def run_update(
@@ -38,6 +47,9 @@ def run_update(
     # If no pipelines specified, run all
     if not pipelines:
         pipelines = AVAILABLE_PIPELINES
+
+    # Resolve legacy aliases with deprecation warnings
+    pipelines = resolve_legacy_aliases(pipelines, LEGACY_ALIASES, "Pipeline")
 
     # Validate pipelines
     invalid = [p for p in pipelines if p not in AVAILABLE_PIPELINES]
@@ -97,15 +109,22 @@ def _get_pipeline_runner(pipeline_name: str) -> tuple[str, str]:
     Returns:
         Tuple of (module_name, function_name)
     """
-    # Special cases where pipeline name differs from module
-    special_cases = {
-        "pdbj-cif": ("pdbj", "run_cif"),
-        "cc-cif": ("cc", "run_cif"),
-        "ccmodel-cif": ("ccmodel", "run_cif"),
-        "prd-cif": ("prd", "run_cif"),
+    # mmJSON pipelines require -json suffix, dispatch to run()
+    json_pipelines = {
+        "pdbj-json": ("pdbj", "run"),
+        "cc-json": ("cc", "run"),
+        "ccmodel-json": ("ccmodel", "run"),
+        "prd-json": ("prd", "run"),
     }
-    if pipeline_name in special_cases:
-        return special_cases[pipeline_name]
+    if pipeline_name in json_pipelines:
+        return json_pipelines[pipeline_name]
+
+    # Base names now use CIF (run_cif) as default
+    cif_defaults = {"pdbj", "cc", "ccmodel", "prd"}
+    if pipeline_name in cif_defaults:
+        return (pipeline_name, "run_cif")
+
+    # Other pipelines (vrpt, contacts) use their standard run()
     return (pipeline_name, "run")
 
 
