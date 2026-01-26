@@ -6591,6 +6591,8 @@ tables:
         - text
       - - asym_id_list
         - text
+      - - _hash_asym_id_list
+        - text
       - - assembly_id
         - text
       - - oper_expression
