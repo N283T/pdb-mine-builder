@@ -39,115 +39,87 @@ PRDCC_TABLES = {
 # =============================================================================
 
 
-def _process_prd_cif_chunk(
-    prd_cif_path: str,
-    prdcc_cif_path: str | None,
-    start_idx: int,
-    end_idx: int,
+def _process_prd_cif_block(
+    prd_block: gemmi.cif.Block,
+    prdcc_block: gemmi.cif.Block | None,
     schema_def: SchemaDef,
     conninfo: str,
-) -> list[LoaderResult]:
-    """Process a chunk of blocks from the PRD CIF files.
+) -> LoaderResult:
+    """Process a single PRD block with its corresponding PRDCC block.
 
     Args:
-        prd_cif_path: Path to prd-all.cif.gz
-        prdcc_cif_path: Path to prdcc-all.cif.gz (may be None)
-        start_idx: Starting block index (inclusive)
-        end_idx: Ending block index (exclusive)
+        prd_block: PRD CIF block
+        prdcc_block: Corresponding PRDCC block (may be None)
         schema_def: Schema definition
         conninfo: Database connection string
 
     Returns:
-        List of LoaderResults for each processed block
+        LoaderResult for the processed block
     """
-    # Read PRD CIF
-    prd_doc = gemmi.cif.read(prd_cif_path)
+    prd_id = prd_block.name  # e.g., PRD_000001
 
-    # Build PRDCC lookup dictionary if file exists
-    prdcc_lookup: dict[str, gemmi.cif.Block] = {}
-    if prdcc_cif_path:
-        prdcc_doc = gemmi.cif.read(prdcc_cif_path)
-        for block in prdcc_doc:
-            prdcc_lookup[block.name] = block
+    try:
+        # Parse block data
+        prd_data = parse_block(prd_block)
+        prdcc_data = parse_block(prdcc_block) if prdcc_block else {}
 
-    results = []
+        rows_inserted = 0
 
-    for i in range(start_idx, end_idx):
-        prd_block = prd_doc[i]
-        prd_id = prd_block.name  # e.g., PRD_000001
+        # Generate and load brief_summary
+        brief_rows = _generate_brief_summary_prd(prd_data, prd_id)
+        if brief_rows:
+            columns = list(brief_rows[0].keys())
+            inserted, _ = bulk_upsert(
+                conninfo,
+                schema_def.schema_name,
+                "brief_summary",
+                columns,
+                [tuple(r[c] for c in columns) for r in brief_rows],
+                ["prd_id"],
+            )
+            rows_inserted += inserted
 
-        try:
-            # Parse PRD block data
-            prd_data = parse_block(prd_block)
+        # Load other tables
+        for table in schema_def.tables:
+            if table.name == "brief_summary":
+                continue
 
-            # Find corresponding PRDCC block
-            prdcc_id = prd_id.replace("PRD_", "PRDCC_")
-            prdcc_block = prdcc_lookup.get(prdcc_id)
-            prdcc_data = parse_block(prdcc_block) if prdcc_block else {}
+            # Determine which data block to use
+            if table.name in PRDCC_TABLES:
+                data = prdcc_data
+            else:
+                data = prd_data
 
-            rows_inserted = 0
-
-            # Generate and load brief_summary
-            brief_rows = _generate_brief_summary_prd(prd_data, prd_id)
-            if brief_rows:
-                columns = list(brief_rows[0].keys())
+            rows = data.get(table.name, [])
+            # CIF uses plain column names, no normalization needed
+            category_rows = transform_category(
+                rows, table, prd_id, schema_def.primary_key, None
+            )
+            if category_rows:
+                columns = list(category_rows[0].keys())
                 inserted, _ = bulk_upsert(
                     conninfo,
                     schema_def.schema_name,
-                    "brief_summary",
+                    table.name,
                     columns,
-                    [tuple(r[c] for c in columns) for r in brief_rows],
-                    ["prd_id"],
+                    [tuple(r[c] for c in columns) for r in category_rows],
+                    table.primary_key,
                 )
                 rows_inserted += inserted
 
-            # Load other tables
-            for table in schema_def.tables:
-                if table.name == "brief_summary":
-                    continue
+        return LoaderResult(
+            entry_id=prd_id,
+            success=True,
+            rows_inserted=rows_inserted,
+        )
 
-                # Determine which data block to use
-                if table.name in PRDCC_TABLES:
-                    data = prdcc_data
-                else:
-                    data = prd_data
-
-                rows = data.get(table.name, [])
-                # CIF uses plain column names, no normalization needed
-                category_rows = transform_category(
-                    rows, table, prd_id, schema_def.primary_key, None
-                )
-                if category_rows:
-                    columns = list(category_rows[0].keys())
-                    inserted, _ = bulk_upsert(
-                        conninfo,
-                        schema_def.schema_name,
-                        table.name,
-                        columns,
-                        [tuple(r[c] for c in columns) for r in category_rows],
-                        table.primary_key,
-                    )
-                    rows_inserted += inserted
-
-            results.append(
-                LoaderResult(
-                    entry_id=prd_id,
-                    success=True,
-                    rows_inserted=rows_inserted,
-                )
-            )
-
-        except Exception as e:
-            error_msg = f"{e}\n{traceback.format_exc()}"
-            results.append(
-                LoaderResult(
-                    entry_id=prd_id,
-                    success=False,
-                    error=error_msg,
-                )
-            )
-
-    return results
+    except Exception as e:
+        error_msg = f"{e}\n{traceback.format_exc()}"
+        return LoaderResult(
+            entry_id=prd_id,
+            success=False,
+            error=error_msg,
+        )
 
 
 def _generate_brief_summary_prd(data: dict[str, Any], prd_id: str) -> list[dict]:
@@ -314,7 +286,7 @@ class PrdCifPipeline:
         self.schema_def = schema_def
 
     def run(self, limit: int | None = None) -> list[LoaderResult]:
-        """Run the pipeline with parallel processing."""
+        """Run the pipeline."""
         prd_path, prdcc_path = self._find_cif_files()
         if not prd_path:
             return []
@@ -326,37 +298,10 @@ class PrdCifPipeline:
                 "  [yellow]PRDCC CIF not found, skipping PRDCC tables[/yellow]"
             )
 
-        # Get block count from PRD file
-        console.print("  Counting PRD entries...")
-        doc = gemmi.cif.read(str(prd_path))
-        total_blocks = len(doc)
-        del doc  # Release memory, workers will re-read
-        console.print(f"  Found {total_blocks} PRD entries")
-
-        if limit:
-            total_blocks = min(total_blocks, limit)
-            console.print(f"  Processing {total_blocks} (limited)")
-
-        max_workers = self.settings.rdb.get_workers()
-        conninfo = self.settings.rdb.constring
-
-        # For small counts, process sequentially
-        if total_blocks <= 10 or max_workers == 1:
-            return self._run_sequential(prd_path, prdcc_path, total_blocks, conninfo)
-
-        return self._run_parallel(
-            prd_path, prdcc_path, total_blocks, max_workers, conninfo
-        )
-
-    def _run_sequential(
-        self,
-        prd_path: Path,
-        prdcc_path: Path | None,
-        total_blocks: int,
-        conninfo: str,
-    ) -> list[LoaderResult]:
-        """Run sequentially for small datasets."""
+        # Load both CIF files
+        console.print("  Loading CIF files...")
         prd_doc = gemmi.cif.read(str(prd_path))
+        console.print(f"  Found {len(prd_doc)} PRD entries")
 
         # Build PRDCC lookup
         prdcc_lookup: dict[str, gemmi.cif.Block] = {}
@@ -364,51 +309,69 @@ class PrdCifPipeline:
             prdcc_doc = gemmi.cif.read(str(prdcc_path))
             for block in prdcc_doc:
                 prdcc_lookup[block.name] = block
+            console.print(f"  Found {len(prdcc_lookup)} PRDCC entries")
 
-        results: list[LoaderResult] = []
+        # Build block pairs (prd_block, prdcc_block_or_none)
+        block_pairs: list[tuple[gemmi.cif.Block, gemmi.cif.Block | None]] = []
+        for prd_block in prd_doc:
+            prdcc_id = prd_block.name.replace("PRD_", "PRDCC_")
+            prdcc_block = prdcc_lookup.get(prdcc_id)
+            block_pairs.append((prd_block, prdcc_block))
 
-        for i in tqdm(range(total_blocks), desc="Processing"):
-            prd_block = prd_doc[i]
-            result = self._process_block(prd_block, prdcc_lookup, conninfo)
-            results.append(result)
+        if limit:
+            block_pairs = block_pairs[:limit]
+            console.print(f"  Processing {len(block_pairs)} (limited)")
+
+        max_workers = self.settings.rdb.get_workers()
+        conninfo = self.settings.rdb.constring
+
+        # Process sequentially or in parallel
+        if len(block_pairs) <= 10 or max_workers == 1:
+            results = self._run_sequential(block_pairs, conninfo)
+        else:
+            results = self._run_parallel(block_pairs, max_workers, conninfo)
 
         self._print_summary(results)
         return results
 
+    def _run_sequential(
+        self,
+        block_pairs: list[tuple[gemmi.cif.Block, gemmi.cif.Block | None]],
+        conninfo: str,
+    ) -> list[LoaderResult]:
+        """Run sequentially."""
+        results: list[LoaderResult] = []
+        for prd_block, prdcc_block in tqdm(block_pairs, desc="Processing"):
+            result = _process_prd_cif_block(
+                prd_block, prdcc_block, self.schema_def, conninfo
+            )
+            results.append(result)
+        return results
+
     def _run_parallel(
         self,
-        prd_path: Path,
-        prdcc_path: Path | None,
-        total_blocks: int,
+        block_pairs: list[tuple[gemmi.cif.Block, gemmi.cif.Block | None]],
         max_workers: int,
         conninfo: str,
     ) -> list[LoaderResult]:
-        """Run with parallel processing using chunks."""
-        chunk_size = max(100, total_blocks // max_workers)
-        chunks = []
-        for start in range(0, total_blocks, chunk_size):
-            end = min(start + chunk_size, total_blocks)
-            chunks.append((start, end))
-
+        """Run with parallel processing."""
         console.print(
-            f"[bold]Processing {total_blocks} PRD entries "
-            f"with {max_workers} workers ({len(chunks)} chunks)...[/bold]"
+            f"[bold]Processing {len(block_pairs)} PRD entries "
+            f"with {max_workers} workers...[/bold]"
         )
 
         results: list[LoaderResult] = []
 
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
-            future_to_chunk = {
+            futures = {
                 executor.submit(
-                    _process_prd_cif_chunk,
-                    str(prd_path),
-                    str(prdcc_path) if prdcc_path else None,
-                    start,
-                    end,
+                    _process_prd_cif_block,
+                    prd_block,
+                    prdcc_block,
                     self.schema_def,
                     conninfo,
-                ): (start, end)
-                for start, end in chunks
+                ): prd_block.name
+                for prd_block, prdcc_block in block_pairs
             }
 
             with Progress(
@@ -418,26 +381,23 @@ class PrdCifPipeline:
                 TimeElapsedColumn(),
                 console=console,
             ) as progress:
-                task = progress.add_task("Processing", total=len(chunks))
+                task = progress.add_task("Processing", total=len(futures))
 
-                for future in as_completed(future_to_chunk):
-                    chunk = future_to_chunk[future]
+                for future in as_completed(futures):
+                    prd_id = futures[future]
                     try:
-                        chunk_results = future.result()
-                        results.extend(chunk_results)
+                        result = future.result()
+                        results.append(result)
                     except Exception as e:
-                        start, end = chunk
-                        for idx in range(start, end):
-                            results.append(
-                                LoaderResult(
-                                    entry_id=f"block_{idx}",
-                                    success=False,
-                                    error=str(e),
-                                )
+                        results.append(
+                            LoaderResult(
+                                entry_id=prd_id,
+                                success=False,
+                                error=str(e),
                             )
+                        )
                     progress.advance(task)
 
-        self._print_summary(results)
         return results
 
     def _find_cif_files(self) -> tuple[Path | None, Path | None]:
@@ -477,80 +437,6 @@ class PrdCifPipeline:
                 return path
 
         return None
-
-    def _process_block(
-        self,
-        prd_block: gemmi.cif.Block,
-        prdcc_lookup: dict[str, gemmi.cif.Block],
-        conninfo: str,
-    ) -> LoaderResult:
-        """Process a single PRD block."""
-        prd_id = prd_block.name
-        try:
-            # Parse PRD block data
-            prd_data = parse_block(prd_block)
-
-            # Find corresponding PRDCC block
-            prdcc_id = prd_id.replace("PRD_", "PRDCC_")
-            prdcc_block = prdcc_lookup.get(prdcc_id)
-            prdcc_data = parse_block(prdcc_block) if prdcc_block else {}
-
-            rows_inserted = 0
-
-            # Generate and load brief_summary
-            brief_rows = _generate_brief_summary_prd(prd_data, prd_id)
-            if brief_rows:
-                columns = list(brief_rows[0].keys())
-                inserted, _ = bulk_upsert(
-                    conninfo,
-                    self.schema_def.schema_name,
-                    "brief_summary",
-                    columns,
-                    [tuple(r[c] for c in columns) for r in brief_rows],
-                    ["prd_id"],
-                )
-                rows_inserted += inserted
-
-            # Load other tables
-            for table in self.schema_def.tables:
-                if table.name == "brief_summary":
-                    continue
-
-                # Determine which data block to use
-                if table.name in PRDCC_TABLES:
-                    data = prdcc_data
-                else:
-                    data = prd_data
-
-                rows = data.get(table.name, [])
-                category_rows = transform_category(
-                    rows, table, prd_id, self.schema_def.primary_key, None
-                )
-                if category_rows:
-                    columns = list(category_rows[0].keys())
-                    inserted, _ = bulk_upsert(
-                        conninfo,
-                        self.schema_def.schema_name,
-                        table.name,
-                        columns,
-                        [tuple(r[c] for c in columns) for r in category_rows],
-                        table.primary_key,
-                    )
-                    rows_inserted += inserted
-
-            return LoaderResult(
-                entry_id=prd_id,
-                success=True,
-                rows_inserted=rows_inserted,
-            )
-
-        except Exception as e:
-            error_msg = f"{e}\n{traceback.format_exc()}"
-            return LoaderResult(
-                entry_id=prd_id,
-                success=False,
-                error=error_msg,
-            )
 
     def _print_summary(self, results: list[LoaderResult]) -> None:
         """Print processing summary."""

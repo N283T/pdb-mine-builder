@@ -7,12 +7,12 @@ import gemmi
 import pytest
 
 from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import LoaderResult, SchemaDef, TableDef
+from mine2.db.loader import SchemaDef, TableDef
 from mine2.pipelines.prd import (
     PRDCC_TABLES,
     PrdCifPipeline,
     _generate_brief_summary_prd,
-    _process_prd_cif_chunk,
+    _process_prd_cif_block,
 )
 
 
@@ -284,11 +284,11 @@ class TestFindCifFiles:
         assert found_prd is None
 
 
-class TestProcessPrdCifChunk:
-    """Tests for _process_prd_cif_chunk function."""
+class TestProcessPrdCifBlock:
+    """Tests for _process_prd_cif_block function."""
 
     def test_process_single_block(self, tmp_path: Path) -> None:
-        """Process a single PRD block chunk."""
+        """Process a single PRD block with PRDCC."""
         prd_path = tmp_path / "prd.cif"
         prdcc_path = tmp_path / "prdcc.cif"
         create_test_prd_cif_file(
@@ -302,20 +302,24 @@ class TestProcessPrdCifChunk:
 
         schema_def = create_test_schema_def()
 
-        results = _process_prd_cif_chunk(
-            str(prd_path),
-            str(prdcc_path),
-            start_idx=0,
-            end_idx=1,
+        prd_doc = gemmi.cif.read(str(prd_path))
+        prdcc_doc = gemmi.cif.read(str(prdcc_path))
+        prd_block = prd_doc[0]
+        prdcc_block = prdcc_doc[0]
+
+        result = _process_prd_cif_block(
+            prd_block=prd_block,
+            prdcc_block=prdcc_block,
             schema_def=schema_def,
             conninfo="mock://test",
         )
 
-        assert len(results) == 1
-        assert results[0].entry_id == "PRD_000001"
+        assert result.entry_id == "PRD_000001"
+        # Will fail to connect to mock DB
+        assert result.success is False
 
     def test_process_without_prdcc(self, tmp_path: Path) -> None:
-        """Process PRD blocks without PRDCC file."""
+        """Process PRD block without PRDCC."""
         prd_path = tmp_path / "prd.cif"
         create_test_prd_cif_file(
             prd_path,
@@ -324,80 +328,17 @@ class TestProcessPrdCifChunk:
 
         schema_def = create_test_schema_def()
 
-        results = _process_prd_cif_chunk(
-            str(prd_path),
-            None,  # No PRDCC file
-            start_idx=0,
-            end_idx=1,
+        prd_doc = gemmi.cif.read(str(prd_path))
+        prd_block = prd_doc[0]
+
+        result = _process_prd_cif_block(
+            prd_block=prd_block,
+            prdcc_block=None,  # No PRDCC block
             schema_def=schema_def,
             conninfo="mock://test",
         )
 
-        assert len(results) == 1
-        assert results[0].entry_id == "PRD_000001"
-
-    def test_process_multiple_blocks(self, tmp_path: Path) -> None:
-        """Process multiple PRD blocks in a chunk."""
-        prd_path = tmp_path / "prd.cif"
-        prdcc_path = tmp_path / "prdcc.cif"
-        create_test_prd_cif_file(
-            prd_path,
-            [
-                {"id": "PRD_000001"},
-                {"id": "PRD_000002"},
-                {"id": "PRD_000003"},
-            ],
-        )
-        create_test_prdcc_cif_file(
-            prdcc_path,
-            [
-                {"id": "PRDCC_000001"},
-                {"id": "PRDCC_000002"},
-            ],
-        )
-
-        schema_def = create_test_schema_def()
-
-        results = _process_prd_cif_chunk(
-            str(prd_path),
-            str(prdcc_path),
-            start_idx=0,
-            end_idx=3,
-            schema_def=schema_def,
-            conninfo="mock://test",
-        )
-
-        assert len(results) == 3
-        entry_ids = {r.entry_id for r in results}
-        assert entry_ids == {"PRD_000001", "PRD_000002", "PRD_000003"}
-
-    def test_process_partial_chunk(self, tmp_path: Path) -> None:
-        """Process a partial range of blocks."""
-        prd_path = tmp_path / "prd.cif"
-        create_test_prd_cif_file(
-            prd_path,
-            [
-                {"id": "PRD_000001"},
-                {"id": "PRD_000002"},
-                {"id": "PRD_000003"},
-                {"id": "PRD_000004"},
-            ],
-        )
-
-        schema_def = create_test_schema_def()
-
-        results = _process_prd_cif_chunk(
-            str(prd_path),
-            None,
-            start_idx=1,
-            end_idx=3,
-            schema_def=schema_def,
-            conninfo="mock://test",
-        )
-
-        assert len(results) == 2
-        entry_ids = {r.entry_id for r in results}
-        assert entry_ids == {"PRD_000002", "PRD_000003"}
+        assert result.entry_id == "PRD_000001"
 
 
 class TestPrdCifPipelineRun:

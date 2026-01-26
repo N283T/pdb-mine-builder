@@ -7,11 +7,11 @@ import gemmi
 import pytest
 
 from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import LoaderResult, SchemaDef, TableDef
+from mine2.db.loader import SchemaDef, TableDef
 from mine2.pipelines.ccmodel import (
     CcmodelCifPipeline,
     _generate_brief_summary,
-    _process_ccmodel_cif_chunk,
+    _process_ccmodel_cif_block,
 )
 
 
@@ -186,11 +186,11 @@ class TestFindCifFile:
         assert found is None
 
 
-class TestProcessCcmodelCifChunk:
-    """Tests for _process_ccmodel_cif_chunk function."""
+class TestProcessCcmodelCifBlock:
+    """Tests for _process_ccmodel_cif_block function."""
 
     def test_process_single_block(self, tmp_path: Path) -> None:
-        """Process a single block chunk."""
+        """Process a single CIF block."""
         cif_path = tmp_path / "test.cif"
         create_test_ccmodel_cif_file(
             cif_path,
@@ -198,70 +198,38 @@ class TestProcessCcmodelCifChunk:
         )
 
         schema_def = create_test_schema_def()
+        doc = gemmi.cif.read(str(cif_path))
+        block = doc[0]
 
-        results = _process_ccmodel_cif_chunk(
-            str(cif_path),
-            start_idx=0,
-            end_idx=1,
+        result = _process_ccmodel_cif_block(
+            block=block,
             schema_def=schema_def,
             conninfo="mock://test",
         )
 
-        assert len(results) == 1
-        assert results[0].entry_id == "M_DAL_00001"
+        assert result.entry_id == "M_DAL_00001"
+        # Will fail to connect to mock DB
+        assert result.success is False
 
-    def test_process_multiple_blocks(self, tmp_path: Path) -> None:
-        """Process multiple blocks in a chunk."""
+    def test_process_block_extracts_model_id(self, tmp_path: Path) -> None:
+        """Block name is used as model_id."""
         cif_path = tmp_path / "test.cif"
         create_test_ccmodel_cif_file(
             cif_path,
-            [
-                {"id": "M_DAL_00001", "comp_id": "DAL"},
-                {"id": "M_DAL_00002", "comp_id": "DAL"},
-                {"id": "M_ALA_00001", "comp_id": "ALA"},
-            ],
+            [{"id": "M_ALA_00001", "comp_id": "ALA"}],
         )
 
         schema_def = create_test_schema_def()
+        doc = gemmi.cif.read(str(cif_path))
+        block = doc[0]
 
-        results = _process_ccmodel_cif_chunk(
-            str(cif_path),
-            start_idx=0,
-            end_idx=3,
+        result = _process_ccmodel_cif_block(
+            block=block,
             schema_def=schema_def,
             conninfo="mock://test",
         )
 
-        assert len(results) == 3
-        entry_ids = {r.entry_id for r in results}
-        assert entry_ids == {"M_DAL_00001", "M_DAL_00002", "M_ALA_00001"}
-
-    def test_process_partial_chunk(self, tmp_path: Path) -> None:
-        """Process a partial range of blocks."""
-        cif_path = tmp_path / "test.cif"
-        create_test_ccmodel_cif_file(
-            cif_path,
-            [
-                {"id": "M_A_00001"},
-                {"id": "M_B_00001"},
-                {"id": "M_C_00001"},
-                {"id": "M_D_00001"},
-            ],
-        )
-
-        schema_def = create_test_schema_def()
-
-        results = _process_ccmodel_cif_chunk(
-            str(cif_path),
-            start_idx=1,
-            end_idx=3,
-            schema_def=schema_def,
-            conninfo="mock://test",
-        )
-
-        assert len(results) == 2
-        entry_ids = {r.entry_id for r in results}
-        assert entry_ids == {"M_B_00001", "M_C_00001"}
+        assert result.entry_id == "M_ALA_00001"
 
 
 class TestCcmodelCifPipelineRun:
