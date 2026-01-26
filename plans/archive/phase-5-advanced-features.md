@@ -8,30 +8,30 @@ These features are lower priority but needed for complete compatibility.
 
 ## Tasks
 
-### 5.1 Hash Primary Keys (hex_sha256)
-- [ ] Implement SHA256 hashing for assembly data
-- [ ] Use for pdbx_struct_assembly_gen.asym_id_list
-- [ ] Add to pdbj pipeline
-- [ ] Add tests
+### 5.1 Hash Primary Keys (hex_sha256) ✅
+- [x] Implement SHA256 hashing for assembly data
+- [x] Use for pdbx_struct_assembly_gen.asym_id_list
+- [x] Add to pdbj pipeline
+- [x] Add tests
 
 Original usage:
 ```javascript
 tbl._hash_asym_id_list = tbl.asym_id_list.map(x => rdbHelper.hex_sha256(x));
 ```
 
-### 5.2 calculateMW4BU() - Biological Unit Molecular Weight
-- [ ] Parse assembly expressions: `(1,2-5)(1,2)` → expand combinations
-- [ ] Calculate molecular weights
-- [ ] Add to plus_fields generation
-- [ ] Add tests
+### 5.2 calculateMW4BU() - Biological Unit Molecular Weight ✅
+- [x] Parse assembly expressions: `(1,2-5)(1,2)` → expand combinations
+- [x] Calculate molecular weights
+- [x] Add to plus_fields generation
+- [x] Add tests
 
-Note: This is 200+ lines of complex logic. Consider if actually needed.
+Note: Implemented in mine2/utils/assembly.py, shared with IHM pipeline.
 
-### 5.3 patch() - Entry-specific patches
-- [ ] Implement patch mechanism for specific entries
-- [ ] Port 7ed1 patch (missing MET record)
-- [ ] Make extensible for future patches
-- [ ] Add tests
+### 5.3 patch() - Entry-specific patches ✅
+- [x] Implement patch mechanism for specific entries
+- [x] Port 7ed1 patch (missing MET record)
+- [x] Make extensible for future patches
+- [x] Add tests
 
 Original:
 ```javascript
@@ -51,10 +51,12 @@ function patch(entryId, mmjson) {
 
 Note: Current approach (manual YAML) may be sufficient. This is optional.
 
-### 5.5 brief_summary Ordering
-- [ ] Process brief_summary FIRST (before other tables)
-- [ ] Ensure update_date is set before dependent tables
-- [ ] Add tests
+### 5.5 brief_summary Ordering ✅
+- [x] Process brief_summary FIRST (before other tables)
+- [x] Ensure update_date is set before dependent tables
+- [x] Add tests
+
+Note: brief_summary is now processed before other tables in pdbj pipeline.
 
 ## Files to Create/Modify
 - `src/mine2/utils/hash.py` - SHA256 utility
@@ -76,4 +78,4 @@ Note: Current approach (manual YAML) may be sufficient. This is optional.
 - Tests pass
 
 ---
-- [ ] **DONE** - Phase complete
+- [x] **DONE** - Phase complete (PR #34)
