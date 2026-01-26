@@ -12,12 +12,18 @@ pipelines:
   cc:
     deffile: ${CWD}schemas/cc.def.yml
     data: /mnt/c/pdb/pdbj/pdbjplus/data/cc/mmjson/
+  cc-cif:
+    deffile: ${CWD}schemas/cc.def.yml
+    data: /mnt/c/pdb/data/monomers/
   prd:
     deffile: ${CWD}schemas/prd.def.yml
     data: /mnt/c/pdb/pdbj/pdbjplus/data/prd/mmjson/
   ccmodel:
     deffile: ${CWD}schemas/ccmodel.def.yml
     data: /mnt/c/pdb/pdbj/pdbjplus/data/ccmodel/mmjson/
+  ccmodel-cif:
+    deffile: ${CWD}schemas/ccmodel.def.yml
+    data: /mnt/c/pdb/data/component-models/complete/
   vrpt:
     deffile: ${CWD}schemas/vrpt.def.yml
     data: /mnt/c/pdb/validation_reports/

@@ -27,10 +27,20 @@ SYNC_TARGETS: dict[str, dict] = {
         "dest": "data/cc/",
         "options": ["-avz", "--delete"],
     },
+    "cc-cif": {
+        "source": "rsync.pdbj.org::ftp_data/monomers/components.cif.gz",
+        "dest": "data/monomers/",
+        "options": ["-avz"],
+    },
     "ccmodel": {
         "source": "rsync.pdbj.org::ftp_data/component-models/complete/chem_comp_model-mmjson/",
         "dest": "data/ccmodel/",
         "options": ["-avz", "--delete"],
+    },
+    "ccmodel-cif": {
+        "source": "rsync.pdbj.org::ftp_data/component-models/complete/chem_comp_model.cif.gz",
+        "dest": "data/component-models/complete/",
+        "options": ["-avz"],
     },
     "prd": {
         "source": "rsync.pdbj.org::ftp_data/bird/mmjson/",
