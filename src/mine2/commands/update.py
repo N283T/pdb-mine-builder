@@ -11,7 +11,7 @@ from mine2.db.loader import ensure_schema, load_schema_def
 console = Console()
 
 # Available pipelines
-AVAILABLE_PIPELINES = ["pdbj", "cc", "ccmodel", "prd", "vrpt", "contacts"]
+AVAILABLE_PIPELINES = ["pdbj", "cc", "cc-cif", "ccmodel", "prd", "vrpt", "contacts"]
 
 
 def run_update(
@@ -64,8 +64,10 @@ def run_update(
 
             # Import and run pipeline
             try:
-                pipeline_module = _import_pipeline(pipeline_name)
-                pipeline_module.run(settings, pipeline_config, schema_def, limit=limit)
+                module_name, run_func = _get_pipeline_runner(pipeline_name)
+                pipeline_module = _import_pipeline(module_name)
+                runner = getattr(pipeline_module, run_func)
+                runner(settings, pipeline_config, schema_def, limit=limit)
             except ImportError as e:
                 console.print(f"  [red]Pipeline not implemented: {e}[/red]")
             except Exception as e:
@@ -76,6 +78,21 @@ def run_update(
         close_pool()
 
     console.print("\n[bold green]Update completed![/bold green]")
+
+
+def _get_pipeline_runner(pipeline_name: str) -> tuple[str, str]:
+    """Get module name and run function for a pipeline.
+
+    Returns:
+        Tuple of (module_name, function_name)
+    """
+    # Special cases where pipeline name differs from module
+    special_cases = {
+        "cc-cif": ("cc", "run_cif"),
+    }
+    if pipeline_name in special_cases:
+        return special_cases[pipeline_name]
+    return (pipeline_name, "run")
 
 
 def _import_pipeline(name: str):

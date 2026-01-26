@@ -12,6 +12,9 @@ pipelines:
   cc:
     deffile: ${CWD}schemas/cc.def.yml
     data: /mnt/c/pdb/pdbj/pdbjplus/data/cc/mmjson/
+  cc-cif:
+    deffile: ${CWD}schemas/cc.def.yml
+    data: /mnt/c/pdb/data/monomers/
   prd:
     deffile: ${CWD}schemas/prd.def.yml
     data: /mnt/c/pdb/pdbj/pdbjplus/data/prd/mmjson/
