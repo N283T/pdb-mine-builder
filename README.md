@@ -132,6 +132,40 @@ For users who prefer mmJSON format, use the `-json` suffix:
 Legacy pipeline names (`pdbj-cif`, `cc-cif`, etc.) are still accepted but deprecated.
 They will emit a warning and run the corresponding CIF pipeline.
 
+### Plus Data Support (pdbj pipeline)
+
+Both CIF and mmJSON pdbj pipelines can merge PDBj-specific plus data when configured:
+
+```yaml
+# config.yml
+pipelines:
+  pdbj:
+    deffile: ${CWD}schemas/pdbj.def.yml
+    data: /path/to/mmCIF/             # CIF files
+    data-plus: /path/to/mmjson-plus/  # Plus data (mmJSON format)
+```
+
+Plus data adds PDBj-specific annotations:
+- `gene_ontology_pdbmlplus` - Gene Ontology (GO) annotations
+- `struct_ref_pdbmlplus` - Additional UniProt reference data
+- `citation_pdbmlplus`, `refine_pdbmlplus`, etc. (18 total categories)
+
+| Configuration | CIF Pipeline | mmJSON Pipeline |
+|---------------|--------------|-----------------|
+| Without `data-plus` | Standard mmCIF only | `mmjson-noatom` only |
+| With `data-plus` | CIF + plus data merged | `mmjson-noatom` + plus merged |
+
+### Unsupported Pipelines
+
+The following data types have schema definitions but are **not implemented** as pipelines:
+
+| Schema | Status | Notes |
+|--------|--------|-------|
+| ihm | Not supported | Integrative/hybrid methods (I/HM) data |
+| emdb | Not supported | Electron Microscopy Data Bank |
+
+These may be added in future versions if needed.
+
 ## Database Management
 
 ```bash

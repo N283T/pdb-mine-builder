@@ -46,6 +46,8 @@ class PipelineConfig(BaseModel):
         default=None, alias="data-plus", description="Additional data directory"
     )
 
+    model_config = {"populate_by_name": True}
+
 
 class Settings(BaseModel):
     """Application settings."""
