@@ -18,6 +18,7 @@ AVAILABLE_PIPELINES = [
     "ccmodel",
     "ccmodel-cif",
     "prd",
+    "prd-cif",
     "vrpt",
     "contacts",
 ]
@@ -99,6 +100,7 @@ def _get_pipeline_runner(pipeline_name: str) -> tuple[str, str]:
     special_cases = {
         "cc-cif": ("cc", "run_cif"),
         "ccmodel-cif": ("ccmodel", "run_cif"),
+        "prd-cif": ("prd", "run_cif"),
     }
     if pipeline_name in special_cases:
         return special_cases[pipeline_name]

@@ -47,6 +47,11 @@ SYNC_TARGETS: dict[str, dict] = {
         "dest": "data/prd/",
         "options": ["-avz", "--delete"],
     },
+    "prd-cif": {
+        "source": "rsync.pdbj.org::ftp_data/bird/prd/",
+        "dest": "data/bird/prd/",
+        "options": ["-avz"],
+    },
     "vrpt": {
         # Fixed: use include/exclude pattern to avoid timeout
         "source": "rsync.pdbj.org::ftp_data/validation_reports/",

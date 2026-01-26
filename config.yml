@@ -18,6 +18,9 @@ pipelines:
   prd:
     deffile: ${CWD}schemas/prd.def.yml
     data: /mnt/c/pdb/pdbj/pdbjplus/data/prd/mmjson/
+  prd-cif:
+    deffile: ${CWD}schemas/prd.def.yml
+    data: /mnt/c/pdb/data/bird/prd/
   ccmodel:
     deffile: ${CWD}schemas/ccmodel.def.yml
     data: /mnt/c/pdb/pdbj/pdbjplus/data/ccmodel/mmjson/
