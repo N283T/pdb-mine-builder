@@ -4,6 +4,7 @@ import traceback
 from pathlib import Path
 from typing import Any
 
+import gemmi
 from rich.console import Console
 
 from mine2.config import PipelineConfig, Settings
@@ -188,12 +189,37 @@ class PdbjCifPipeline(BasePipeline):
     Uses mmCIF files from structures/divided/mmCIF/ directory.
     Unlike mmJSON, CIF files contain full atomic data but we only
     load categories defined in the schema (atom_site is excluded).
+
+    Uses gemmi.CifWalk for fast file discovery instead of rglob.
     """
 
     name = "pdbj-cif"
-    file_pattern = "*.cif.gz"
+    # file_pattern not used - using gemmi.CifWalk instead
 
     # extract_entry_id inherited from BasePipeline handles .cif.gz and .cif
+
+    def find_jobs(self, limit: int | None = None) -> list[Job]:
+        """Find CIF files using gemmi.CifWalk.
+
+        CifWalk is C++ native and faster than rglob for large directories.
+        Automatically handles both .cif and .cif.gz files.
+        """
+        data_dir = Path(self.config.data)
+
+        if not data_dir.exists():
+            console.print(f"  [red]Data directory not found: {data_dir}[/red]")
+            return []
+
+        jobs = []
+        for filepath_str in gemmi.CifWalk(str(data_dir)):
+            filepath = Path(filepath_str)
+            entry_id = self.extract_entry_id(filepath)
+            jobs.append(Job(entry_id=entry_id, filepath=filepath))
+
+            if limit and len(jobs) >= limit:
+                break
+
+        return jobs
 
     def process_job(
         self,
