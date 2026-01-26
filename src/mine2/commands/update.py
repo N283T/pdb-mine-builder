@@ -24,6 +24,8 @@ AVAILABLE_PIPELINES = [
     "vrpt",
     "contacts",
     "sifts",  # SIFTS cross-references (TTL)
+    "emdb",  # EMDB (XML)
+    "ihm",  # IHM (mmJSON)
 ]
 
 # Legacy aliases for backward compatibility (deprecated)
