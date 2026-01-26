@@ -135,6 +135,9 @@ pixi run format
 # Type check
 pixi run typecheck
 
+# Run tests
+pixi run test
+
 # All checks
 pixi run check
 ```
@@ -151,8 +154,8 @@ mine2updater-ng/
 │   │   ├── connection.py # Connection pool
 │   │   └── loader.py     # Parallel data loader
 │   ├── parsers/
-│   │   ├── mmjson.py    # mmJSON parser
-│   │   └── cif.py       # CIF parser (gemmi)
+│   │   ├── cif.py       # Unified parser (CIF + mmJSON via gemmi)
+│   │   └── mmjson.py    # Utilities (normalize_column_name, merge_data)
 │   └── pipelines/
 │       ├── base.py      # Base pipeline class
 │       ├── pdbj.py      # PDB structure data
@@ -162,6 +165,7 @@ mine2updater-ng/
 │       ├── vrpt.py      # Validation reports
 │       └── contacts.py  # Contact data
 ├── schemas/             # Database schema definitions
+├── tests/               # Unit tests (pytest)
 ├── scripts/             # Utility scripts
 ├── config.yml           # Production config
 ├── config.test.yml      # Test config

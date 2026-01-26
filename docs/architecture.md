@@ -39,33 +39,34 @@ Pydantic-based configuration with:
 
 ### Parsers
 
-#### mmJSON Parser (`parsers/mmjson.py`)
+Both CIF and mmJSON formats are parsed through gemmi, providing a unified row-oriented output format.
 
-Parses PDBj's mmJSON format:
-```json
-{
-  "data_100D": {
-    "category_name": {
-      "column1": ["val1", "val2"],
-      "column2": ["val1", "val2"]
-    }
-  }
-}
+#### Unified Parser (`parsers/cif.py`)
+
+Uses gemmi library to parse both CIF and mmJSON files:
+
+```python
+from mine2.parsers.cif import parse_cif_file, parse_mmjson_file
+
+# CIF files (supports .cif.gz automatically)
+data = parse_cif_file(filepath)
+
+# mmJSON files (supports .json.gz automatically)
+data = parse_mmjson_file(filepath)
+
+# Both return: {"category": [{"col": "val", ...}, ...], "_block_name": "..."}
 ```
 
 Key functions:
-- `load_mmjson_file()`: Load and extract data block
-- `get_rows()`: Convert column arrays to row dicts
+- `parse_cif_file()`: Parse CIF files via `gemmi.cif.read()`
+- `parse_mmjson_file()`: Parse mmJSON files via `gemmi.cif.read_mmjson()`
+- `parse_mmjson_file_blocks()`: Parse multi-block mmJSON (for PRD files)
+
+#### Utilities (`parsers/mmjson.py`)
+
+Helper functions for data processing:
 - `normalize_column_name()`: Convert `col[1][2]` to `col12`
-
-#### CIF Parser (`parsers/cif.py`)
-
-Uses gemmi library to parse CIF files directly:
-```python
-doc = gemmi.cif.read_string(content)
-```
-
-Returns dict of category -> list of row dicts.
+- `merge_data()`: Merge row-oriented data dicts (for pdbj noatom + plus)
 
 ### Database Layer
 

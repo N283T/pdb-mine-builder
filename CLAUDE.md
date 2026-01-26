@@ -9,7 +9,7 @@ PDBj (Protein Data Bank Japan) のデータを PostgreSQL にロードする CLI
 - **Database**: PostgreSQL 12+ (psycopg3)
 - **CLI**: Typer + Rich
 - **Config**: Pydantic
-- **Parser**: gemmi (CIF), json (mmJSON)
+- **Parser**: gemmi (CIF and mmJSON unified)
 
 ## Quick Start
 
@@ -29,8 +29,8 @@ src/mine2/
 │   ├── connection.py   # Connection pool
 │   └── loader.py       # Parallel loader (ProcessPoolExecutor)
 ├── parsers/
-│   ├── mmjson.py       # mmJSON parser + normalize_column_name()
-│   └── cif.py          # CIF parser (gemmi)
+│   ├── cif.py          # Unified parser (CIF + mmJSON via gemmi)
+│   └── mmjson.py       # Utilities: normalize_column_name(), merge_data()
 ├── pipelines/
 │   ├── base.py         # BasePipeline + transform_category()
 │   ├── pdbj.py         # Main PDB data (mmJSON + plus)
@@ -40,6 +40,7 @@ src/mine2/
 │   ├── vrpt.py         # Validation reports (CIF)
 │   └── contacts.py     # Contact data (custom JSON)
 schemas/                # YAML schema definitions
+tests/                  # Unit tests (pytest)
 docs/                   # Architecture docs
 ```
 
@@ -47,14 +48,28 @@ docs/                   # Architecture docs
 
 | Pipeline | Format | Notes |
 |----------|--------|-------|
-| pdbj | mmJSON | Merges noatom + plus files |
+| pdbj | mmJSON | Merges noatom + plus files via merge_data() |
 | cc | mmJSON | Chemical component dictionary |
 | ccmodel | mmJSON | Component 3D models |
 | prd | mmJSON | Has TWO data blocks (PRD + PRDCC) |
-| vrpt | CIF | Uses gemmi, nested directory structure |
+| vrpt | CIF | Uses gemmi.CifWalk for nested directory structure |
 | contacts | JSON | Array format, not mmJSON |
 
 ## Key Patterns
+
+### Unified Parsing (gemmi)
+Both CIF and mmJSON are parsed via gemmi, returning row-oriented dicts:
+```python
+from mine2.parsers.cif import parse_cif_file, parse_mmjson_file
+
+# CIF files (supports .cif.gz)
+data = parse_cif_file(filepath)
+
+# mmJSON files (supports .json.gz)
+data = parse_mmjson_file(filepath)
+
+# Both return: {"category": [{"col": "val", ...}, ...], "_block_name": "..."}
+```
 
 ### Column Name Normalization
 mmJSON uses `column[1][2]` → schema uses `column12`
@@ -78,7 +93,8 @@ rows = transform_category(rows, table, pk_value, pk_col, normalize_column_name)
 pixi run lint          # ruff check
 pixi run format        # ruff format
 pixi run typecheck     # ty check
-pixi run check         # all checks
+pixi run test          # pytest
+pixi run check         # all checks (lint, format, typecheck)
 ```
 
 ## Database
