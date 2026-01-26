@@ -1,34 +1,26 @@
 rdb:
-  nworkers: 16
+  nworkers: 8
   constring: "dbname='mine2' user='pdbj' port=5433"
 
 obabel: /usr/bin/obabel
-  
+
 pipelines:
-  pdb:
+  pdbj:
     deffile: ${CWD}schemas/pdbj.def.yml
-    data: ${CWD}data/mmjson-noatom/
-    data-plus: ${CWD}data/plus/
+    data: /mnt/c/pdb/pdbj/pdbjplus/data/pdb/mmjson-noatom/
+    data-plus: /mnt/c/pdb/pdbj/pdbjplus/data/pdb/mmjson-plus/
   cc:
     deffile: ${CWD}schemas/cc.def.yml
-    data: ${CWD}data/cc/
-  ccmodel:
-    deffile: ${CWD}schemas/ccmodel.def.yml
-    data: ${CWD}data/ccmodel/
+    data: /mnt/c/pdb/pdbj/pdbjplus/data/cc/mmjson/
   prd:
     deffile: ${CWD}schemas/prd.def.yml
-    data: ${CWD}data/prd/
+    data: /mnt/c/pdb/pdbj/pdbjplus/data/prd/mmjson/
+  ccmodel:
+    deffile: ${CWD}schemas/ccmodel.def.yml
+    data: /mnt/c/pdb/pdbj/pdbjplus/data/ccmodel/mmjson/
   vrpt:
     deffile: ${CWD}schemas/vrpt.def.yml
-    data: ${CWD}data/vrpt-json/*
-    data-cif: ${CWD}data/vrpt/*_validation.cif.gz
-    dic: ${CWD}dictionaries/mmcif_pdbx_vrpt.dic.gz
-  emdb:
-    deffile: ${CWD}schemas/emdb.def.yml
-    data: ${CWD}data/emdb/
-  ihm:
-    deffile: ${CWD}schemas/ihm.def.yml
-    data: ${CWD}data/ihm/
+    data: /mnt/c/pdb/validation_reports/
   contacts:
     deffile: ${CWD}schemas/contacts.def.yml
-    data: ${CWD}data/contacts/
+    data: /mnt/c/pdb/pdbj/pdbjplus/data/pdb/contacts/

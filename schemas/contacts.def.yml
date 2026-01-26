@@ -1,0 +1,31 @@
+config:
+  schema: contacts
+  primaryKey: pdbid
+tables:
+- name: brief_summary
+  columns:
+  - [pdbid, text, null]
+  - [modification_date, date, null]
+  - [update_date, timestamp without time zone, null]
+  primary_key: [pdbid]
+  foreign_keys: []
+  keywords: []
+  unique_keys: []
+  
+- name: list
+  columns:
+  - [pdbid, text, null]
+  - [label_asym_id_1, text, null]
+  - [label_asym_id_2, text, null]
+  - [label_seq_id_1, integer, null]
+  - [label_seq_id_2, integer, null]
+  - [label_comp_id_1, text, null]
+  - [label_comp_id_2, text, null]
+  - [distance, real, null]
+  primary_key: [pdbid, label_asym_id_1, label_asym_id_2, label_seq_id_1, label_seq_id_2]
+  foreign_keys:
+    - - [pdbid]
+      - brief_summary
+      - [pdbid]
+  keywords: []
+  unique_keys: []
