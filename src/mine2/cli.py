@@ -65,7 +65,7 @@ def update(
     pipelines: Annotated[
         Optional[list[str]],
         typer.Argument(
-            help="Pipelines: pdbj (CIF), pdbj-json (mmJSON), cc, cc-json, ccmodel, ccmodel-json, prd, prd-json, vrpt, contacts, sifts"
+            help="Pipelines: pdbj (CIF), pdbj-json (mmJSON), cc, cc-json, ccmodel, ccmodel-json, prd, prd-json, vrpt, contacts, sifts, emdb (XML), ihm (mmJSON)"
         ),
     ] = None,
     config: Annotated[

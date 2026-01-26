@@ -30,6 +30,7 @@ rdkit-postgresql = ">=2024.09.0"
 
 [pypi-dependencies]
 ccd2rdmol = ">=0.2.0"
+defusedxml = ">=0.7.0"
 gemmi = ">=0.7.0"
 typer = ">=0.15.0"
 rich = ">=13.0.0"
