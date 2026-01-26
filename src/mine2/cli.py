@@ -82,6 +82,14 @@ def update(
             "--workers", "-w", help="Number of worker processes (overrides config)"
         ),
     ] = None,
+    tables: Annotated[
+        Optional[list[str]],
+        typer.Option(
+            "--tables",
+            "-t",
+            help="SIFTS only: tables to load (e.g., pdb_pfam,pdb_uniprot). Default: all",
+        ),
+    ] = None,
 ) -> None:
     """Run database update pipelines."""
     from mine2.commands.update import run_update
@@ -89,7 +97,7 @@ def update(
     settings = load_config(config)
     if workers is not None:
         settings.rdb.nworkers = workers
-    run_update(settings, pipelines or [], limit=limit)
+    run_update(settings, pipelines or [], limit=limit, tables=tables)
 
 
 @app.command(name="all")

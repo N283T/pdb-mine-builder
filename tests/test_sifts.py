@@ -375,3 +375,55 @@ class TestRun:
         assert len(success_results) == 1
         assert success_results[0].entry_id == "pdb_chain_pfam.ttl.gz"
         assert success_results[0].rows_inserted == 1
+
+    def test_run_with_tables_filter(self, tmp_path: Path) -> None:
+        """Run processes only specified tables."""
+        # Create two valid TTL files
+        pfam_content = b"""@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix pfam: <http://identifiers.org/pfam/> .
+
+<https://rdf.wwpdb.org/pdb/101M/entity/1> rdfs:seeAlso pfam:PF00042 .
+"""
+        go_content = b"""@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix GO: <http://identifiers.org/go/GO:> .
+
+<https://rdf.wwpdb.org/pdb/101M/entity/1> rdfs:seeAlso GO:0004601 .
+"""
+        with gzip.open(tmp_path / "pdb_chain_pfam.ttl.gz", "wb") as f:
+            f.write(pfam_content)
+        with gzip.open(tmp_path / "pdb_chain_go.ttl.gz", "wb") as f:
+            f.write(go_content)
+
+        mock_settings = MagicMock()
+        mock_settings.rdb.constring = "test_conninfo"
+        mock_config = MagicMock()
+        mock_config.data = str(tmp_path)
+        mock_schema_def = MagicMock()
+        mock_schema_def.schema_name = "sifts"
+
+        with patch("mine2.pipelines.sifts.bulk_upsert") as mock_upsert:
+            mock_upsert.return_value = (1, 0)
+
+            # Only process pdb_pfam table
+            results = run(
+                mock_settings, mock_config, mock_schema_def, tables=["pdb_pfam"]
+            )
+
+        # Should only process 1 file (pdb_pfam), not all 10
+        assert len(results) == 1
+        assert results[0].entry_id == "pdb_chain_pfam.ttl.gz"
+        assert results[0].success
+
+    def test_run_with_invalid_table_filter(self, tmp_path: Path) -> None:
+        """Run returns empty when no tables match filter."""
+        mock_settings = MagicMock()
+        mock_config = MagicMock()
+        mock_config.data = str(tmp_path)
+        mock_schema_def = MagicMock()
+        mock_schema_def.schema_name = "sifts"
+
+        results = run(
+            mock_settings, mock_config, mock_schema_def, tables=["nonexistent_table"]
+        )
+
+        assert results == []

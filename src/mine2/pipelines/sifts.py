@@ -189,16 +189,18 @@ def run(
     config: PipelineConfig,
     schema_def: SchemaDef,
     limit: int | None = None,
+    tables: list[str] | None = None,
 ) -> list[LoaderResult]:
     """Run the SIFTS pipeline.
 
-    Processes all TTL files and loads cross-reference data into database.
+    Processes TTL files and loads cross-reference data into database.
 
     Args:
         settings: Application settings
         config: Pipeline configuration
         schema_def: Database schema definition
         limit: Not used (SIFTS processes all data)
+        tables: Optional list of table names to process (default: all)
 
     Returns:
         List of LoaderResult for each TTL file processed
@@ -210,15 +212,30 @@ def run(
         console.print(f"  [red]Data directory not found: {data_dir}[/red]")
         return results
 
+    # Filter TTL files by table names if specified
+    if tables:
+        table_set = set(tables)
+        files_to_process = {
+            f: c for f, c in TTL_FILES.items() if c["table"] in table_set
+        }
+        if not files_to_process:
+            available = [c["table"] for c in TTL_FILES.values()]
+            console.print(
+                f"  [red]No matching tables. Available: {', '.join(available)}[/red]"
+            )
+            return results
+    else:
+        files_to_process = TTL_FILES
+
     console.print(f"  Data directory: {data_dir}")
-    console.print(f"  Processing {len(TTL_FILES)} TTL files...")
+    console.print(f"  Processing {len(files_to_process)} TTL files...")
 
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        for filename, ttl_config in TTL_FILES.items():
+        for filename, ttl_config in files_to_process.items():
             filepath = data_dir / filename
             table = ttl_config["table"]
 

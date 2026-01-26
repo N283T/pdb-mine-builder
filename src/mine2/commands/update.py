@@ -36,7 +36,10 @@ LEGACY_ALIASES = {
 
 
 def run_update(
-    settings: Settings, pipelines: list[str], limit: int | None = None
+    settings: Settings,
+    pipelines: list[str],
+    limit: int | None = None,
+    tables: list[str] | None = None,
 ) -> None:
     """Run database update pipelines.
 
@@ -44,6 +47,7 @@ def run_update(
         settings: Application settings
         pipelines: List of pipeline names to run (empty = all)
         limit: Optional limit on number of entries to process per pipeline
+        tables: Optional list of tables for SIFTS pipeline (default: all)
     """
     # If no pipelines specified, run all
     if not pipelines:
@@ -91,7 +95,17 @@ def run_update(
                 module_name, run_func = _get_pipeline_runner(pipeline_name)
                 pipeline_module = _import_pipeline(module_name)
                 runner = getattr(pipeline_module, run_func)
-                runner(settings, pipeline_config, schema_def, limit=limit)
+                # SIFTS pipeline accepts tables parameter
+                if pipeline_name == "sifts" and tables:
+                    runner(
+                        settings,
+                        pipeline_config,
+                        schema_def,
+                        limit=limit,
+                        tables=tables,
+                    )
+                else:
+                    runner(settings, pipeline_config, schema_def, limit=limit)
             except ImportError as e:
                 console.print(f"  [red]Pipeline not implemented: {e}[/red]")
             except Exception as e:
