@@ -13,6 +13,48 @@ from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, run_loader
 console = Console()
 
 
+def _coerce_array_value(value: Any, col_type: str) -> Any:
+    """Coerce a value to array type if the column expects an array.
+
+    Matches original mine2updater behavior (enforceStringArray):
+    - If the column type ends with '[]' and the value is not a list, wrap it in a list
+    - Convert elements to strings for text[], integers for integer[]
+
+    Args:
+        value: The value to coerce
+        col_type: The column type from schema (e.g., 'text[]', 'integer[]')
+
+    Returns:
+        Coerced value (as list if array column, original otherwise)
+    """
+    if value is None:
+        return None
+
+    if not col_type.endswith("[]"):
+        return value
+
+    # Wrap non-list values in a list
+    if not isinstance(value, list):
+        value = [value]
+
+    # Convert elements based on array type
+    if col_type == "text[]":
+        return [str(v) if v is not None else None for v in value]
+    elif col_type == "integer[]":
+        result = []
+        for v in value:
+            if v is None:
+                result.append(None)
+            else:
+                try:
+                    result.append(int(v))
+                except (ValueError, TypeError):
+                    result.append(None)
+        return result
+
+    return value
+
+
 def transform_category(
     rows: list[dict[str, Any]],
     table: TableDef,
@@ -37,8 +79,9 @@ def transform_category(
     if not rows:
         return []
 
-    # Get column names from schema (preserving order)
+    # Get column names and types from schema
     schema_columns = [col_name for col_name, _ in table.columns]
+    column_types = {col_name: col_type for col_name, col_type in table.columns}
     valid_columns = set(schema_columns)
 
     # First pass: collect all columns that appear in any row
@@ -72,7 +115,10 @@ def transform_category(
         for col in final_columns:
             if col == pk_col:
                 continue
-            transformed_row[col] = normalized_row.get(col)
+            value = normalized_row.get(col)
+            # Coerce to array type if needed
+            col_type = column_types.get(col, "text")
+            transformed_row[col] = _coerce_array_value(value, col_type)
 
         result.append(transformed_row)
 
