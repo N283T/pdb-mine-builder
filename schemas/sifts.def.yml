@@ -77,7 +77,7 @@ tables:
     foreign_keys: []
     unique_keys: []
     keywords: []
-  - name: pdb_uniprot
+  - name: pdb_uniprot_short
     columns:
       - - pdbid
         - text
@@ -92,7 +92,7 @@ tables:
     foreign_keys: []
     unique_keys: []
     keywords: []
-  - name: pdb_uniprot_segments
+  - name: pdb_uniprot
     columns:
       - - pdbid
         - text

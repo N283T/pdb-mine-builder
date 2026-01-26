@@ -56,13 +56,13 @@ TTL_FILES = {
         "pk": ["pdbid", "entity_id", "taxonomy_id"],
     },
     "pdb_chain_uniprot_short.ttl.gz": {
-        "table": "pdb_uniprot",
+        "table": "pdb_uniprot_short",
         "pattern": r"<https://rdf\.wwpdb\.org/pdb/(\w+)/entity_poly/(\d+)> rdfs:seeAlso up:(\w+)",
         "columns": ["pdbid", "entity_id", "uniprot_id"],
         "pk": ["pdbid", "entity_id", "uniprot_id"],
     },
     "pdb_chain_uniprot.ttl.gz": {
-        "table": "pdb_uniprot_segments",
+        "table": "pdb_uniprot",
         "pattern": r"<https://rdf\.wwpdb\.org/pdb/(\w+)/entity_poly/(\d+)#(\d+),(\d+)> sifts:region_match <https://purl\.uniprot\.org/uniprot/(\w+)#(\d+),(\d+)>",
         "columns": [
             "pdbid",
