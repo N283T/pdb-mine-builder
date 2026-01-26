@@ -138,11 +138,10 @@ pixi run db-status
 
 ### RDKit Extension Setup
 
-After loading data, initialize the RDKit PostgreSQL cartridge for chemical searches:
+RDKit extension and mol column are **automatically configured** when running the `cc` or `cc-cif` pipeline.
 
-```bash
-psql -d mine2 -f scripts/init_rdkit.sql
-```
+> **Note**: Requires superuser privileges for initial `CREATE EXTENSION rdkit`.
+> If auto-setup fails, run manually: `psql -d mine2 -f scripts/init_rdkit.sql`
 
 This enables:
 - **Substructure search**: `mol @> 'c1ccccc1'::mol`
