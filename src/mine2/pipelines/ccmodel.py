@@ -258,7 +258,7 @@ class CcmodelCifPipeline:
         conninfo = self.settings.rdb.constring
 
         # Collect blocks to process
-        blocks = list(doc) if not limit else list(doc)[:limit]
+        blocks = list(doc)[:limit]
         if limit:
             console.print(f"  Processing {len(blocks)} (limited)")
 

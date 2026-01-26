@@ -21,10 +21,10 @@ class RdbConfig(BaseModel):
     )
 
     def get_workers(self) -> int:
-        """Get effective worker count (auto-detect if not set)."""
+        """Get effective worker count (auto-detect if not set, capped at 32)."""
         if self.nworkers is not None:
             return self.nworkers
-        return os.cpu_count() or 4
+        return min(os.cpu_count() or 4, 32)
 
 
 class SyncTarget(BaseModel):

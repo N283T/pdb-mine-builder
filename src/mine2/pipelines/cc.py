@@ -1,11 +1,14 @@
 """Chemical Component dictionary pipeline."""
 
+import logging
 import traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 from typing import Any
 
 import gemmi
+
+logger = logging.getLogger(__name__)
 from ccd2rdmol import read_ccd_block
 from rdkit import Chem
 from rich.console import Console
@@ -40,8 +43,8 @@ def _generate_canonical_smiles(block: gemmi.cif.Block) -> str | None:
         result = read_ccd_block(block, sanitize_mol=True, add_conformers=False)
         if result.mol is not None:
             return Chem.MolToSmiles(result.mol, canonical=True)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug(f"SMILES generation failed for {block.name}: {e}")
     return None
 
 
@@ -332,7 +335,7 @@ class CcCifPipeline:
         conninfo = self.settings.rdb.constring
 
         # Collect blocks to process
-        blocks = list(doc) if not limit else list(doc)[:limit]
+        blocks = list(doc)[:limit]
         if limit:
             console.print(f"  Processing {len(blocks)} (limited)")
 
