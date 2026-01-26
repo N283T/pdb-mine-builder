@@ -10037,7 +10037,7 @@ tables:
       - - db_name
         - text
       - - db_accession
-        - text[]
+        - text
     primary_key:
       - pdbid
       - db_name
@@ -10057,7 +10057,7 @@ tables:
       - - db_name
         - text
       - - db_accession
-        - text[]
+        - text
     primary_key:
       - pdbid
       - entity_id
