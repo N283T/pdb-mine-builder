@@ -203,8 +203,10 @@ class PdbjCifPipeline(BasePipeline):
 
         CifWalk is C++ native and faster than rglob for large directories.
         Automatically handles both .cif and .cif.gz files.
+        Also pairs with plus data (mmJSON) if configured.
         """
         data_dir = Path(self.config.data)
+        plus_dir = Path(self.config.data_plus) if self.config.data_plus else None
 
         if not data_dir.exists():
             console.print(f"  [red]Data directory not found: {data_dir}[/red]")
@@ -214,7 +216,30 @@ class PdbjCifPipeline(BasePipeline):
         for filepath_str in gemmi.CifWalk(str(data_dir)):
             filepath = Path(filepath_str)
             entry_id = self.extract_entry_id(filepath)
-            jobs.append(Job(entry_id=entry_id, filepath=filepath))
+
+            # Look for plus file: {entry_id}-plus.json.gz
+            plus_path = None
+            if plus_dir and plus_dir.exists():
+                candidate = plus_dir.joinpath(f"{entry_id}-plus.json.gz")
+                # Validate path is within plus_dir to prevent path traversal
+                try:
+                    resolved = candidate.resolve()
+                    if (
+                        resolved.is_relative_to(plus_dir.resolve())
+                        and resolved.exists()
+                    ):
+                        plus_path = candidate
+                except (ValueError, OSError):
+                    # is_relative_to raises ValueError if not relative
+                    pass
+
+            jobs.append(
+                Job(
+                    entry_id=entry_id,
+                    filepath=filepath,
+                    extra={"plus_path": plus_path},
+                )
+            )
 
             if limit and len(jobs) >= limit:
                 break
@@ -231,6 +256,12 @@ class PdbjCifPipeline(BasePipeline):
         try:
             # Parse CIF file (row-oriented, same format as mmJSON)
             data = parse_cif_file(job.filepath)
+
+            # Merge with plus data if available (mmJSON format)
+            plus_path = job.extra.get("plus_path") if job.extra else None
+            if plus_path:
+                plus_data = parse_mmjson_file(plus_path)
+                data = merge_data(data, plus_data)
 
             # Transform and load
             rows_inserted = 0

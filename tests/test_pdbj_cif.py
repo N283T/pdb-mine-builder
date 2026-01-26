@@ -368,3 +368,273 @@ class TestRealPdbFixtures:
         ]
         for cat in expected_categories:
             assert cat in data, f"Missing category: {cat}"
+
+
+def create_test_settings_with_plus(data_dir: Path, plus_dir: Path) -> Settings:
+    """Create test settings with plus data directory."""
+    return Settings(
+        rdb=RdbConfig(nworkers=2, constring="test"),
+        pipelines={
+            "pdbj": PipelineConfig(
+                deffile="schemas/pdbj.def.yml",
+                data=str(data_dir),
+                data_plus=str(plus_dir),
+            )
+        },
+    )
+
+
+def create_test_plus_file(path: Path, entry_id: str, extra_categories: dict) -> None:
+    """Create a test plus data file (mmJSON format).
+
+    mmJSON is column-oriented:
+    {"data_XXX": {"category": {"col1": [val1, val2], "col2": [val1, val2]}}}
+
+    Args:
+        path: Path to write the file (should end with -plus.json.gz)
+        entry_id: PDB entry ID (e.g., "100d")
+        extra_categories: Dict of category name to list of row dicts
+    """
+    import json
+
+    # Build mmJSON structure (column-oriented)
+    block_data = {}
+    for cat, rows in extra_categories.items():
+        if not rows:
+            continue
+        # Convert row-oriented to column-oriented
+        columns = list(rows[0].keys())
+        col_data = {col: [row.get(col) for row in rows] for col in columns}
+        block_data[cat] = col_data
+
+    data = {"data_" + entry_id.upper(): block_data}
+
+    content = json.dumps(data)
+    with gzip.open(path, "wt") as f:
+        f.write(content)
+
+
+def create_test_schema_def_with_plus() -> SchemaDef:
+    """Create test schema definition with plus data tables."""
+    return SchemaDef(
+        schema_name="pdbj",
+        primary_key="pdbid",
+        tables=[
+            TableDef(
+                name="entry",
+                columns=[("pdbid", "TEXT"), ("id", "TEXT")],
+                primary_key=["pdbid", "id"],
+            ),
+            TableDef(
+                name="cell",
+                columns=[
+                    ("pdbid", "TEXT"),
+                    ("entry_id", "TEXT"),
+                    ("length_a", "REAL"),
+                    ("length_b", "REAL"),
+                    ("length_c", "REAL"),
+                ],
+                primary_key=["pdbid"],
+            ),
+            TableDef(
+                name="gene_ontology_pdbmlplus",
+                columns=[
+                    ("pdbid", "TEXT"),
+                    ("goid", "TEXT"),
+                    ("name", "TEXT"),
+                ],
+                primary_key=["pdbid", "goid"],
+            ),
+        ],
+    )
+
+
+class TestFindJobsWithPlusData:
+    """Tests for PdbjCifPipeline.find_jobs() with plus data."""
+
+    def test_finds_plus_files_when_configured(self, tmp_path: Path) -> None:
+        """Find jobs includes plus_path when plus directory is configured."""
+        # Create CIF data directory
+        cif_dir = tmp_path / "mmCIF"
+        cif_dir.mkdir()
+        cif_path = cif_dir / "100d.cif.gz"
+        create_test_pdbj_cif_file(cif_path, [{"id": "100d"}])
+
+        # Create plus data directory
+        plus_dir = tmp_path / "mmjson-plus"
+        plus_dir.mkdir()
+        plus_path = plus_dir / "100d-plus.json.gz"
+        create_test_plus_file(
+            plus_path,
+            "100d",
+            {"gene_ontology_pdbmlplus": [{"goid": "GO:0001234", "name": "test"}]},
+        )
+
+        settings = create_test_settings_with_plus(cif_dir, plus_dir)
+        config = settings.pipelines["pdbj"]
+        schema_def = create_test_schema_def()
+
+        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        jobs = pipeline.find_jobs()
+
+        assert len(jobs) == 1
+        assert jobs[0].entry_id == "100d"
+        assert jobs[0].extra is not None
+        assert jobs[0].extra.get("plus_path") == plus_path
+
+    def test_plus_path_none_when_file_not_exists(self, tmp_path: Path) -> None:
+        """Plus path is None when plus file doesn't exist."""
+        # Create CIF data directory
+        cif_dir = tmp_path / "mmCIF"
+        cif_dir.mkdir()
+        cif_path = cif_dir / "100d.cif.gz"
+        create_test_pdbj_cif_file(cif_path, [{"id": "100d"}])
+
+        # Create empty plus data directory (no matching file)
+        plus_dir = tmp_path / "mmjson-plus"
+        plus_dir.mkdir()
+
+        settings = create_test_settings_with_plus(cif_dir, plus_dir)
+        config = settings.pipelines["pdbj"]
+        schema_def = create_test_schema_def()
+
+        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        jobs = pipeline.find_jobs()
+
+        assert len(jobs) == 1
+        assert jobs[0].extra is not None
+        assert jobs[0].extra.get("plus_path") is None
+
+    def test_plus_path_none_when_plus_dir_not_configured(self, tmp_path: Path) -> None:
+        """Plus path is None when plus directory is not configured."""
+        # Create CIF data directory
+        cif_dir = tmp_path / "mmCIF"
+        cif_dir.mkdir()
+        cif_path = cif_dir / "100d.cif.gz"
+        create_test_pdbj_cif_file(cif_path, [{"id": "100d"}])
+
+        # No plus directory configured
+        settings = create_test_settings(cif_dir)
+        config = settings.pipelines["pdbj"]
+        schema_def = create_test_schema_def()
+
+        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        jobs = pipeline.find_jobs()
+
+        assert len(jobs) == 1
+        assert jobs[0].extra is not None
+        assert jobs[0].extra.get("plus_path") is None
+
+    def test_finds_partial_plus_files(self, tmp_path: Path) -> None:
+        """Some entries have plus files, some don't."""
+        # Create CIF data directory with multiple entries
+        cif_dir = tmp_path / "mmCIF"
+        cif_dir.mkdir()
+        for pdb_id in ["100d", "101d", "102d"]:
+            cif_path = cif_dir / f"{pdb_id}.cif.gz"
+            create_test_pdbj_cif_file(cif_path, [{"id": pdb_id}])
+
+        # Create plus directory with only one matching file
+        plus_dir = tmp_path / "mmjson-plus"
+        plus_dir.mkdir()
+        plus_path = plus_dir / "100d-plus.json.gz"
+        create_test_plus_file(
+            plus_path,
+            "100d",
+            {"gene_ontology_pdbmlplus": [{"goid": "GO:0001234", "name": "test"}]},
+        )
+
+        settings = create_test_settings_with_plus(cif_dir, plus_dir)
+        config = settings.pipelines["pdbj"]
+        schema_def = create_test_schema_def()
+
+        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        jobs = pipeline.find_jobs()
+
+        assert len(jobs) == 3
+        plus_paths = {j.entry_id: j.extra.get("plus_path") for j in jobs}
+        assert plus_paths["100d"] == plus_path
+        assert plus_paths["101d"] is None
+        assert plus_paths["102d"] is None
+
+
+class TestProcessJobWithPlusData:
+    """Tests for PdbjCifPipeline.process_job() with plus data merging."""
+
+    def test_merges_plus_data_into_cif_data(self, tmp_path: Path) -> None:
+        """Plus data categories are merged into CIF data."""
+        from unittest.mock import patch
+
+        from mine2.db.loader import Job
+
+        # Create CIF file
+        cif_dir = tmp_path / "mmCIF"
+        cif_dir.mkdir()
+        cif_path = cif_dir / "100d.cif.gz"
+        create_test_pdbj_cif_file(cif_path, [{"id": "100d"}])
+
+        # Create plus file with extra category
+        plus_dir = tmp_path / "mmjson-plus"
+        plus_dir.mkdir()
+        plus_path = plus_dir / "100d-plus.json.gz"
+        create_test_plus_file(
+            plus_path,
+            "100d",
+            {"gene_ontology_pdbmlplus": [{"goid": "GO:0001234", "name": "test"}]},
+        )
+
+        settings = create_test_settings_with_plus(cif_dir, plus_dir)
+        config = settings.pipelines["pdbj"]
+        schema_def = create_test_schema_def_with_plus()
+
+        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        job = Job(
+            entry_id="100d",
+            filepath=cif_path,
+            extra={"plus_path": plus_path},
+        )
+
+        # Mock bulk_upsert to capture what gets loaded
+        with patch("mine2.pipelines.pdbj.bulk_upsert") as mock_upsert:
+            mock_upsert.return_value = (1, 0)
+            result = pipeline.process_job(job, schema_def, "test_conninfo")
+
+            assert result.success
+            # Verify gene_ontology_pdbmlplus was loaded (from plus data)
+            calls = mock_upsert.call_args_list
+            table_names = [call[0][2] for call in calls]  # Third arg is table name
+            assert "gene_ontology_pdbmlplus" in table_names
+
+    def test_works_without_plus_data(self, tmp_path: Path) -> None:
+        """Process job works when plus_path is None."""
+        from unittest.mock import patch
+
+        from mine2.db.loader import Job
+
+        # Create CIF file only (no plus data)
+        cif_dir = tmp_path / "mmCIF"
+        cif_dir.mkdir()
+        cif_path = cif_dir / "100d.cif.gz"
+        create_test_pdbj_cif_file(cif_path, [{"id": "100d"}])
+
+        settings = create_test_settings(cif_dir)
+        config = settings.pipelines["pdbj"]
+        schema_def = create_test_schema_def()
+
+        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        job = Job(
+            entry_id="100d",
+            filepath=cif_path,
+            extra={"plus_path": None},
+        )
+
+        # Mock bulk_upsert
+        with patch("mine2.pipelines.pdbj.bulk_upsert") as mock_upsert:
+            mock_upsert.return_value = (1, 0)
+            result = pipeline.process_job(job, schema_def, "test_conninfo")
+
+            assert result.success
+            # Should still load entry and cell tables
+            calls = mock_upsert.call_args_list
+            table_names = [call[0][2] for call in calls]
+            assert "entry" in table_names
