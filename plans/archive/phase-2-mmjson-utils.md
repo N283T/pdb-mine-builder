@@ -63,4 +63,4 @@ function cleanArray(arr) {
 - Tests cover edge cases
 
 ---
-- [ ] **DONE** - Phase complete
+- [x] **DONE** - Phase complete (PR #31)
