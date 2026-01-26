@@ -1,5 +1,6 @@
 """PDBj pipeline - main PDB structure data loader."""
 
+import json
 import traceback
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,8 @@ from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
 from mine2.parsers.cif import parse_cif_file, parse_mmjson_file
 from mine2.parsers.mmjson import merge_data, normalize_column_name
 from mine2.pipelines.base import BasePipeline, transform_category
+from mine2.utils.assembly import calculate_mw_for_bu, hex_sha256
+from mine2.utils.patches import apply_patches
 
 console = Console()
 
@@ -95,6 +98,15 @@ class PdbjPipeline(BasePipeline):
                 plus_data = parse_mmjson_file(plus_path)
                 data = merge_data(data, plus_data)
 
+            # Apply entry-specific patches
+            apply_patches(job.entry_id, data)
+
+            # Add _hash_asym_id_list to pdbx_struct_assembly_gen
+            if "pdbx_struct_assembly_gen" in data:
+                for row in data["pdbx_struct_assembly_gen"]:
+                    asym_id_list = row.get("asym_id_list", "")
+                    row["_hash_asym_id_list"] = hex_sha256(asym_id_list)
+
             # Transform and load
             rows_inserted = 0
 
@@ -121,9 +133,29 @@ class PdbjPipeline(BasePipeline):
                 )
                 rows_inserted += inserted
 
+            # Load brief_summary with bu_mw calculation
+            brief_table = next(
+                (t for t in schema_def.tables if t.name == "brief_summary"), None
+            )
+            if brief_table:
+                brief_rows = self._transform_brief_summary(
+                    data, brief_table, job.entry_id
+                )
+                if brief_rows:
+                    columns = list(brief_rows[0].keys())
+                    inserted, _ = bulk_upsert(
+                        conninfo,
+                        schema_def.schema_name,
+                        "brief_summary",
+                        columns,
+                        [tuple(r[c] for c in columns) for r in brief_rows],
+                        brief_table.primary_key,
+                    )
+                    rows_inserted += inserted
+
             # Load other categories
             for table in schema_def.tables:
-                if table.name == "entry":
+                if table.name in ("entry", "brief_summary"):
                     continue
 
                 category_rows = self._transform_category(data, table, job.entry_id)
@@ -170,6 +202,38 @@ class PdbjPipeline(BasePipeline):
                     **{k: v for k, v in row.items() if v is not None},
                 }
             )
+        return result
+
+    def _transform_brief_summary(
+        self,
+        data: dict[str, Any],
+        table: TableDef,
+        entry_id: str,
+    ) -> list[dict]:
+        """Transform brief_summary with bu_mw calculation.
+
+        Adds bu_mw (biological unit molecular weight) to plus_fields.
+        """
+        rows = data.get("brief_summary", [])
+        result = transform_category(
+            rows, table, entry_id, "pdbid", normalize_column_name
+        )
+
+        # Calculate bu_mw and add to plus_fields
+        bu_mw = calculate_mw_for_bu(data)
+        for row in result:
+            # Merge bu_mw into existing plus_fields or create new
+            existing_plus = row.get("plus_fields")
+            if existing_plus:
+                try:
+                    plus_data = json.loads(existing_plus)
+                except (json.JSONDecodeError, TypeError):
+                    plus_data = {}
+            else:
+                plus_data = {}
+            plus_data["bu_mw"] = bu_mw
+            row["plus_fields"] = json.dumps(plus_data)
+
         return result
 
     def _transform_category(
@@ -263,6 +327,15 @@ class PdbjCifPipeline(BasePipeline):
                 plus_data = parse_mmjson_file(plus_path)
                 data = merge_data(data, plus_data)
 
+            # Apply entry-specific patches
+            apply_patches(job.entry_id, data)
+
+            # Add _hash_asym_id_list to pdbx_struct_assembly_gen
+            if "pdbx_struct_assembly_gen" in data:
+                for row in data["pdbx_struct_assembly_gen"]:
+                    asym_id_list = row.get("asym_id_list", "")
+                    row["_hash_asym_id_list"] = hex_sha256(asym_id_list)
+
             # Transform and load
             rows_inserted = 0
 
@@ -288,9 +361,29 @@ class PdbjCifPipeline(BasePipeline):
                 )
                 rows_inserted += inserted
 
+            # Load brief_summary with bu_mw calculation
+            brief_table = next(
+                (t for t in schema_def.tables if t.name == "brief_summary"), None
+            )
+            if brief_table:
+                brief_rows = self._transform_brief_summary(
+                    data, brief_table, job.entry_id
+                )
+                if brief_rows:
+                    columns = list(brief_rows[0].keys())
+                    inserted, _ = bulk_upsert(
+                        conninfo,
+                        schema_def.schema_name,
+                        "brief_summary",
+                        columns,
+                        [tuple(r[c] for c in columns) for r in brief_rows],
+                        brief_table.primary_key,
+                    )
+                    rows_inserted += inserted
+
             # Load other categories
             for table in schema_def.tables:
-                if table.name == "entry":
+                if table.name in ("entry", "brief_summary"):
                     continue
 
                 category_rows = self._transform_category(data, table, job.entry_id)
@@ -335,6 +428,38 @@ class PdbjCifPipeline(BasePipeline):
                     **{k: v for k, v in row.items() if v is not None},
                 }
             )
+        return result
+
+    def _transform_brief_summary(
+        self,
+        data: dict[str, Any],
+        table: TableDef,
+        entry_id: str,
+    ) -> list[dict]:
+        """Transform brief_summary with bu_mw calculation.
+
+        Adds bu_mw (biological unit molecular weight) to plus_fields.
+        CIF version - no column name normalization.
+        """
+        rows = data.get("brief_summary", [])
+        # No normalization for CIF
+        result = transform_category(rows, table, entry_id, "pdbid", None)
+
+        # Calculate bu_mw and add to plus_fields
+        bu_mw = calculate_mw_for_bu(data)
+        for row in result:
+            # Merge bu_mw into existing plus_fields or create new
+            existing_plus = row.get("plus_fields")
+            if existing_plus:
+                try:
+                    plus_data = json.loads(existing_plus)
+                except (json.JSONDecodeError, TypeError):
+                    plus_data = {}
+            else:
+                plus_data = {}
+            plus_data["bu_mw"] = bu_mw
+            row["plus_fields"] = json.dumps(plus_data)
+
         return result
 
     def _transform_category(
