@@ -30,3 +30,6 @@ pipelines:
   contacts:
     deffile: ${CWD}schemas/contacts.def.yml
     data: ${CWD}data/contacts/
+  sifts:
+    deffile: ${CWD}schemas/sifts.def.yml
+    data: ${CWD}data/sifts/

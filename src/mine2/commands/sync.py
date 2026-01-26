@@ -85,6 +85,11 @@ SYNC_TARGETS: dict[str, dict] = {
         "dest": "data/dictionaries/",
         "options": ["-avz", "--delete"],
     },
+    "sifts": {
+        "source": "data.pdbj.org::rsync/pdbjplus/data/sifts/rdf/",
+        "dest": "pdbj/pdbjplus/data/sifts/rdf/",
+        "options": ["-avz", "--delete"],
+    },
 }
 
 # Legacy aliases for backward compatibility (deprecated)

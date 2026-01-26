@@ -39,7 +39,7 @@ def sync(
     targets: Annotated[
         Optional[list[str]],
         typer.Argument(
-            help="Sync targets: pdbj (CIF), pdbj-json (mmJSON), cc, cc-json, ccmodel, ccmodel-json, prd, prd-json, vrpt, contacts, schemas, dictionaries"
+            help="Sync targets: pdbj (CIF), pdbj-json (mmJSON), cc, cc-json, ccmodel, ccmodel-json, prd, prd-json, vrpt, contacts, sifts, schemas, dictionaries"
         ),
     ] = None,
     config: Annotated[
@@ -65,7 +65,7 @@ def update(
     pipelines: Annotated[
         Optional[list[str]],
         typer.Argument(
-            help="Pipelines: pdbj (CIF), pdbj-json (mmJSON), cc, cc-json, ccmodel, ccmodel-json, prd, prd-json, vrpt, contacts"
+            help="Pipelines: pdbj (CIF), pdbj-json (mmJSON), cc, cc-json, ccmodel, ccmodel-json, prd, prd-json, vrpt, contacts, sifts"
         ),
     ] = None,
     config: Annotated[

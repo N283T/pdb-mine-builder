@@ -68,12 +68,12 @@ pixi run mine2 --help
 pixi run mine2 sync [targets...]
 # Targets: pdbj (CIF), pdbj-json (mmJSON), pdbj-plus, cc, cc-json,
 #          ccmodel, ccmodel-json, prd, prd-json, vrpt, contacts,
-#          schemas, dictionaries
+#          sifts, schemas, dictionaries
 
 # Update database
 pixi run mine2 update [pipelines...]
 # Pipelines: pdbj (CIF), pdbj-json (mmJSON), cc, cc-json, ccmodel,
-#            ccmodel-json, prd, prd-json, vrpt, contacts
+#            ccmodel-json, prd, prd-json, vrpt, contacts, sifts
 
 # Full update (sync + update)
 pixi run mine2 all
@@ -115,6 +115,7 @@ CIF is the default format for dual-format pipelines:
 | prd | BIRD data (prd-all.cif.gz + prdcc-all.cif.gz) | CIF |
 | vrpt | Validation reports | CIF |
 | contacts | Protein-protein contact data | JSON |
+| sifts | Cross-references (Pfam, InterPro, GO, UniProt, etc.) | TTL (RDF) |
 
 ### mmJSON Pipelines (Optional)
 
@@ -250,6 +251,45 @@ WHERE b.rdkit_mw BETWEEN 100 AND 300;
 -- Direct RDKit operators (for advanced queries)
 SELECT comp_id, name FROM cc.brief_summary
 WHERE mol @> 'C(=O)O'::qmol;  -- Carboxylic acid substructure
+```
+
+### SIFTS Cross-References
+
+The SIFTS pipeline provides cross-references from PDB entries to external databases.
+Data is sourced from [SIFTS (PDBe)](https://www.ebi.ac.uk/pdbe/docs/sifts/) via PDBj.
+
+| Table | Description |
+|-------|-------------|
+| `sifts.pdb_pfam` | PDB entity → Pfam domain |
+| `sifts.pdb_interpro` | PDB entity → InterPro |
+| `sifts.pdb_go` | PDB entity → Gene Ontology |
+| `sifts.pdb_enzyme` | PDB entity → EC number |
+| `sifts.pdb_taxonomy` | PDB entity → NCBI Taxonomy |
+| `sifts.pdb_uniprot` | PDB entity → UniProt |
+| `sifts.pdb_cath` | PDB entity → CATH |
+| `sifts.pdb_scop` | PDB entity → SCOP |
+| `sifts.pdb_pubmed` | PDB entry → PubMed |
+
+#### Usage Examples
+
+```sql
+-- Find all Pfam domains for a structure
+SELECT * FROM sifts.pdb_pfam WHERE pdbid = '1crn';
+
+-- Find structures with a specific Pfam domain
+SELECT DISTINCT pdbid FROM sifts.pdb_pfam WHERE pfam_id = 'PF00042';
+
+-- Find human (taxonomy 9606) structures
+SELECT DISTINCT pdbid FROM sifts.pdb_taxonomy WHERE taxonomy_id = 9606;
+
+-- Find structures with GO molecular function annotation
+SELECT DISTINCT pdbid FROM sifts.pdb_go WHERE go_id = '0004601';
+
+-- Join with pdbj schema for structure details
+SELECT p.pdbid, p.title, f.pfam_id
+FROM pdbj.brief_summary p
+JOIN sifts.pdb_pfam f ON p.pdbid = f.pdbid
+WHERE p.resolution < 2.0;
 ```
 
 ## Development

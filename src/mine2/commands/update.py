@@ -23,6 +23,7 @@ AVAILABLE_PIPELINES = [
     "prd-json",  # mmJSON (requires suffix)
     "vrpt",
     "contacts",
+    "sifts",  # SIFTS cross-references (TTL)
 ]
 
 # Legacy aliases for backward compatibility (deprecated)
