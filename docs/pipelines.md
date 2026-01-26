@@ -50,8 +50,9 @@ from typing import Any
 from rich.console import Console
 
 from mine2.config import PipelineConfig, Settings
-from mine2.db.loader import Job, LoaderResult, SchemaDef, bulk_upsert
-from mine2.parsers.mmjson import get_rows, load_mmjson_file
+from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
+from mine2.parsers.cif import parse_mmjson_file
+from mine2.parsers.mmjson import normalize_column_name
 from mine2.pipelines.base import BasePipeline, transform_category
 
 console = Console()
@@ -78,7 +79,7 @@ class MydataPipeline(BasePipeline):
     ) -> LoaderResult:
         """Process a single entry."""
         try:
-            data = load_mmjson_file(job.filepath)
+            data = parse_mmjson_file(job.filepath)
             rows_inserted = 0
 
             # Load brief_summary
@@ -100,9 +101,9 @@ class MydataPipeline(BasePipeline):
                 if table.name == "brief_summary":
                     continue
 
-                rows = get_rows(data, table.name)
+                rows = data.get(table.name, [])
                 category_rows = transform_category(
-                    rows, table, job.entry_id, schema_def.primary_key
+                    rows, table, job.entry_id, schema_def.primary_key, normalize_column_name
                 )
                 if category_rows:
                     columns = list(category_rows[0].keys())
@@ -134,7 +135,7 @@ class MydataPipeline(BasePipeline):
         self, data: dict[str, Any], entry_id: str
     ) -> list[dict]:
         """Generate brief_summary from data."""
-        rows = get_rows(data, "main_category")
+        rows = data.get("main_category", [])
         if not rows:
             return [{"entry_id": entry_id}]
 
@@ -168,10 +169,11 @@ Edit `src/mine2/cli.py` to add the pipeline name to `PIPELINES` list.
 Use for most PDBj data:
 
 ```python
-from mine2.parsers.mmjson import get_rows, load_mmjson_file, normalize_column_name
+from mine2.parsers.cif import parse_mmjson_file
+from mine2.parsers.mmjson import normalize_column_name
 
-data = load_mmjson_file(filepath)
-rows = get_rows(data, "category_name")
+data = parse_mmjson_file(filepath)  # Row-oriented dict
+rows = data.get("category_name", [])
 ```
 
 ### CIF Data
@@ -181,7 +183,7 @@ Use for validation reports:
 ```python
 from mine2.parsers.cif import parse_cif_file
 
-data = parse_cif_file(filepath)  # Returns dict of category -> rows
+data = parse_cif_file(filepath)  # Row-oriented dict (same format as mmJSON)
 rows = data.get("category_name", [])
 ```
 
@@ -202,13 +204,13 @@ with gzip.open(filepath, "rt") as f:
 For files with multiple data blocks (like PRD):
 
 ```python
-from mine2.parsers.mmjson import load_mmjson
+from mine2.parsers.cif import parse_mmjson_file_blocks
 
-with gzip.open(filepath, "rt") as f:
-    raw = load_mmjson(f.read())
+blocks = parse_mmjson_file_blocks(filepath)
+# Returns: {"PRD_000001": {...}, "PRDCC_000001": {...}}
 
-block1 = raw.get(f"data_{entry_id}", {})
-block2 = raw.get(f"data_{other_id}", {})
+prd_data = blocks.get(f"PRD_{entry_id}", {})
+prdcc_data = blocks.get(f"PRDCC_{entry_id}", {})
 ```
 
 ### Custom File Discovery
