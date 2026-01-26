@@ -6,56 +6,58 @@ from pathlib import Path
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
+from mine2.commands.utils import resolve_legacy_aliases
 from mine2.config import Settings
 
 console = Console()
 
 # Default sync targets with their rsync configurations
+# CIF is default, -json suffix for mmJSON
 SYNC_TARGETS: dict[str, dict] = {
-    "pdbj": {
-        "source": "rsync.pdbj.org::ftp_data/structures/divided/mmjson-noatom/",
-        "dest": "data/mmjson-noatom/",
-        "options": ["-avz", "--delete"],
-    },
-    "pdbj-cif": {
+    "pdbj": {  # CIF (default)
         "source": "rsync.pdbj.org::ftp_data/structures/divided/mmCIF/",
         "dest": "data/structures/divided/mmCIF/",
         "options": ["-avz", "--delete"],
     },
-    "pdbj-plus": {
+    "pdbj-json": {  # mmJSON (requires suffix)
+        "source": "rsync.pdbj.org::ftp_data/structures/divided/mmjson-noatom/",
+        "dest": "data/mmjson-noatom/",
+        "options": ["-avz", "--delete"],
+    },
+    "pdbj-plus": {  # mmJSON plus data
         "source": "rsync.pdbj.org::mine/ftp_data/mine_data/mmjson-plus/",
         "dest": "pdbj/pdbjplus/",
         "options": ["-avz", "--delete"],
     },
-    "cc": {
-        "source": "rsync.pdbj.org::ftp_data/component-models/complete/chem_comp-mmjson/",
-        "dest": "data/cc/",
-        "options": ["-avz", "--delete"],
-    },
-    "cc-cif": {
+    "cc": {  # CIF (default)
         "source": "rsync.pdbj.org::ftp_data/monomers/components.cif.gz",
         "dest": "data/monomers/",
         "options": ["-avz"],
     },
-    "ccmodel": {
-        "source": "rsync.pdbj.org::ftp_data/component-models/complete/chem_comp_model-mmjson/",
-        "dest": "data/ccmodel/",
+    "cc-json": {  # mmJSON (requires suffix)
+        "source": "rsync.pdbj.org::ftp_data/component-models/complete/chem_comp-mmjson/",
+        "dest": "data/cc/",
         "options": ["-avz", "--delete"],
     },
-    "ccmodel-cif": {
+    "ccmodel": {  # CIF (default)
         "source": "rsync.pdbj.org::ftp_data/component-models/complete/chem_comp_model.cif.gz",
         "dest": "data/component-models/complete/",
         "options": ["-avz"],
     },
-    "prd": {
-        "source": "rsync.pdbj.org::ftp_data/bird/mmjson/",
-        "dest": "data/prd/",
+    "ccmodel-json": {  # mmJSON (requires suffix)
+        "source": "rsync.pdbj.org::ftp_data/component-models/complete/chem_comp_model-mmjson/",
+        "dest": "data/ccmodel/",
         "options": ["-avz", "--delete"],
     },
-    "prd-cif": {
+    "prd": {  # CIF (default)
         "source": "rsync.pdbj.org::ftp_data/bird/prd/",
         "dest": "data/bird/prd/",
         "options": ["-avz"],
+    },
+    "prd-json": {  # mmJSON (requires suffix)
+        "source": "rsync.pdbj.org::ftp_data/bird/mmjson/",
+        "dest": "data/prd/",
+        "options": ["-avz", "--delete"],
     },
     "vrpt": {
         # Fixed: use include/exclude pattern to avoid timeout
@@ -83,6 +85,14 @@ SYNC_TARGETS: dict[str, dict] = {
         "dest": "data/dictionaries/",
         "options": ["-avz", "--delete"],
     },
+}
+
+# Legacy aliases for backward compatibility (deprecated)
+LEGACY_SYNC_ALIASES = {
+    "pdbj-cif": "pdbj",
+    "cc-cif": "cc",
+    "ccmodel-cif": "ccmodel",
+    "prd-cif": "prd",
 }
 
 
@@ -130,6 +140,9 @@ def run_sync(
     # If no targets specified, sync all
     if not targets:
         targets = list(SYNC_TARGETS.keys())
+
+    # Resolve legacy aliases with deprecation warnings
+    targets = resolve_legacy_aliases(targets, LEGACY_SYNC_ALIASES, "Sync target")
 
     # Validate targets
     invalid_targets = [t for t in targets if t not in SYNC_TARGETS]

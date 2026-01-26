@@ -1,4 +1,4 @@
-"""Tests for pdbj-cif pipeline."""
+"""Tests for pdbj pipeline (CIF format)."""
 
 import gzip
 from pathlib import Path
@@ -60,7 +60,7 @@ def create_test_settings(data_dir: Path) -> Settings:
     return Settings(
         rdb=RdbConfig(nworkers=2, constring="test"),
         pipelines={
-            "pdbj-cif": PipelineConfig(
+            "pdbj": PipelineConfig(
                 deffile="schemas/pdbj.def.yml",
                 data=str(data_dir),
             )
@@ -100,7 +100,7 @@ class TestExtractEntryId:
     def test_cif_gz_extension(self, tmp_path: Path) -> None:
         """Extract entry ID from .cif.gz filename."""
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["pdbj-cif"]
+        config = settings.pipelines["pdbj"]
         schema_def = create_test_schema_def()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
@@ -111,7 +111,7 @@ class TestExtractEntryId:
     def test_plain_cif_extension(self, tmp_path: Path) -> None:
         """Extract entry ID from .cif filename."""
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["pdbj-cif"]
+        config = settings.pipelines["pdbj"]
         schema_def = create_test_schema_def()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
@@ -133,7 +133,7 @@ class TestFindJobs:
         create_test_pdbj_cif_file(cif_path, [{"id": "100d"}])
 
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["pdbj-cif"]
+        config = settings.pipelines["pdbj"]
         schema_def = create_test_schema_def()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
@@ -153,7 +153,7 @@ class TestFindJobs:
             create_test_pdbj_cif_file(cif_path, [{"id": pdb_id}])
 
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["pdbj-cif"]
+        config = settings.pipelines["pdbj"]
         schema_def = create_test_schema_def()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
@@ -173,7 +173,7 @@ class TestFindJobs:
             create_test_pdbj_cif_file(cif_path, [{"id": f"{i:03d}d"}])
 
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["pdbj-cif"]
+        config = settings.pipelines["pdbj"]
         schema_def = create_test_schema_def()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
@@ -184,7 +184,7 @@ class TestFindJobs:
     def test_empty_directory(self, tmp_path: Path) -> None:
         """Find jobs returns empty list for empty directory."""
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["pdbj-cif"]
+        config = settings.pipelines["pdbj"]
         schema_def = create_test_schema_def()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
@@ -195,7 +195,7 @@ class TestFindJobs:
     def test_nonexistent_directory(self, tmp_path: Path) -> None:
         """Find jobs returns empty list for nonexistent directory."""
         settings = create_test_settings(tmp_path.joinpath("nonexistent"))
-        config = settings.pipelines["pdbj-cif"]
+        config = settings.pipelines["pdbj"]
         schema_def = create_test_schema_def()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
@@ -213,7 +213,7 @@ class TestProcessJob:
         create_test_pdbj_cif_file(cif_path, [{"id": "100d"}])
 
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["pdbj-cif"]
+        config = settings.pipelines["pdbj"]
         schema_def = create_test_schema_def()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
@@ -233,7 +233,7 @@ class TestPdbjCifPipelineRun:
     def test_run_returns_empty_when_no_files(self, tmp_path: Path) -> None:
         """Run returns empty list when no CIF files found."""
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["pdbj-cif"]
+        config = settings.pipelines["pdbj"]
         schema_def = create_test_schema_def()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
@@ -251,7 +251,7 @@ class TestPdbjCifPipelineRun:
             create_test_pdbj_cif_file(cif_path, [{"id": pdb_id}])
 
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["pdbj-cif"]
+        config = settings.pipelines["pdbj"]
         schema_def = create_test_schema_def()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
@@ -271,7 +271,7 @@ class TestPdbjCifPipelineRun:
             create_test_pdbj_cif_file(cif_path, [{"id": f"{i:03d}d"}])
 
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["pdbj-cif"]
+        config = settings.pipelines["pdbj"]
         schema_def = create_test_schema_def()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
@@ -286,7 +286,7 @@ class TestTransformEntry:
     def test_with_entry_data(self, tmp_path: Path) -> None:
         """Transform entry with data."""
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["pdbj-cif"]
+        config = settings.pipelines["pdbj"]
         schema_def = create_test_schema_def()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
@@ -301,7 +301,7 @@ class TestTransformEntry:
     def test_without_entry_data(self, tmp_path: Path) -> None:
         """Transform entry creates fallback when no data."""
         settings = create_test_settings(tmp_path)
-        config = settings.pipelines["pdbj-cif"]
+        config = settings.pipelines["pdbj"]
         schema_def = create_test_schema_def()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
