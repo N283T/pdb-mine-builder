@@ -36,3 +36,6 @@ pipelines:
   contacts:
     deffile: ${CWD}schemas/contacts.def.yml
     data: /mnt/c/pdb/pdbj/pdbjplus/data/pdb/contacts/
+  sifts:
+    deffile: ${CWD}schemas/sifts.def.yml
+    data: /mnt/c/pdb/pdbj/pdbjplus/data/sifts/rdf/

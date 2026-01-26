@@ -1,0 +1,161 @@
+config:
+  primaryKey: pdbid
+  schema: sifts
+tables:
+  - name: pdb_pfam
+    columns:
+      - - pdbid
+        - text
+      - - entity_id
+        - integer
+      - - pfam_id
+        - text
+    primary_key:
+      - pdbid
+      - entity_id
+      - pfam_id
+    foreign_keys: []
+    unique_keys: []
+    keywords: []
+  - name: pdb_interpro
+    columns:
+      - - pdbid
+        - text
+      - - entity_id
+        - integer
+      - - interpro_id
+        - text
+    primary_key:
+      - pdbid
+      - entity_id
+      - interpro_id
+    foreign_keys: []
+    unique_keys: []
+    keywords: []
+  - name: pdb_go
+    columns:
+      - - pdbid
+        - text
+      - - entity_id
+        - integer
+      - - go_id
+        - text
+    primary_key:
+      - pdbid
+      - entity_id
+      - go_id
+    foreign_keys: []
+    unique_keys: []
+    keywords: []
+  - name: pdb_enzyme
+    columns:
+      - - pdbid
+        - text
+      - - entity_id
+        - integer
+      - - ec_number
+        - text
+    primary_key:
+      - pdbid
+      - entity_id
+      - ec_number
+    foreign_keys: []
+    unique_keys: []
+    keywords: []
+  - name: pdb_taxonomy
+    columns:
+      - - pdbid
+        - text
+      - - entity_id
+        - integer
+      - - taxonomy_id
+        - integer
+    primary_key:
+      - pdbid
+      - entity_id
+      - taxonomy_id
+    foreign_keys: []
+    unique_keys: []
+    keywords: []
+  - name: pdb_uniprot_short
+    columns:
+      - - pdbid
+        - text
+      - - entity_id
+        - integer
+      - - uniprot_id
+        - text
+    primary_key:
+      - pdbid
+      - entity_id
+      - uniprot_id
+    foreign_keys: []
+    unique_keys: []
+    keywords: []
+  - name: pdb_uniprot
+    columns:
+      - - pdbid
+        - text
+      - - entity_id
+        - integer
+      - - pdb_start
+        - integer
+      - - pdb_end
+        - integer
+      - - uniprot_id
+        - text
+      - - uniprot_start
+        - integer
+      - - uniprot_end
+        - integer
+    primary_key:
+      - pdbid
+      - entity_id
+      - pdb_start
+      - pdb_end
+      - uniprot_id
+    foreign_keys: []
+    unique_keys: []
+    keywords: []
+  - name: pdb_cath
+    columns:
+      - - pdbid
+        - text
+      - - entity_id
+        - integer
+      - - cath_id
+        - text
+    primary_key:
+      - pdbid
+      - entity_id
+      - cath_id
+    foreign_keys: []
+    unique_keys: []
+    keywords: []
+  - name: pdb_scop
+    columns:
+      - - pdbid
+        - text
+      - - entity_id
+        - integer
+      - - scop_id
+        - text
+    primary_key:
+      - pdbid
+      - entity_id
+      - scop_id
+    foreign_keys: []
+    unique_keys: []
+    keywords: []
+  - name: pdb_pubmed
+    columns:
+      - - pdbid
+        - text
+      - - pubmed_id
+        - integer
+    primary_key:
+      - pdbid
+      - pubmed_id
+    foreign_keys: []
+    unique_keys: []
+    keywords: []
