@@ -3,17 +3,31 @@ rdb:
   constring: "dbname='mine2_test' user='pdbj' port=5433"
 
 pipelines:
-  pdb:
+  # pdbj: test data uses mmJSON fixtures
+  pdbj:
+    deffile: ${CWD}schemas/pdbj.def.yml
+    data: ${CWD}data/mmjson-noatom/
+    data-plus: ${CWD}data/plus/
+  pdbj-json:
     deffile: ${CWD}schemas/pdbj.def.yml
     data: ${CWD}data/mmjson-noatom/
     data-plus: ${CWD}data/plus/
   cc:
     deffile: ${CWD}schemas/cc.def.yml
     data: ${CWD}data/cc/
+  cc-json:
+    deffile: ${CWD}schemas/cc.def.yml
+    data: ${CWD}data/cc/
   ccmodel:
     deffile: ${CWD}schemas/ccmodel.def.yml
     data: ${CWD}data/ccmodel/
+  ccmodel-json:
+    deffile: ${CWD}schemas/ccmodel.def.yml
+    data: ${CWD}data/ccmodel/
   prd:
+    deffile: ${CWD}schemas/prd.def.yml
+    data: ${CWD}data/prd/
+  prd-json:
     deffile: ${CWD}schemas/prd.def.yml
     data: ${CWD}data/prd/
   vrpt:
@@ -21,12 +35,6 @@ pipelines:
     data: ${CWD}data/vrpt-json/*
     data-cif: ${CWD}data/vrpt/*_validation.cif.gz
     dic: ${CWD}dictionaries/mmcif_pdbx_vrpt.dic.gz
-  emdb:
-    deffile: ${CWD}schemas/emdb.def.yml
-    data: ${CWD}data/emdb/
-  ihm:
-    deffile: ${CWD}schemas/ihm.def.yml
-    data: ${CWD}data/ihm/
   contacts:
     deffile: ${CWD}schemas/contacts.def.yml
     data: ${CWD}data/contacts/
