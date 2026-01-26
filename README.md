@@ -182,6 +182,12 @@ pixi run db-status
 
 RDKit extension, mol column, and SQL functions are **automatically configured** when running the `cc` or `cc-json` pipeline.
 
+To setup RDKit functions independently (without running the full pipeline):
+
+```bash
+pixi run mine2 setup-rdkit
+```
+
 > **Note**: Requires superuser privileges for initial `CREATE EXTENSION rdkit`.
 > If auto-setup fails, run manually: `psql -d mine2 -f scripts/init_rdkit.sql`
 

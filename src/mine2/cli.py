@@ -115,6 +115,29 @@ def run_all(
     console.print("\n[bold green]Full cycle completed![/bold green]")
 
 
+@app.command(name="setup-rdkit")
+def setup_rdkit(
+    config: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Config file path"),
+    ] = Path("config.yml"),
+) -> None:
+    """Setup RDKit extension and SQL functions.
+
+    Creates RDKit extension, mol column on cc.brief_summary,
+    and loads chemical search functions (similar_compounds, substructure_search, etc.).
+
+    This is automatically run by cc/cc-json pipelines, but can be run
+    independently to add functions to an existing database.
+    """
+    from mine2.pipelines.cc import _ensure_rdkit_setup
+
+    settings = load_config(config)
+    console.print("[bold]Setting up RDKit extension and functions...[/bold]")
+    _ensure_rdkit_setup(settings.rdb.constring)
+    console.print("[bold green]RDKit setup completed![/bold green]")
+
+
 @app.command()
 def test(
     pipelines: Annotated[
