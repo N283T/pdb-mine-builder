@@ -46,6 +46,8 @@ docs/                   # Architecture docs
 
 ## Pipelines
 
+### mmJSON Pipelines (Primary)
+
 | Pipeline | Format | Notes |
 |----------|--------|-------|
 | pdbj | mmJSON | Merges noatom + plus files via merge_data() |
@@ -54,6 +56,17 @@ docs/                   # Architecture docs
 | prd | mmJSON | Has TWO data blocks (PRD + PRDCC) |
 | vrpt | CIF | Uses gemmi.CifWalk for nested directory structure |
 | contacts | JSON | Array format, not mmJSON |
+
+### CIF Pipelines (Alternative)
+
+For users who already mirror CIF files from wwPDB/PDBj:
+
+| Pipeline | Source | Notes |
+|----------|--------|-------|
+| pdbj-cif | `divided/mmCIF/*.cif.gz` | File-based (~248k files), atom_site skipped |
+| cc-cif | `components.cif.gz` | Single file, ~40k blocks |
+| ccmodel-cif | `chem_comp_model.cif.gz` | Single file |
+| prd-cif | `prd-all.cif.gz` + `prdcc-all.cif.gz` | Dual file (PRD + PRDCC) |
 
 ## Key Patterns
 
@@ -80,7 +93,12 @@ from mine2.parsers.mmjson import normalize_column_name
 ### Category Transformation
 ```python
 from mine2.pipelines.base import transform_category
+
+# mmJSON: needs normalization
 rows = transform_category(rows, table, pk_value, pk_col, normalize_column_name)
+
+# CIF: no normalization needed (pass None)
+rows = transform_category(rows, table, pk_value, pk_col, None)
 ```
 
 ### Parallel Processing
