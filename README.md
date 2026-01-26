@@ -256,7 +256,11 @@ WHERE mol @> 'C(=O)O'::qmol;  -- Carboxylic acid substructure
 ### SIFTS Cross-References
 
 The SIFTS pipeline provides cross-references from PDB entries to external databases.
-Data is sourced from [SIFTS (PDBe)](https://www.ebi.ac.uk/pdbe/docs/sifts/) via PDBj.
+Data is sourced from [SIFTS (PDBe)](https://www.ebi.ac.uk/pdbe/docs/sifts/) via PDBj RDF/TTL files.
+
+> **Note**: This is a mine2updater-ng specific feature. PDBj's original MINE2 database
+> does not include SIFTS tables. We load the RDF/TTL data into PostgreSQL for convenient
+> SQL access and JOINs with other pdbj tables.
 
 | Table | Description |
 |-------|-------------|
