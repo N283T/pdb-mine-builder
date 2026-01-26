@@ -8,7 +8,7 @@ from rich.console import Console
 
 from mine2.config import PipelineConfig, Settings
 from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
-from mine2.parsers.cif import parse_mmjson_file
+from mine2.parsers.cif import parse_cif_file, parse_mmjson_file
 from mine2.parsers.mmjson import merge_data, normalize_column_name
 from mine2.pipelines.base import BasePipeline, transform_category
 
@@ -182,12 +182,137 @@ class PdbjPipeline(BasePipeline):
         return transform_category(rows, table, entry_id, "pdbid", normalize_column_name)
 
 
+class PdbjCifPipeline(BasePipeline):
+    """Pipeline for loading PDB structure data from CIF files.
+
+    Uses mmCIF files from structures/divided/mmCIF/ directory.
+    Unlike mmJSON, CIF files contain full atomic data but we only
+    load categories defined in the schema (atom_site is excluded).
+    """
+
+    name = "pdbj-cif"
+    file_pattern = "*.cif.gz"
+
+    # extract_entry_id inherited from BasePipeline handles .cif.gz and .cif
+
+    def process_job(
+        self,
+        job: Job,
+        schema_def: SchemaDef,
+        conninfo: str,
+    ) -> LoaderResult:
+        """Process a single PDB entry from CIF."""
+        try:
+            # Parse CIF file (row-oriented, same format as mmJSON)
+            data = parse_cif_file(job.filepath)
+
+            # Transform and load
+            rows_inserted = 0
+
+            # Get entry table definition for its primary key
+            entry_table = next(
+                (t for t in schema_def.tables if t.name == "entry"), None
+            )
+            entry_pk = (
+                entry_table.primary_key if entry_table else [schema_def.primary_key]
+            )
+
+            # Load entry table
+            entry_rows = self._transform_entry(data, job.entry_id)
+            if entry_rows:
+                columns = list(entry_rows[0].keys())
+                inserted, _ = bulk_upsert(
+                    conninfo,
+                    schema_def.schema_name,
+                    "entry",
+                    columns,
+                    [tuple(r[c] for c in columns) for r in entry_rows],
+                    entry_pk,
+                )
+                rows_inserted += inserted
+
+            # Load other categories
+            for table in schema_def.tables:
+                if table.name == "entry":
+                    continue
+
+                category_rows = self._transform_category(data, table, job.entry_id)
+                if category_rows:
+                    columns = list(category_rows[0].keys())
+                    inserted, _ = bulk_upsert(
+                        conninfo,
+                        schema_def.schema_name,
+                        table.name,
+                        columns,
+                        [tuple(r[c] for c in columns) for r in category_rows],
+                        table.primary_key,
+                    )
+                    rows_inserted += inserted
+
+            return LoaderResult(
+                entry_id=job.entry_id,
+                success=True,
+                rows_inserted=rows_inserted,
+            )
+
+        except Exception as e:
+            error_msg = f"{e}\n{traceback.format_exc()}"
+            return LoaderResult(
+                entry_id=job.entry_id,
+                success=False,
+                error=error_msg,
+            )
+
+    def _transform_entry(self, data: dict[str, Any], entry_id: str) -> list[dict]:
+        """Transform entry data."""
+        rows = data.get("entry", [])
+        if not rows:
+            # Fallback: create minimal entry with both PK columns
+            return [{"pdbid": entry_id, "id": entry_id.upper()}]
+
+        result = []
+        for row in rows:
+            result.append(
+                {
+                    "pdbid": entry_id,
+                    **{k: v for k, v in row.items() if v is not None},
+                }
+            )
+        return result
+
+    def _transform_category(
+        self,
+        data: dict[str, Any],
+        table: TableDef,
+        entry_id: str,
+    ) -> list[dict]:
+        """Transform a category's data.
+
+        CIF files use plain column names (no bracket notation),
+        so we don't normalize column names.
+        """
+        rows = data.get(table.name, [])
+        # No normalization for CIF - pass None instead of normalize_column_name
+        return transform_category(rows, table, entry_id, "pdbid", None)
+
+
 def run(
     settings: Settings,
     config: PipelineConfig,
     schema_def: SchemaDef,
     limit: int | None = None,
 ) -> list[LoaderResult]:
-    """Run the pdbj pipeline."""
+    """Run the pdbj pipeline (mmJSON version)."""
     pipeline = PdbjPipeline(settings, config, schema_def)
+    return pipeline.run(limit)
+
+
+def run_cif(
+    settings: Settings,
+    config: PipelineConfig,
+    schema_def: SchemaDef,
+    limit: int | None = None,
+) -> list[LoaderResult]:
+    """Run the pdbj-cif pipeline (CIF version)."""
+    pipeline = PdbjCifPipeline(settings, config, schema_def)
     return pipeline.run(limit)
