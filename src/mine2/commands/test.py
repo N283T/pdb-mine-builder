@@ -50,7 +50,7 @@ def run_test(
             _create_database(settings, db_name)
 
     # Initialize pool with test database
-    init_pool(settings.rdb.constring, max_size=settings.rdb.nworkers + 2)
+    init_pool(settings.rdb.constring, max_size=settings.rdb.get_workers() + 2)
 
     try:
         # Import and run update with limit

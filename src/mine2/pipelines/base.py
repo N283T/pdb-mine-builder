@@ -120,7 +120,7 @@ class BasePipeline(ABC):
             schema_def=self.schema_def,
             jobs=jobs,
             process_func=self.process_job,
-            max_workers=self.settings.rdb.nworkers,
+            max_workers=self.settings.rdb.get_workers(),
         )
 
         return results

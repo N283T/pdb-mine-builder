@@ -127,9 +127,9 @@ class TestFindJobs:
     def test_find_cif_files(self, tmp_path: Path) -> None:
         """Find CIF files in data directory."""
         # Create divided directory structure
-        subdir = tmp_path / "00"
+        subdir = tmp_path.joinpath("00")
         subdir.mkdir()
-        cif_path = subdir / "100d.cif.gz"
+        cif_path = subdir.joinpath("100d.cif.gz")
         create_test_pdbj_cif_file(cif_path, [{"id": "100d"}])
 
         settings = create_test_settings(tmp_path)
@@ -147,9 +147,9 @@ class TestFindJobs:
         """Find multiple CIF files across subdirectories."""
         # Create divided directory structure
         for subdir_name, pdb_id in [("00", "100d"), ("01", "101d"), ("0a", "1a0a")]:
-            subdir = tmp_path / subdir_name
+            subdir = tmp_path.joinpath(subdir_name)
             subdir.mkdir()
-            cif_path = subdir / f"{pdb_id}.cif.gz"
+            cif_path = subdir.joinpath(f"{pdb_id}.cif.gz")
             create_test_pdbj_cif_file(cif_path, [{"id": pdb_id}])
 
         settings = create_test_settings(tmp_path)
@@ -167,9 +167,9 @@ class TestFindJobs:
         """Find jobs respects limit parameter."""
         # Create multiple files
         for i in range(10):
-            subdir = tmp_path / f"{i:02d}"
+            subdir = tmp_path.joinpath(f"{i:02d}")
             subdir.mkdir()
-            cif_path = subdir / f"{i:03d}d.cif.gz"
+            cif_path = subdir.joinpath(f"{i:03d}d.cif.gz")
             create_test_pdbj_cif_file(cif_path, [{"id": f"{i:03d}d"}])
 
         settings = create_test_settings(tmp_path)
@@ -194,7 +194,7 @@ class TestFindJobs:
 
     def test_nonexistent_directory(self, tmp_path: Path) -> None:
         """Find jobs returns empty list for nonexistent directory."""
-        settings = create_test_settings(tmp_path / "nonexistent")
+        settings = create_test_settings(tmp_path.joinpath("nonexistent"))
         config = settings.pipelines["pdbj-cif"]
         schema_def = create_test_schema_def()
 
@@ -209,7 +209,7 @@ class TestProcessJob:
 
     def test_process_single_entry(self, tmp_path: Path) -> None:
         """Process a single PDB entry from CIF (entry_id only, no DB)."""
-        cif_path = tmp_path / "100d.cif.gz"
+        cif_path = tmp_path.joinpath("100d.cif.gz")
         create_test_pdbj_cif_file(cif_path, [{"id": "100d"}])
 
         settings = create_test_settings(tmp_path)
@@ -244,10 +244,10 @@ class TestPdbjCifPipelineRun:
     def test_run_processes_files(self, tmp_path: Path) -> None:
         """Run processes found CIF files."""
         # Create files in divided structure
-        subdir = tmp_path / "00"
+        subdir = tmp_path.joinpath("00")
         subdir.mkdir()
         for pdb_id in ["100d", "200d"]:
-            cif_path = subdir / f"{pdb_id}.cif.gz"
+            cif_path = subdir.joinpath(f"{pdb_id}.cif.gz")
             create_test_pdbj_cif_file(cif_path, [{"id": pdb_id}])
 
         settings = create_test_settings(tmp_path)
@@ -264,10 +264,10 @@ class TestPdbjCifPipelineRun:
     def test_run_respects_limit(self, tmp_path: Path) -> None:
         """Run respects the limit parameter."""
         # Create many files
-        subdir = tmp_path / "00"
+        subdir = tmp_path.joinpath("00")
         subdir.mkdir()
         for i in range(20):
-            cif_path = subdir / f"{i:03d}d.cif.gz"
+            cif_path = subdir.joinpath(f"{i:03d}d.cif.gz")
             create_test_pdbj_cif_file(cif_path, [{"id": f"{i:03d}d"}])
 
         settings = create_test_settings(tmp_path)

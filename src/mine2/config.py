@@ -12,11 +12,19 @@ from pydantic import BaseModel, Field
 class RdbConfig(BaseModel):
     """Database configuration."""
 
-    nworkers: int = Field(default=4, description="Number of worker processes")
+    nworkers: int | None = Field(
+        default=None, description="Number of worker processes (None = auto-detect)"
+    )
     constring: str = Field(
         default="host=localhost port=5433 dbname=mine2 user=pdbj",
         description="PostgreSQL connection string",
     )
+
+    def get_workers(self) -> int:
+        """Get effective worker count (auto-detect if not set, capped at 32)."""
+        if self.nworkers is not None:
+            return self.nworkers
+        return min(os.cpu_count() or 4, 32)
 
 
 class SyncTarget(BaseModel):
@@ -43,9 +51,6 @@ class Settings(BaseModel):
     """Application settings."""
 
     rdb: RdbConfig = Field(default_factory=RdbConfig)
-    obabel: str = Field(
-        default="/usr/bin/obabel", description="OpenBabel executable path"
-    )
     sync: dict[str, SyncTarget] = Field(default_factory=dict)
     pipelines: dict[str, PipelineConfig] = Field(default_factory=dict)
 

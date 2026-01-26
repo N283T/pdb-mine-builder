@@ -7,8 +7,8 @@ import gemmi
 import pytest
 
 from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import LoaderResult, SchemaDef, TableDef
-from mine2.pipelines.cc import CcCifPipeline, _process_cif_chunk
+from mine2.db.loader import SchemaDef, TableDef
+from mine2.pipelines.cc import CcCifPipeline, _process_cif_block
 
 
 def create_test_cif_content(components: list[dict]) -> str:
@@ -96,7 +96,7 @@ class TestFindCifFile:
 
     def test_direct_path(self, tmp_path: Path) -> None:
         """Find CIF file at direct path."""
-        cif_path = tmp_path / "components.cif.gz"
+        cif_path = tmp_path.joinpath("components.cif.gz")
         create_test_cif_file(cif_path, [{"id": "ATP"}])
 
         settings = create_test_settings(tmp_path)
@@ -111,9 +111,9 @@ class TestFindCifFile:
     def test_nested_path_rsync_quirk(self, tmp_path: Path) -> None:
         """Find CIF file in nested directory (rsync quirk)."""
         # Create nested structure: data/components.cif.gz/components.cif.gz
-        nested_dir = tmp_path / "components.cif.gz"
+        nested_dir = tmp_path.joinpath("components.cif.gz")
         nested_dir.mkdir()
-        cif_path = nested_dir / "components.cif.gz"
+        cif_path = nested_dir.joinpath("components.cif.gz")
         create_test_cif_file(cif_path, [{"id": "ATP"}])
 
         settings = create_test_settings(tmp_path)
@@ -128,9 +128,9 @@ class TestFindCifFile:
     def test_recursive_search(self, tmp_path: Path) -> None:
         """Find CIF file via recursive search."""
         # Create file in subdirectory
-        subdir = tmp_path / "subdir" / "another"
+        subdir = tmp_path.joinpath("subdir", "another")
         subdir.mkdir(parents=True)
-        cif_path = subdir / "components.cif.gz"
+        cif_path = subdir.joinpath("components.cif.gz")
         create_test_cif_file(cif_path, [{"id": "ATP"}])
 
         settings = create_test_settings(tmp_path)
@@ -155,7 +155,7 @@ class TestFindCifFile:
 
     def test_directory_not_exists(self, tmp_path: Path) -> None:
         """Return None when data directory doesn't exist."""
-        settings = create_test_settings(tmp_path / "nonexistent")
+        settings = create_test_settings(tmp_path.joinpath("nonexistent"))
         config = settings.pipelines["cc-cif"]
         schema_def = create_test_schema_def()
 
@@ -165,12 +165,12 @@ class TestFindCifFile:
         assert found is None
 
 
-class TestProcessCifChunk:
-    """Tests for _process_cif_chunk function."""
+class TestProcessCifBlock:
+    """Tests for _process_cif_block function."""
 
     def test_process_single_block(self, tmp_path: Path) -> None:
-        """Process a single block chunk."""
-        cif_path = tmp_path / "test.cif"
+        """Process a single CIF block."""
+        cif_path = tmp_path.joinpath("test.cif")
         create_test_cif_file(
             cif_path,
             [
@@ -180,135 +180,44 @@ class TestProcessCifChunk:
 
         schema_def = create_test_schema_def()
 
-        # Mock conninfo - we won't actually connect to DB
-        # Instead, patch bulk_upsert to capture calls
-        results = _process_cif_chunk(
-            str(cif_path),
-            start_idx=0,
-            end_idx=1,
+        # Load the CIF and get the block
+        doc = gemmi.cif.read(str(cif_path))
+        block = doc[0]
+
+        # Mock conninfo - will fail to connect but tests the function runs
+        result = _process_cif_block(
+            block=block,
             schema_def=schema_def,
             conninfo="mock://test",
         )
 
-        # Should have processed 1 block
-        assert len(results) == 1
-        # Will fail because we can't connect to mock DB, but that's expected
-        # The important thing is the function processes the block
+        # Should return a single LoaderResult
+        assert result.entry_id == "ATP"
+        # Will fail because we can't connect to mock DB
+        assert result.success is False
 
-    def test_process_multiple_blocks(self, tmp_path: Path) -> None:
-        """Process multiple blocks in a chunk."""
-        cif_path = tmp_path / "test.cif"
+    def test_process_block_extracts_comp_id(self, tmp_path: Path) -> None:
+        """Block name is used as comp_id."""
+        cif_path = tmp_path.joinpath("test.cif")
         create_test_cif_file(
             cif_path,
             [
-                {"id": "ATP"},
                 {"id": "ADP"},
-                {"id": "AMP"},
             ],
         )
 
         schema_def = create_test_schema_def()
 
-        results = _process_cif_chunk(
-            str(cif_path),
-            start_idx=0,
-            end_idx=3,
+        doc = gemmi.cif.read(str(cif_path))
+        block = doc[0]
+
+        result = _process_cif_block(
+            block=block,
             schema_def=schema_def,
             conninfo="mock://test",
         )
 
-        assert len(results) == 3
-        # All should have entry_ids matching component IDs
-        entry_ids = {r.entry_id for r in results}
-        assert entry_ids == {"ATP", "ADP", "AMP"}
-
-    def test_process_partial_chunk(self, tmp_path: Path) -> None:
-        """Process a partial range of blocks."""
-        cif_path = tmp_path / "test.cif"
-        create_test_cif_file(
-            cif_path,
-            [
-                {"id": "A"},
-                {"id": "B"},
-                {"id": "C"},
-                {"id": "D"},
-            ],
-        )
-
-        schema_def = create_test_schema_def()
-
-        # Process only blocks 1-3 (B, C)
-        results = _process_cif_chunk(
-            str(cif_path),
-            start_idx=1,
-            end_idx=3,
-            schema_def=schema_def,
-            conninfo="mock://test",
-        )
-
-        assert len(results) == 2
-        entry_ids = {r.entry_id for r in results}
-        assert entry_ids == {"B", "C"}
-
-
-class TestTransformCategory:
-    """Tests for CcCifPipeline._transform_category()."""
-
-    def test_transform_simple(self, tmp_path: Path) -> None:
-        """Transform simple category data."""
-        settings = create_test_settings(tmp_path)
-        config = settings.pipelines["cc-cif"]
-        schema_def = create_test_schema_def()
-
-        pipeline = CcCifPipeline(settings, config, schema_def)
-
-        data = {
-            "chem_comp": [
-                {"id": "ATP", "name": "Adenosine Triphosphate", "type": "NON-POLYMER"}
-            ]
-        }
-        table = schema_def.tables[0]
-
-        result = pipeline._transform_category(data, table, "ATP", "id")
-
-        assert len(result) == 1
-        assert result[0]["id"] == "ATP"
-        assert result[0]["name"] == "Adenosine Triphosphate"
-        assert result[0]["type"] == "NON-POLYMER"
-
-    def test_transform_empty(self, tmp_path: Path) -> None:
-        """Transform empty category returns empty list."""
-        settings = create_test_settings(tmp_path)
-        config = settings.pipelines["cc-cif"]
-        schema_def = create_test_schema_def()
-
-        pipeline = CcCifPipeline(settings, config, schema_def)
-
-        data = {}  # No chem_comp category
-        table = schema_def.tables[0]
-
-        result = pipeline._transform_category(data, table, "ATP", "id")
-
-        assert result == []
-
-    def test_no_normalization_for_cif(self, tmp_path: Path) -> None:
-        """CIF columns are not normalized (no bracket notation)."""
-        settings = create_test_settings(tmp_path)
-        config = settings.pipelines["cc-cif"]
-        schema_def = create_test_schema_def()
-
-        pipeline = CcCifPipeline(settings, config, schema_def)
-
-        # CIF uses plain column names, unlike mmJSON which has col[1][2]
-        data = {"chem_comp": [{"id": "TEST", "name": "Test", "type": "OTHER"}]}
-        table = schema_def.tables[0]
-
-        result = pipeline._transform_category(data, table, "TEST", "id")
-
-        assert len(result) == 1
-        # Columns should match exactly (no bracket removal)
-        assert "id" in result[0]
-        assert "name" in result[0]
+        assert result.entry_id == "ADP"
 
 
 class TestCcCifPipelineRun:
@@ -327,7 +236,7 @@ class TestCcCifPipelineRun:
 
     def test_run_sequential_for_small_count(self, tmp_path: Path) -> None:
         """Run uses sequential processing for small block counts."""
-        cif_path = tmp_path / "components.cif.gz"
+        cif_path = tmp_path.joinpath("components.cif.gz")
         create_test_cif_file(
             cif_path,
             [{"id": f"COMP{i}"} for i in range(5)],
@@ -346,7 +255,7 @@ class TestCcCifPipelineRun:
 
     def test_run_respects_limit(self, tmp_path: Path) -> None:
         """Run respects the limit parameter."""
-        cif_path = tmp_path / "components.cif.gz"
+        cif_path = tmp_path.joinpath("components.cif.gz")
         create_test_cif_file(
             cif_path,
             [{"id": f"COMP{i}"} for i in range(100)],

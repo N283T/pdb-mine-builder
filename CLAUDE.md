@@ -10,6 +10,7 @@ PDBj (Protein Data Bank Japan) のデータを PostgreSQL にロードする CLI
 - **CLI**: Typer + Rich
 - **Config**: Pydantic
 - **Parser**: gemmi (CIF and mmJSON unified)
+- **Chemistry**: RDKit PostgreSQL cartridge + ccd2rdmol
 
 ## Quick Start
 
@@ -99,6 +100,31 @@ rows = transform_category(rows, table, pk_value, pk_col, normalize_column_name)
 
 # CIF: no normalization needed (pass None)
 rows = transform_category(rows, table, pk_value, pk_col, None)
+```
+
+### Chemical SMILES Generation (cc pipeline)
+The cc pipeline generates canonical SMILES using ccd2rdmol + RDKit:
+```python
+# CIF: direct conversion via ccd2rdmol
+from ccd2rdmol import read_ccd_block
+result = read_ccd_block(block, sanitize_mol=True)
+smiles = Chem.MolToSmiles(result.mol, canonical=True)
+
+# mmJSON: extract existing SMILES and canonicalize
+raw_smiles = data["pdbx_chem_comp_descriptor"][0]["descriptor"]
+mol = Chem.MolFromSmiles(raw_smiles)
+smiles = Chem.MolToSmiles(mol, canonical=True)
+```
+
+### RDKit PostgreSQL Cartridge
+Chemical searches use RDKit extension (run `scripts/init_rdkit.sql` after loading):
+```sql
+-- Substructure search
+SELECT * FROM cc.brief_summary WHERE mol @> 'c1ccccc1'::mol;
+
+-- Similarity search (Tanimoto)
+SELECT *, tanimoto_sml(morganbv_fp(mol), morganbv_fp('CCO'::mol))
+FROM cc.brief_summary WHERE morganbv_fp(mol) % morganbv_fp('CCO'::mol);
 ```
 
 ### Parallel Processing

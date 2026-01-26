@@ -13,10 +13,9 @@ RDB updater for MINE2 database. Synchronizes structural biology data from PDBj (
 ## Requirements
 
 - Python 3.12+
-- PostgreSQL 12+
+- PostgreSQL 17+ with RDKit extension
 - [Pixi](https://pixi.sh/) (package manager)
 - rsync (for data synchronization)
-- OpenBabel (for chemical fingerprinting)
 
 ## Installation
 
@@ -44,8 +43,6 @@ Copy and edit `config.yml`:
 rdb:
   nworkers: 8
   constring: "dbname='mine2' user='pdbj' port=5433"
-
-obabel: /usr/bin/obabel
 
 pipelines:
   pdbj:
@@ -137,6 +134,34 @@ pixi run db-init
 pixi run db-start
 pixi run db-stop
 pixi run db-status
+```
+
+### RDKit Extension Setup
+
+After loading data, initialize the RDKit PostgreSQL cartridge for chemical searches:
+
+```bash
+psql -d mine2 -f scripts/init_rdkit.sql
+```
+
+This enables:
+- **Substructure search**: `mol @> 'c1ccccc1'::mol`
+- **Similarity search**: `morganbv_fp(mol) % morganbv_fp('CCO'::mol)`
+- **SMILES validation**: `is_valid_smiles(smiles)`
+
+Example queries:
+
+```sql
+-- Find compounds containing benzene ring
+SELECT comp_id, name FROM cc.brief_summary
+WHERE mol @> 'c1ccccc1'::mol;
+
+-- Find similar compounds (Tanimoto > 0.8)
+SELECT comp_id, name,
+       tanimoto_sml(morganbv_fp(mol), morganbv_fp('CCO'::mol)) as similarity
+FROM cc.brief_summary
+WHERE morganbv_fp(mol) % morganbv_fp('CCO'::mol)
+ORDER BY similarity DESC;
 ```
 
 ## Development
