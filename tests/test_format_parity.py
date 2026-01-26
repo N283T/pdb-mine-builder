@@ -11,7 +11,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import gemmi
-import pytest
 
 from mine2.config import PipelineConfig, RdbConfig, Settings
 from mine2.db.loader import Job, SchemaDef, TableDef
@@ -150,7 +149,7 @@ def create_cif_file(path: Path, entry_id: str, data: dict[str, list[dict]]) -> N
                 lines.append(f"_{cat}.{col} {val}")
         else:
             # Multiple rows - use loop format
-            lines.append(f"loop_")
+            lines.append("loop_")
             for col in columns:
                 lines.append(f"_{cat}.{col}")
             for row in rows:

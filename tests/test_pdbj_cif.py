@@ -9,7 +9,7 @@ import gemmi
 import pytest
 
 from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef
+from mine2.db.loader import Job, SchemaDef, TableDef
 from mine2.parsers.cif import parse_cif_file
 from mine2.pipelines.pdbj import PdbjCifPipeline
 from mine2.utils.assembly import hex_sha256
@@ -971,8 +971,7 @@ _brief_summary.docid 100
 class TestCifPatchApplication:
     """Tests for apply_patches() in CIF pipeline."""
 
-    @patch("mine2.pipelines.pdbj.bulk_upsert")
-    def test_patches_applied_to_cif_data(self, mock_bulk_upsert, tmp_path):
+    def test_patches_applied_to_cif_data(self):
         """Test that entry-specific patches are applied to CIF data."""
         from mine2.utils.patches import apply_patches
 
@@ -985,15 +984,12 @@ class TestCifPatchApplication:
         met_ids = [row["id"] for row in result["chem_comp"] if row.get("id") == "MET"]
         assert "MET" in met_ids
 
-    @patch("mine2.pipelines.pdbj.bulk_upsert")
-    def test_patches_not_applied_to_non_matching_entry(
-        self, mock_bulk_upsert, tmp_path
-    ):
+    def test_patches_not_applied_to_non_matching_entry(self):
         """Test that patches are not applied to non-matching entries."""
         from mine2.utils.patches import apply_patches
 
         data = {"entry": [{"id": "100D"}]}
         result = apply_patches("100d", data)
 
-        # No patches for 100d, pdbx_chem_comp_identifier should not be added
-        assert "pdbx_chem_comp_identifier" not in result
+        # No patches for 100d, chem_comp should not be added
+        assert "chem_comp" not in result
