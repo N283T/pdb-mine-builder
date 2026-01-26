@@ -1,5 +1,7 @@
 -- RDKit PostgreSQL Cartridge initialization
--- Run this after creating the database and before loading data
+--
+-- NOTE: This is now AUTO-EXECUTED by the cc/cc-cif pipeline.
+-- Manual execution is only needed if auto-setup fails (e.g., permission issues).
 
 -- Enable RDKit extension
 CREATE EXTENSION IF NOT EXISTS rdkit;

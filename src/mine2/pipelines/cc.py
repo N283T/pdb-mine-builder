@@ -7,8 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import gemmi
-
-logger = logging.getLogger(__name__)
+import psycopg
 from ccd2rdmol import read_ccd_block
 from rdkit import Chem
 from rich.console import Console
@@ -27,6 +26,7 @@ from mine2.parsers.cif import parse_block, parse_mmjson_file
 from mine2.parsers.mmjson import normalize_column_name
 from mine2.pipelines.base import BasePipeline, transform_category
 
+logger = logging.getLogger(__name__)
 console = Console()
 
 
@@ -450,6 +450,56 @@ class CcCifPipeline:
         return None
 
 
+def _ensure_rdkit_setup(conninfo: str) -> None:
+    """Ensure RDKit extension and mol column exist.
+
+    This is idempotent - safe to call on every pipeline run.
+    """
+    with psycopg.connect(conninfo) as conn:
+        with conn.cursor() as cur:
+            # Create RDKit extension (database-level, requires superuser or rds_superuser)
+            try:
+                cur.execute("CREATE EXTENSION IF NOT EXISTS rdkit")
+            except psycopg.errors.InsufficientPrivilege:
+                logger.warning(
+                    "Cannot create RDKit extension (insufficient privileges). "
+                    "Run 'CREATE EXTENSION rdkit' as superuser."
+                )
+                return
+
+            # Add mol column if table exists but column doesn't
+            cur.execute("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_schema = 'cc' AND table_name = 'brief_summary'
+                    ) AND NOT EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = 'cc'
+                        AND table_name = 'brief_summary'
+                        AND column_name = 'mol'
+                    ) THEN
+                        ALTER TABLE cc.brief_summary
+                        ADD COLUMN mol mol GENERATED ALWAYS AS (
+                            CASE
+                                WHEN canonical_smiles IS NOT NULL
+                                     AND is_valid_smiles(canonical_smiles::cstring)
+                                THEN mol_from_smiles(canonical_smiles::cstring)
+                                ELSE NULL
+                            END
+                        ) STORED;
+
+                        -- Create GiST index for substructure searches
+                        CREATE INDEX IF NOT EXISTS brief_summary_mol_idx
+                        ON cc.brief_summary USING gist(mol);
+                    END IF;
+                END $$
+            """)
+        conn.commit()
+    console.print("  [green]RDKit setup verified[/green]")
+
+
 def run(
     settings: Settings,
     config: PipelineConfig,
@@ -457,6 +507,7 @@ def run(
     limit: int | None = None,
 ) -> list[LoaderResult]:
     """Run the cc pipeline (mmJSON version)."""
+    _ensure_rdkit_setup(settings.rdb.constring)
     pipeline = CcPipeline(settings, config, schema_def)
     return pipeline.run(limit)
 
@@ -468,5 +519,6 @@ def run_cif(
     limit: int | None = None,
 ) -> list[LoaderResult]:
     """Run the cc-cif pipeline (single CIF version)."""
+    _ensure_rdkit_setup(settings.rdb.constring)
     pipeline = CcCifPipeline(settings, config, schema_def)
     return pipeline.run(limit)

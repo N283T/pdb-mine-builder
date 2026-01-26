@@ -2,13 +2,15 @@
 
 import gzip
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import gemmi
+import psycopg
 import pytest
 
 from mine2.config import PipelineConfig, RdbConfig, Settings
 from mine2.db.loader import SchemaDef, TableDef
-from mine2.pipelines.cc import CcCifPipeline, _process_cif_block
+from mine2.pipelines.cc import CcCifPipeline, _ensure_rdkit_setup, _process_cif_block
 
 
 def create_test_cif_content(components: list[dict]) -> str:
@@ -269,3 +271,80 @@ class TestCcCifPipelineRun:
         results = pipeline.run(limit=10)
 
         assert len(results) == 10
+
+
+class TestEnsureRdkitSetup:
+    """Tests for _ensure_rdkit_setup function."""
+
+    def test_creates_extension_and_commits(self) -> None:
+        """Successfully creates RDKit extension and commits."""
+        mock_cursor = MagicMock()
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+
+        with patch("mine2.pipelines.cc.psycopg.connect", return_value=mock_conn):
+            _ensure_rdkit_setup("test_conninfo")
+
+        # Verify extension creation was attempted
+        mock_cursor.execute.assert_any_call("CREATE EXTENSION IF NOT EXISTS rdkit")
+        # Verify commit was called
+        mock_conn.commit.assert_called_once()
+
+    def test_handles_insufficient_privilege(self) -> None:
+        """Handles InsufficientPrivilege exception gracefully."""
+        mock_cursor = MagicMock()
+        mock_cursor.execute.side_effect = psycopg.errors.InsufficientPrivilege(
+            "permission denied"
+        )
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+
+        with patch("mine2.pipelines.cc.psycopg.connect", return_value=mock_conn):
+            # Should not raise - logs warning and returns early
+            _ensure_rdkit_setup("test_conninfo")
+
+        # Commit should not be called when privilege error occurs
+        mock_conn.commit.assert_not_called()
+
+    def test_executes_mol_column_ddl(self) -> None:
+        """Executes DDL for mol column creation."""
+        mock_cursor = MagicMock()
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+
+        with patch("mine2.pipelines.cc.psycopg.connect", return_value=mock_conn):
+            _ensure_rdkit_setup("test_conninfo")
+
+        # Verify two execute calls: extension + mol column DDL
+        assert mock_cursor.execute.call_count == 2
+        # Second call should be the DO block for mol column
+        second_call_sql = mock_cursor.execute.call_args_list[1][0][0]
+        assert "cc.brief_summary" in second_call_sql
+        assert "mol" in second_call_sql
+        assert "is_valid_smiles" in second_call_sql
+
+    def test_idempotent_multiple_calls(self) -> None:
+        """Multiple calls work without error (idempotent)."""
+        mock_cursor = MagicMock()
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+
+        with patch("mine2.pipelines.cc.psycopg.connect", return_value=mock_conn):
+            # Call twice - should not raise
+            _ensure_rdkit_setup("test_conninfo")
+            _ensure_rdkit_setup("test_conninfo")
+
+        # Should have been called twice (2 calls x 2 invocations)
+        assert mock_cursor.execute.call_count == 4

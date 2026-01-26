@@ -117,7 +117,7 @@ smiles = Chem.MolToSmiles(mol, canonical=True)
 ```
 
 ### RDKit PostgreSQL Cartridge
-Chemical searches use RDKit extension (run `scripts/init_rdkit.sql` after loading):
+Chemical searches use RDKit extension (auto-configured on `cc`/`cc-cif` pipeline run):
 ```sql
 -- Substructure search
 SELECT * FROM cc.brief_summary WHERE mol @> 'c1ccccc1'::mol;
