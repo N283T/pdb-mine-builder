@@ -1,37 +1,45 @@
 [workspace]
-authors = ["TomiiLabo <w255508b@yokohama-cu.ac.jp>"]
+authors = ["nagaet"]
 channels = ["conda-forge"]
 name = "mine2updater"
-platforms = ["osx-arm64"]
-version = "0.1.0"
+platforms = ["linux-64"]
+version = "0.2.0"
 
 [tasks]
-# Python script tasks (using pixi tasks)
-cif2json-lint = "ruff check scripts/cif2json.py"
-cif2json-format = "ruff format scripts/cif2json.py"
-cif2json-typecheck = "ty check scripts/cif2json.py"
-cif2json-check = { depends-on = ["cif2json-lint", "cif2json-format-check", "cif2json-typecheck"] }
-cif2json-format-check = "ruff format --check scripts/cif2json.py"
+# Development
+lint = "ruff check src/mine2"
+format = "ruff format src/mine2"
+typecheck = "ty check src/mine2"
+check = { depends-on = ["lint", "format-check", "typecheck"] }
+format-check = "ruff format --check src/mine2"
 
-# Python script tasks (using poe)
-cif2json-poe-lint = "poe cif2json.lint"
-cif2json-poe-format = "poe cif2json.format"
-cif2json-poe-typecheck = "poe cif2json.typecheck"
-cif2json-poe-check = "poe cif2json.check"
+# Run
+mine2 = "PYTHONPATH=src python -m mine2"
+
+# Database
+db-init = "initdb -D $PGDATA"
+db-start = "pg_ctl -D $PGDATA -l $PGDATA/logfile start"
+db-stop = "pg_ctl -D $PGDATA stop"
+db-status = "pg_ctl -D $PGDATA status"
 
 [dependencies]
-postgresql = ">=12.0.0,<13.0.0"
-nodejs = ">=18.12.1,<18.13"
+postgresql = ">=12.0.0,<17"
+python = ">=3.12"
 openbabel = ">=3.1.1,<4"
-python = ">=3.10"
 
 [pypi-dependencies]
-gemmi = ">=0.7.4,<0.8"
-tqdm = ">=4.66.0,<5"
-ruff = ">=0.8.0"
+gemmi = ">=0.7.0"
+typer = ">=0.15.0"
+rich = ">=13.0.0"
+pydantic = ">=2.0.0"
+pydantic-settings = ">=2.0.0"
+psycopg = { version = ">=3.2.0", extras = ["binary", "pool"] }
+pyyaml = ">=6.0.0"
+tqdm = ">=4.66.0"
+ruff = ">=0.9.0"
 ty = "*"
-poethepoet = ">=0.25.0"
 
+# Default environment variables (override with .env file)
 [activation.env]
 PGPORT = "5433"
 PGHOST = "localhost"

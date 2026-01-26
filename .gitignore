@@ -1,8 +1,15 @@
 # pixi environments
 .pixi/*
 !.pixi/config.toml
-schemas
-docs
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment
+.env
+
 node_modules
 dictionaries
 data

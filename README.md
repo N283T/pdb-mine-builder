@@ -1,156 +1,173 @@
-# MINE2 Updater (TypeScript)
+# MINE2 Updater
 
-Modern, maintainable RDB updater for MINE2. This repository is a TypeScript refactor of the original mine2updater.
+RDB updater for MINE2 database. Synchronizes structural biology data from PDBj (Protein Data Bank Japan) via rsync and loads it into PostgreSQL.
 
-The CLI synchronizes data from PDBj (Protein Data Bank Japan) via rsync and loads/updates a PostgreSQL database through named pipelines.
+## Features
 
-## Highlights
-
-- TypeScript conversion with stricter types and clearer module boundaries
-- Command-based CLI for sync/update/test workflows
-- Config-driven pipelines for repeatable updates
+- Multi-process parallel data loading with configurable workers
+- Schema-driven database management from YAML definitions
+- Support for multiple data formats (mmJSON, CIF)
+- Six data pipelines: pdbj, cc, ccmodel, prd, vrpt, contacts
 
 ## Requirements
 
-- PostgreSQL 12+ (with libpq-dev)
-- Node.js 14+ (LTS recommended)
-- OpenBabel (for chemical component fingerprinting)
-- rsync
+- Python 3.12+
+- PostgreSQL 12+
+- [Pixi](https://pixi.sh/) (package manager)
+- rsync (for data synchronization)
+- OpenBabel (for chemical fingerprinting)
 
-## Install
+## Installation
 
 ```bash
-git clone https://gitlab.com/pdbjapan/mine2updater.git
-cd mine2updater
-npm install
-npm run build
+git clone https://github.com/N283T/mine2updater-ng.git
+cd mine2updater-ng
+pixi install
 ```
 
-The `postinstall` script patches `libpq` automatically.
+## Environment Variables
+
+Copy `.env.example` to `.env` and customize:
+
+```bash
+cp .env.example .env
+```
+
+Default PostgreSQL settings are in `pixi.toml` (`[activation.env]`).
 
 ## Configuration
 
-Edit `config.yml` to match your environment.
+Copy and edit `config.yml`:
 
 ```yaml
 rdb:
-  nworkers: 16
+  nworkers: 8
   constring: "dbname='mine2' user='pdbj' port=5433"
 
 obabel: /usr/bin/obabel
 
 pipelines:
-  pdb:
+  pdbj:
     deffile: ${CWD}schemas/pdbj.def.yml
-    data: ${CWD}data/mmjson-noatom/
-    data-plus: ${CWD}data/plus/
+    data: /path/to/pdb/mmjson-noatom/
+    data-plus: /path/to/pdb/mmjson-plus/
+  cc:
+    deffile: ${CWD}schemas/cc.def.yml
+    data: /path/to/cc/mmjson/
+  # ... other pipelines
 ```
 
-Notes:
-- The CLI pipeline name is `pdbj`, but the config key is `pipelines.pdb`.
-- `${CWD}` is resolved to the repository root at runtime.
-- `config.test.yml` is used by the `test` command by default.
+- `${CWD}` resolves to the repository root
+- `config.test.yml` is used for testing with limited data
 
 ## Usage
 
-After building, run the CLI through npm:
-
 ```bash
-npm start -- --help
+# Show help
+pixi run mine2 --help
+
+# Sync data from PDBj
+pixi run mine2 sync [targets...]
+# Targets: pdbj, cc, ccmodel, prd, vrpt, contacts, schemas, dictionaries
+
+# Update database
+pixi run mine2 update [pipelines...]
+# Pipelines: pdbj, cc, ccmodel, prd, vrpt, contacts
+
+# Full update (sync + update)
+pixi run mine2 all
+
+# Test with limited data
+pixi run mine2 test -p pdbj,cc -n 10
 ```
 
-You can also run `node dist/mine2.js ...` directly.
-
-### Sync data
+### Examples
 
 ```bash
-npm start -- sync [targets...]
-```
+# Sync all data
+pixi run mine2 sync
 
-Targets: `pdbj`, `cc`, `ccmodel`, `prd`, `vrpt`, `contacts`, `schemas`, `dictionaries`
+# Sync specific targets
+pixi run mine2 sync pdbj cc prd
 
-Examples:
+# Update all pipelines
+pixi run mine2 update
 
-```bash
-npm start -- sync
-npm start -- sync pdbj cc prd
-```
+# Update specific pipelines
+pixi run mine2 update pdbj cc
 
-### Update database
-
-```bash
-npm start -- update [pipelines...]
-```
-
-Pipelines: `pdbj`, `cc`, `ccmodel`, `prd`, `vrpt`, `contacts`
-
-Examples:
-
-```bash
-npm start -- update
-npm start -- update pdbj cc
-```
-
-### Full update (sync + update)
-
-```bash
-npm start -- all
-```
-
-### Test
-
-```bash
-npm start -- test [options]
-```
-
-Options:
-- `-c, --config <file>`: test config (default: `config.test.yml`)
-- `-d, --drop`: drop existing test DB before creating
-- `-p, --pipelines <pipelines>`: comma-separated pipeline list
-- `-n, --limit <number>`: limit files per pipeline
-- `-m, --mode <mode>`: vrpt mode (`json`|`cif`|`both`, default: `json`)
-
-Example:
-
-```bash
-npm start -- test -p pdbj,cc -n 5
-```
-
-### VRPT conversion (CIF to JSON)
-
-```bash
-npm start -- convert-vrpt
-```
-
-### Legacy pipeline invocation
-
-```bash
-npm start -- pdbj
-npm start -- cc
+# Update with entry limit
+pixi run mine2 update pdbj --limit 100
 ```
 
 ## Pipelines
 
-- `pdbj`: Main structure data (mmjson-noatom + mmjson-plus)
-- `cc`: Chemical component dictionary
-- `ccmodel`: Chemical component model data
-- `prd`: BIRD data
-- `vrpt`: Validation report data (JSON or CIF)
-- `contacts`: Protein contact data
+| Pipeline | Description | Data Format |
+|----------|-------------|-------------|
+| pdbj | Main structure data (mmjson-noatom + mmjson-plus) | mmJSON |
+| cc | Chemical component dictionary | mmJSON |
+| ccmodel | Chemical component model data | mmJSON |
+| prd | BIRD (Biologically Interesting Reference Dictionary) | mmJSON |
+| vrpt | Validation reports | CIF |
+| contacts | Protein-protein contact data | JSON |
 
-## Utilities
+## Database Management
 
-- `setup-db.sh`: create a local PostgreSQL instance and database on port 5433
-- `setup-test-db.sh`: create a smaller test DB from the main database
+```bash
+# Initialize PostgreSQL data directory
+pixi run db-init
 
-## Troubleshooting
-
-- Old dump migrations: run the `pdbj` update twice if schema differences prevent a single-pass update.
-- Memory errors: increase `--max-old-space-size` in `package.json` if needed.
+# Start/stop/status
+pixi run db-start
+pixi run db-stop
+pixi run db-status
+```
 
 ## Development
 
 ```bash
-npm run typecheck
-npm run dev
+# Lint
+pixi run lint
+
+# Format
+pixi run format
+
+# Type check
+pixi run typecheck
+
+# All checks
+pixi run check
 ```
+
+## Project Structure
+
+```
+mine2updater-ng/
+├── src/mine2/
+│   ├── __main__.py      # CLI entry point
+│   ├── cli.py           # Typer CLI commands
+│   ├── config.py        # Configuration (Pydantic)
+│   ├── db/
+│   │   ├── connection.py # Connection pool
+│   │   └── loader.py     # Parallel data loader
+│   ├── parsers/
+│   │   ├── mmjson.py    # mmJSON parser
+│   │   └── cif.py       # CIF parser (gemmi)
+│   └── pipelines/
+│       ├── base.py      # Base pipeline class
+│       ├── pdbj.py      # PDB structure data
+│       ├── cc.py        # Chemical components
+│       ├── ccmodel.py   # Component models
+│       ├── prd.py       # BIRD data
+│       ├── vrpt.py      # Validation reports
+│       └── contacts.py  # Contact data
+├── schemas/             # Database schema definitions
+├── scripts/             # Utility scripts
+├── config.yml           # Production config
+├── config.test.yml      # Test config
+└── pixi.toml            # Pixi configuration
+```
+
+## License
+
+GNU LGPLv3 - See [LICENSE](LICENSE) for details.

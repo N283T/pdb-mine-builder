@@ -1,0 +1,537 @@
+config:
+  primaryKey: comp_id
+  schema: cc
+tables:
+  - name: brief_summary
+    columns:
+      - - comp_id
+        - text
+        - null
+      - - docid
+        - bigint
+        - null
+      - - pdbx_initial_date
+        - date
+        - null
+      - - release_date
+        - date
+        - null
+      - - pdbx_modified_date
+        - date
+        - null
+      - - update_date
+        - timestamp without time zone
+        - null
+      - - name
+        - text
+        - null
+      - - formula
+        - text
+        - null
+      - - pdbx_synonyms
+        - text[]
+        - null
+      - - identifier
+        - text
+        - null
+      - - smiles
+        - text[]
+        - null
+      - - inchi
+        - text[]
+        - null
+      - - byte0
+        - bigint
+        - null
+      - - byte1
+        - bigint
+        - null
+      - - byte2
+        - bigint
+        - null
+      - - byte3
+        - bigint
+        - null
+      - - byte4
+        - bigint
+        - null
+      - - byte5
+        - bigint
+        - null
+      - - byte6
+        - bigint
+        - null
+      - - byte7
+        - bigint
+        - null
+      - - byte8
+        - bigint
+        - null
+      - - byte9
+        - bigint
+        - null
+      - - byte10
+        - bigint
+        - null
+      - - byte11
+        - bigint
+        - null
+      - - byte12
+        - bigint
+        - null
+      - - byte13
+        - bigint
+        - null
+      - - byte14
+        - bigint
+        - null
+      - - byte15
+        - bigint
+        - null
+      - - keywords
+        - text[]
+        - null
+    primary_key:
+      - comp_id
+    foreign_keys: []
+    keywords: []
+    unique_keys: []
+  - name: chem_comp
+    columns:
+      - - comp_id
+        - text
+      - - formula
+        - text
+      - - formula_weight
+        - double precision
+      - - id
+        - text
+      - - mon_nstd_parent_comp_id
+        - text
+      - - name
+        - text
+      - - one_letter_code
+        - text
+      - - three_letter_code
+        - text
+      - - type
+        - text
+      - - pdbx_synonyms
+        - text
+      - - pdbx_type
+        - text
+      - - pdbx_ambiguous_flag
+        - text
+      - - pdbx_replaced_by
+        - text
+      - - pdbx_replaces
+        - text
+      - - pdbx_formal_charge
+        - integer
+      - - pdbx_subcomponent_list
+        - text
+      - - pdbx_model_coordinates_details
+        - text
+      - - pdbx_model_coordinates_db_code
+        - text
+      - - pdbx_ideal_coordinates_details
+        - text
+      - - pdbx_ideal_coordinates_missing_flag
+        - text
+      - - pdbx_model_coordinates_missing_flag
+        - text
+      - - pdbx_initial_date
+        - date
+      - - pdbx_modified_date
+        - date
+      - - pdbx_release_status
+        - text
+      - - pdbx_processing_site
+        - text
+      - - pdbx_pcm
+        - text
+    primary_key:
+      - comp_id
+      - id
+    foreign_keys:
+      - - - comp_id
+        - brief_summary
+        - - comp_id
+    unique_keys:
+      - - comp_id
+    keywords:
+      - formula
+      - model_details
+      - model_erf
+      - model_source
+      - mon_nstd_class
+      - mon_nstd_details
+      - name
+      - pdbx_synonyms
+      - pdbx_modification_details
+      - pdbx_subcomponent_list
+      - pdbx_model_coordinates_details
+      - pdbx_model_coordinates_db_code
+      - pdbx_ideal_coordinates_details
+      - pdbx_class_1
+      - pdbx_class_2
+      - pdbx_reserved_name
+      - pdbx_casnum
+      - pdbx_smiles
+  - name: chem_comp_atom
+    columns:
+      - - comp_id
+        - text
+      - - alt_atom_id
+        - text
+      - - atom_id
+        - text
+      - - charge
+        - integer
+      - - model_Cartn_x
+        - double precision
+      - - model_Cartn_y
+        - double precision
+      - - model_Cartn_z
+        - double precision
+      - - type_symbol
+        - text
+      - - pdbx_align
+        - integer
+      - - pdbx_ordinal
+        - integer
+      - - pdbx_component_atom_id
+        - text
+      - - pdbx_component_comp_id
+        - text
+      - - pdbx_model_Cartn_x_ideal
+        - double precision
+      - - pdbx_model_Cartn_y_ideal
+        - double precision
+      - - pdbx_model_Cartn_z_ideal
+        - double precision
+      - - pdbx_stereo_config
+        - text
+      - - pdbx_aromatic_flag
+        - text
+      - - pdbx_leaving_atom_flag
+        - text
+      - - pdbx_residue_numbering
+        - integer
+      - - pdbx_polymer_type
+        - text
+      - - pdbx_component_id
+        - integer
+      - - pdbx_backbone_atom_flag
+        - text
+      - - pdbx_n_terminal_atom_flag
+        - text
+      - - pdbx_c_terminal_atom_flag
+        - text
+    primary_key:
+      - comp_id
+      - atom_id
+    foreign_keys:
+      - - - comp_id
+        - brief_summary
+        - - comp_id
+      - - - comp_id
+        - chem_comp
+        - - comp_id
+    unique_keys: []
+    keywords:
+      - alt_atom_id
+      - pdbx_stnd_atom_id
+    pkout: true
+  - name: chem_comp_bond
+    columns:
+      - - comp_id
+        - text
+      - - atom_id_1
+        - text
+      - - atom_id_2
+        - text
+      - - value_order
+        - text
+      - - pdbx_ordinal
+        - integer
+      - - pdbx_stereo_config
+        - text
+      - - pdbx_aromatic_flag
+        - text
+    primary_key:
+      - comp_id
+      - atom_id_1
+      - atom_id_2
+    foreign_keys:
+      - - - comp_id
+        - brief_summary
+        - - comp_id
+      - - - comp_id
+          - atom_id_1
+        - chem_comp_atom
+        - - comp_id
+          - atom_id
+      - - - comp_id
+          - atom_id_2
+        - chem_comp_atom
+        - - comp_id
+          - atom_id
+      - - - comp_id
+        - chem_comp
+        - - comp_id
+    unique_keys: []
+    keywords: []
+    pkout: true
+  - name: pdbx_chem_comp_synonyms
+    columns:
+      - - comp_id
+        - text
+      - - ordinal
+        - integer
+      - - name
+        - text
+      - - provenance
+        - text
+      - - type
+        - text
+    primary_key:
+      - comp_id
+      - ordinal
+    foreign_keys:
+      - - - comp_id
+        - brief_summary
+        - - comp_id
+      - - - comp_id
+        - chem_comp
+        - - comp_id
+    unique_keys: []
+    keywords:
+      - name
+      - type
+    pkout: true
+  - name: pdbx_chem_comp_feature
+    columns:
+      - - comp_id
+        - text
+      - - type
+        - text
+      - - value
+        - text
+      - - source
+        - text
+    primary_key:
+      - comp_id
+      - type
+      - value
+      - source
+    foreign_keys:
+      - - - comp_id
+        - brief_summary
+        - - comp_id
+      - - - comp_id
+        - chem_comp
+        - - comp_id
+    unique_keys: []
+    keywords:
+      - support
+      - value
+      - source
+    pkout: true
+  - name: pdbx_chem_comp_descriptor
+    columns:
+      - - comp_id
+        - text
+      - - descriptor
+        - text
+      - - type
+        - text
+      - - program
+        - text
+      - - program_version
+        - text
+    primary_key:
+      - comp_id
+      - type
+      - program
+      - program_version
+    foreign_keys:
+      - - - comp_id
+        - brief_summary
+        - - comp_id
+      - - - comp_id
+        - chem_comp
+        - - comp_id
+    unique_keys: []
+    keywords:
+      - descriptor
+      - program
+      - program_version
+    pkout: true
+  - name: pdbx_chem_comp_identifier
+    columns:
+      - - comp_id
+        - text
+      - - identifier
+        - text
+      - - type
+        - text
+      - - program
+        - text
+      - - program_version
+        - text
+    primary_key:
+      - comp_id
+      - type
+      - program
+      - program_version
+    foreign_keys:
+      - - - comp_id
+        - brief_summary
+        - - comp_id
+      - - - comp_id
+        - chem_comp
+        - - comp_id
+    unique_keys: []
+    keywords:
+      - identifier
+      - program
+      - program_version
+    pkout: true
+  - name: pdbx_chem_comp_audit
+    columns:
+      - - comp_id
+        - text
+      - - date
+        - date
+      - - processing_site
+        - text
+      - - action_type
+        - text
+    primary_key:
+      - comp_id
+      - date
+      - action_type
+    foreign_keys:
+      - - - comp_id
+        - brief_summary
+        - - comp_id
+      - - - comp_id
+        - chem_comp
+        - - comp_id
+    unique_keys: []
+    keywords:
+      - details
+    pkout: true
+  - name: pdbx_chem_comp_related
+    columns:
+      - - comp_id
+        - text
+      - - related_comp_id
+        - text
+      - - relationship_type
+        - text
+    primary_key:
+      - comp_id
+      - related_comp_id
+      - relationship_type
+    foreign_keys:
+      - - - comp_id
+        - brief_summary
+        - - comp_id
+      - - - comp_id
+        - chem_comp
+        - - comp_id
+    unique_keys: []
+    keywords:
+      - details
+    pkout: true
+  - name: pdbx_chem_comp_atom_related
+    columns:
+      - - comp_id
+        - text
+      - - related_comp_id
+        - text
+      - - ordinal
+        - integer
+      - - atom_id
+        - text
+      - - related_atom_id
+        - text
+      - - related_type
+        - text
+    primary_key:
+      - comp_id
+      - ordinal
+      - related_comp_id
+    foreign_keys:
+      - - - comp_id
+        - brief_summary
+        - - comp_id
+      - - - comp_id
+        - chem_comp
+        - - comp_id
+      - - - comp_id
+          - atom_id
+        - chem_comp_atom
+        - - comp_id
+          - atom_id
+    unique_keys: []
+    keywords: []
+    pkout: true
+  - name: pdbx_chem_comp_pcm
+    columns:
+      - - comp_id
+        - text
+      - - pcm_id
+        - integer
+      - - modified_residue_id
+        - text
+      - - type
+        - text
+      - - category
+        - text
+      - - position
+        - text
+      - - polypeptide_position
+        - text
+      - - comp_id_linking_atom
+        - text
+      - - modified_residue_id_linking_atom
+        - text
+      - - uniprot_specific_ptm_accession
+        - text
+      - - uniprot_generic_ptm_accession
+        - text
+    primary_key:
+      - comp_id
+      - pcm_id
+    foreign_keys:
+      - - - comp_id
+        - brief_summary
+        - - comp_id
+      - - - comp_id
+        - chem_comp
+        - - comp_id
+    unique_keys: []
+    keywords:
+      - first_instance_model_db_code
+    pkout: true
+  - name: link_entry_pdbjplus
+    columns:
+      - - comp_id
+        - text
+      - - db_name
+        - text
+      - - db_accession
+        - text[]
+    primary_key:
+      - comp_id
+      - db_name
+    foreign_keys:
+      - - - comp_id
+        - brief_summary
+        - - comp_id
+    unique_keys: []
+    keywords:
+      - db_name

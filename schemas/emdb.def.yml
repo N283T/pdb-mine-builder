@@ -1,0 +1,2772 @@
+config:
+  primaryKey: emdb_id
+  schema: emdb
+  type_overwrites:
+    em_map.size_kb: bigint
+    em_particle_selection.num_particles_selected: bigint
+tables:
+  - name: brief_summary
+    columns:
+      - - emdb_id
+        - text
+        - null
+      - - docid
+        - bigint
+        - null
+      - - deposition_date
+        - date
+        - null
+      - - header_release_date
+        - date
+        - null
+      - - map_release_date
+        - date
+        - null
+      - - modification_date
+        - date
+        - null
+      - - update_date
+        - timestamp without time zone
+        - null
+      - - content
+        - jsonb
+        - null
+      - - keywords
+        - text[]
+        - null
+    primary_key:
+      - emdb_id
+    foreign_keys: []
+    keywords: []
+    unique_keys: []
+  - name: audit_conform
+    columns:
+      - - emdb_id
+        - text
+      - - dict_location
+        - text
+      - - dict_name
+        - text
+      - - dict_version
+        - text
+    primary_key:
+      - emdb_id
+      - dict_name
+      - dict_version
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - dict_location
+      - dict_name
+      - dict_version
+  - name: chem_comp
+    columns:
+      - - emdb_id
+        - text
+      - - formula
+        - text
+      - - formula_weight
+        - double precision
+      - - id
+        - text
+      - - mon_nstd_flag
+        - text
+      - - name
+        - text
+      - - type
+        - text
+      - - pdbx_synonyms
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - formula
+      - model_details
+      - model_erf
+      - model_source
+      - mon_nstd_class
+      - mon_nstd_details
+      - name
+      - pdbx_synonyms
+      - pdbx_modification_details
+      - pdbx_subcomponent_list
+      - pdbx_model_coordinates_details
+      - pdbx_model_coordinates_db_code
+      - pdbx_ideal_coordinates_details
+      - pdbx_class_1
+      - pdbx_class_2
+      - pdbx_reserved_name
+      - pdbx_casnum
+      - pdbx_smiles
+  - name: citation
+    columns:
+      - - emdb_id
+        - text
+      - - country
+        - text
+      - - id
+        - text
+      - - journal_abbrev
+        - text
+      - - journal_id_ASTM
+        - text
+      - - journal_id_CSD
+        - text
+      - - journal_id_ISSN
+        - text
+      - - journal_volume
+        - text
+      - - page_first
+        - text
+      - - page_last
+        - text
+      - - title
+        - text
+      - - year
+        - integer
+      - - database_id_CSD
+        - text
+      - - pdbx_database_id_DOI
+        - text
+      - - pdbx_database_id_PubMed
+        - integer
+      - - unpublished_flag
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - abstract
+      - abstract_id_CAS
+      - book_id_ISBN
+      - book_publisher
+      - book_publisher_city
+      - book_title
+      - country
+      - details
+      - journal_abbrev
+      - journal_id_ASTM
+      - journal_id_CSD
+      - journal_id_ISSN
+      - journal_full
+      - journal_issue
+      - journal_volume
+      - language
+      - page_first
+      - page_last
+      - title
+      - pdbx_database_id_patent
+  - name: citation_author
+    columns:
+      - - emdb_id
+        - text
+      - - citation_id
+        - text
+      - - name
+        - text
+      - - ordinal
+        - integer
+      - - identifier_ORCID
+        - text
+    primary_key:
+      - emdb_id
+      - citation_id
+      - name
+      - ordinal
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - citation_id
+        - citation
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - name
+      - identifier_ORCID
+  - name: database_2
+    columns:
+      - - emdb_id
+        - text
+      - - database_id
+        - text
+      - - database_code
+        - text
+      - - pdbx_database_accession
+        - text
+      - - pdbx_DOI
+        - text
+    primary_key:
+      - emdb_id
+      - database_id
+      - database_code
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - database_code
+      - pdbx_DOI
+  - name: entity
+    columns:
+      - - emdb_id
+        - text
+      - - details
+        - text
+      - - formula_weight
+        - double precision
+      - - id
+        - text
+      - - src_method
+        - text
+      - - type
+        - text
+      - - pdbx_description
+        - text
+      - - pdbx_number_of_molecules
+        - integer
+      - - pdbx_mutation
+        - text
+      - - pdbx_fragment
+        - text
+      - - pdbx_ec
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+      - pdbx_description
+      - pdbx_mutation
+      - pdbx_fragment
+      - pdbx_modification
+  - name: entity_poly
+    columns:
+      - - emdb_id
+        - text
+      - - entity_id
+        - text
+      - - type
+        - text
+      - - pdbx_seq_one_letter_code
+        - text
+    primary_key:
+      - emdb_id
+      - entity_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entity_id
+        - entity
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - type_details
+      - pdbx_strand_id
+      - pdbx_seq_one_letter_code
+      - pdbx_seq_one_letter_code_can
+      - pdbx_target_identifier
+      - pdbx_seq_one_letter_code_sample
+      - pdbx_N_terminal_seq_one_letter_code
+      - pdbx_C_terminal_seq_one_letter_code
+      - pdbx_seq_three_letter_code
+      - pdbx_seq_db_id
+  - name: entry
+    columns:
+      - - emdb_id
+        - text
+      - - id
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords: []
+  - name: exptl
+    columns:
+      - - emdb_id
+        - text
+      - - entry_id
+        - text
+      - - method
+        - text
+    primary_key:
+      - emdb_id
+      - entry_id
+      - method
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entry_id
+        - entry
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - absorpt_process_details
+      - details
+      - method_details
+  - name: struct_keywords
+    columns:
+      - - emdb_id
+        - text
+      - - entry_id
+        - text
+      - - text
+        - text
+      - - pdbx_keywords
+        - text
+      - - pdbx_details
+        - text
+    primary_key:
+      - emdb_id
+      - entry_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entry_id
+        - entry
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - text
+      - pdbx_keywords
+      - pdbx_details
+  - name: struct_ref
+    columns:
+      - - emdb_id
+        - text
+      - - db_code
+        - text
+      - - db_name
+        - text
+      - - entity_id
+        - text
+      - - id
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entity_id
+        - entity
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - biol_id
+      - db_code
+      - db_name
+      - details
+      - pdbx_seq_one_letter_code
+  - name: pdbx_database_related
+    columns:
+      - - emdb_id
+        - text
+      - - db_name
+        - text
+      - - details
+        - text
+      - - db_id
+        - text
+      - - content_type
+        - text
+    primary_key:
+      - emdb_id
+      - db_name
+      - db_id
+      - content_type
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+      - db_id
+  - name: pdbx_entity_nonpoly
+    columns:
+      - - emdb_id
+        - text
+      - - entity_id
+        - text
+      - - comp_id
+        - text
+      - - name
+        - text
+    primary_key:
+      - emdb_id
+      - entity_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entity_id
+        - entity
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - name
+  - name: entity_src_nat
+    columns:
+      - - emdb_id
+        - text
+      - - common_name
+        - text
+      - - details
+        - text
+      - - entity_id
+        - text
+      - - genus
+        - text
+      - - strain
+        - text
+      - - tissue
+        - text
+      - - pdbx_organism_scientific
+        - text
+      - - pdbx_variant
+        - text
+      - - pdbx_cell_line
+        - text
+      - - pdbx_atcc
+        - text
+      - - pdbx_cellular_location
+        - text
+      - - pdbx_organ
+        - text
+      - - pdbx_cell
+        - text
+      - - pdbx_plasmid_details
+        - text
+      - - pdbx_ncbi_taxonomy_id
+        - text
+      - - pdbx_src_id
+        - integer
+      - - pdbx_alt_source_flag
+        - text
+      - - pdbx_beg_seq_num
+        - integer
+      - - pdbx_end_seq_num
+        - integer
+    primary_key:
+      - emdb_id
+      - entity_id
+      - pdbx_src_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entity_id
+        - entity
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - common_name
+      - details
+      - genus
+      - species
+      - strain
+      - tissue
+      - tissue_fraction
+      - pdbx_organism_scientific
+      - pdbx_secretion
+      - pdbx_fragment
+      - pdbx_variant
+      - pdbx_cell_line
+      - pdbx_atcc
+      - pdbx_cellular_location
+      - pdbx_organ
+      - pdbx_organelle
+      - pdbx_cell
+      - pdbx_plasmid_name
+      - pdbx_plasmid_details
+      - pdbx_ncbi_taxonomy_id
+      - pdbx_culture_collection
+  - name: entity_src_gen
+    columns:
+      - - emdb_id
+        - text
+      - - entity_id
+        - text
+      - - gene_src_common_name
+        - text
+      - - gene_src_details
+        - text
+      - - gene_src_genus
+        - text
+      - - gene_src_species
+        - text
+      - - gene_src_strain
+        - text
+      - - gene_src_tissue
+        - text
+      - - pdbx_gene_src_gene
+        - text
+      - - pdbx_gene_src_scientific_name
+        - text
+      - - pdbx_gene_src_variant
+        - text
+      - - pdbx_gene_src_cell_line
+        - text
+      - - pdbx_gene_src_atcc
+        - text
+      - - pdbx_gene_src_organ
+        - text
+      - - pdbx_gene_src_cell
+        - text
+      - - pdbx_host_org_organ
+        - text
+      - - pdbx_host_org_organelle
+        - text
+      - - pdbx_host_org_cellular_location
+        - text
+      - - pdbx_host_org_strain
+        - text
+      - - pdbx_description
+        - text
+      - - host_org_common_name
+        - text
+      - - host_org_details
+        - text
+      - - plasmid_details
+        - text
+      - - plasmid_name
+        - text
+      - - pdbx_host_org_variant
+        - text
+      - - pdbx_host_org_cell_line
+        - text
+      - - pdbx_host_org_atcc
+        - text
+      - - pdbx_host_org_culture_collection
+        - text
+      - - pdbx_host_org_cell
+        - text
+      - - pdbx_host_org_scientific_name
+        - text
+      - - pdbx_host_org_tissue
+        - text
+      - - pdbx_host_org_vector
+        - text
+      - - pdbx_host_org_vector_type
+        - text
+      - - pdbx_gene_src_ncbi_taxonomy_id
+        - text
+      - - pdbx_host_org_ncbi_taxonomy_id
+        - text
+      - - pdbx_src_id
+        - integer
+      - - pdbx_alt_source_flag
+        - text
+      - - pdbx_seq_type
+        - text
+      - - pdbx_beg_seq_num
+        - integer
+      - - pdbx_end_seq_num
+        - integer
+    primary_key:
+      - emdb_id
+      - entity_id
+      - pdbx_src_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entity_id
+        - entity
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - gene_src_common_name
+      - gene_src_details
+      - gene_src_genus
+      - gene_src_species
+      - gene_src_strain
+      - gene_src_tissue
+      - gene_src_tissue_fraction
+      - host_org_genus
+      - host_org_species
+      - pdbx_gene_src_fragment
+      - pdbx_gene_src_gene
+      - pdbx_gene_src_scientific_name
+      - pdbx_gene_src_variant
+      - pdbx_gene_src_cell_line
+      - pdbx_gene_src_atcc
+      - pdbx_gene_src_organ
+      - pdbx_gene_src_organelle
+      - pdbx_gene_src_plasmid
+      - pdbx_gene_src_plasmid_name
+      - pdbx_gene_src_cell
+      - pdbx_gene_src_cellular_location
+      - pdbx_host_org_gene
+      - pdbx_host_org_organ
+      - pdbx_host_org_organelle
+      - pdbx_host_org_cellular_location
+      - pdbx_host_org_strain
+      - pdbx_host_org_tissue_fraction
+      - pdbx_description
+      - host_org_common_name
+      - host_org_details
+      - host_org_strain
+      - plasmid_details
+      - plasmid_name
+      - pdbx_host_org_variant
+      - pdbx_host_org_cell_line
+      - pdbx_host_org_atcc
+      - pdbx_host_org_culture_collection
+      - pdbx_host_org_cell
+      - pdbx_host_org_scientific_name
+      - pdbx_host_org_tissue
+      - pdbx_host_org_vector
+      - pdbx_host_org_vector_type
+      - gene_src_dev_stage
+      - pdbx_gene_src_ncbi_taxonomy_id
+      - pdbx_host_org_ncbi_taxonomy_id
+      - pdbx_gene_src_culture_collection
+  - name: pdbx_entity_src_syn
+    columns:
+      - - emdb_id
+        - text
+      - - details
+        - text
+      - - organism_scientific
+        - text
+      - - organism_common_name
+        - text
+      - - strain
+        - text
+      - - ncbi_taxonomy_id
+        - text
+      - - entity_id
+        - text
+      - - pdbx_src_id
+        - integer
+      - - pdbx_alt_source_flag
+        - text
+      - - pdbx_beg_seq_num
+        - integer
+      - - pdbx_end_seq_num
+        - integer
+    primary_key:
+      - emdb_id
+      - entity_id
+      - pdbx_src_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entity_id
+        - entity
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - details
+      - organism_scientific
+      - organism_common_name
+      - strain
+      - ncbi_taxonomy_id
+  - name: em_entity_assembly
+    columns:
+      - - emdb_id
+        - text
+      - - id
+        - text
+      - - parent_id
+        - integer
+      - - source
+        - text
+      - - type
+        - text
+      - - name
+        - text
+      - - details
+        - text
+      - - synonym
+        - text
+      - - entity_id_list
+        - text
+      - - chimera
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - type
+      - name
+      - details
+      - go_id
+      - ipr_id
+      - synonym
+      - oligomeric_details
+      - entity_id_list
+      - ebi_organism_scientific
+      - ebi_organism_common
+      - ebi_strain
+      - ebi_tissue
+      - ebi_cell
+      - ebi_organelle
+      - ebi_cellular_location
+      - ebi_expression_system
+      - ebi_expression_system_plasmid
+  - name: em_virus_entity
+    columns:
+      - - emdb_id
+        - text
+      - - id
+        - text
+      - - virus_type
+        - text
+      - - virus_isolate
+        - text
+      - - entity_assembly_id
+        - text
+      - - enveloped
+        - text
+      - - empty
+        - text
+    primary_key:
+      - emdb_id
+      - id
+      - entity_assembly_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entity_assembly_id
+        - em_entity_assembly
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - virus_host_category
+      - virus_host_species
+      - virus_host_growth_cell
+      - ictvdb_id
+      - details
+  - name: em_sample_support
+    columns:
+      - - emdb_id
+        - text
+      - - id
+        - text
+      - - film_material
+        - text
+      - - grid_material
+        - text
+      - - grid_mesh_size
+        - integer
+      - - grid_type
+        - text
+      - - pretreatment
+        - text
+      - - details
+        - text
+      - - specimen_id
+        - text
+    primary_key:
+      - emdb_id
+      - id
+      - specimen_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - method
+      - grid_type
+      - pretreatment
+      - details
+  - name: em_buffer
+    columns:
+      - - emdb_id
+        - text
+      - - id
+        - text
+      - - specimen_id
+        - text
+      - - name
+        - text
+      - - details
+        - text
+      - - pH
+        - double precision
+    primary_key:
+      - emdb_id
+      - id
+      - specimen_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - name
+      - details
+  - name: em_vitrification
+    columns:
+      - - emdb_id
+        - text
+      - - entry_id
+        - text
+      - - id
+        - text
+      - - specimen_id
+        - text
+      - - cryogen_name
+        - text
+      - - humidity
+        - double precision
+      - - temp
+        - double precision
+      - - chamber_temperature
+        - double precision
+      - - instrument
+        - text
+      - - details
+        - text
+    primary_key:
+      - emdb_id
+      - id
+      - specimen_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entry_id
+        - entry
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - method
+      - time_resolved_state
+      - details
+  - name: em_imaging
+    columns:
+      - - emdb_id
+        - text
+      - - entry_id
+        - text
+      - - id
+        - text
+      - - residual_tilt
+        - double precision
+      - - sample_support_id
+        - text
+      - - detector_id
+        - text
+      - - scans_id
+        - text
+      - - microscope_id
+        - text
+      - - microscope_model
+        - text
+      - - specimen_holder_model
+        - text
+      - - details
+        - text
+      - - date
+        - date
+      - - accelerating_voltage
+        - integer
+      - - illumination_mode
+        - text
+      - - mode
+        - text
+      - - nominal_cs
+        - double precision
+      - - nominal_defocus_min
+        - double precision
+      - - nominal_defocus_max
+        - double precision
+      - - calibrated_defocus_min
+        - double precision
+      - - calibrated_defocus_max
+        - double precision
+      - - nominal_magnification
+        - integer
+      - - calibrated_magnification
+        - integer
+      - - electron_source
+        - text
+      - - recording_temperature_minimum
+        - double precision
+      - - recording_temperature_maximum
+        - double precision
+      - - alignment_procedure
+        - text
+      - - c2_aperture_diameter
+        - double precision
+      - - specimen_id
+        - text
+      - - cryogen
+        - text
+    primary_key:
+      - emdb_id
+      - entry_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entry_id
+        - entry
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - astigmatism
+      - electron_beam_tilt_params
+      - specimen_holder_type
+      - details
+      - electron_source
+      - energy_filter
+      - energy_window
+      - microscope_serial_number
+      - microscope_version
+  - name: em_image_scans
+    columns:
+      - - emdb_id
+        - text
+      - - entry_id
+        - text
+      - - id
+        - text
+      - - scanner_model
+        - text
+      - - sampling_size
+        - double precision
+      - - dimension_height
+        - integer
+      - - dimension_width
+        - integer
+      - - frames_per_image
+        - integer
+      - - image_recording_id
+        - text
+      - - used_frames_per_image
+        - text
+    primary_key:
+      - emdb_id
+      - id
+      - image_recording_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entry_id
+        - entry
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - details
+  - name: em_3d_reconstruction
+    columns:
+      - - emdb_id
+        - text
+      - - entry_id
+        - text
+      - - id
+        - text
+      - - method
+        - text
+      - - algorithm
+        - text
+      - - details
+        - text
+      - - resolution
+        - double precision
+      - - resolution_method
+        - text
+      - - nominal_pixel_size
+        - double precision
+      - - actual_pixel_size
+        - double precision
+      - - num_particles
+        - integer
+      - - num_class_averages
+        - integer
+      - - fsc_type
+        - text
+      - - refinement_type
+        - text
+      - - image_processing_id
+        - text
+      - - symmetry_type
+        - text
+    primary_key:
+      - emdb_id
+      - id
+      - image_processing_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entry_id
+        - entry
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - method
+      - algorithm
+      - details
+      - resolution_method
+      - magnification_calibration
+      - ctf_correction_method
+      - euler_angles_details
+      - software
+  - name: em_3d_fitting
+    columns:
+      - - emdb_id
+        - text
+      - - id
+        - text
+      - - entry_id
+        - text
+      - - method
+        - text
+      - - target_criteria
+        - text
+      - - details
+        - text
+      - - overall_b_value
+        - double precision
+      - - ref_space
+        - text
+      - - ref_protocol
+        - text
+    primary_key:
+      - emdb_id
+      - id
+      - entry_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entry_id
+        - entry
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - method
+      - target_criteria
+      - software_name
+      - details
+  - name: em_3d_fitting_list
+    columns:
+      - - emdb_id
+        - text
+      - - id
+        - text
+      - - 3d_fitting_id
+        - text
+      - - pdb_entry_id
+        - text
+      - - pdb_chain_id
+        - text
+      - - pdb_chain_residue_range
+        - text
+      - - details
+        - text
+      - - chain_id
+        - text
+      - - chain_residue_range
+        - text
+      - - source_name
+        - text
+      - - type
+        - text
+      - - accession_code
+        - text
+      - - initial_refinement_model_id
+        - integer
+    primary_key:
+      - emdb_id
+      - id
+      - 3d_fitting_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+      - accession_code
+  - name: em_helical_entity
+    columns:
+      - - emdb_id
+        - text
+      - - id
+        - text
+      - - entity_assembly_id
+        - text
+      - - image_processing_id
+        - text
+      - - details
+        - text
+      - - axial_symmetry
+        - text
+      - - angular_rotation_per_subunit
+        - double precision
+      - - axial_rise_per_subunit
+        - double precision
+    primary_key:
+      - emdb_id
+      - id
+      - image_processing_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+      - hand
+  - name: em_experiment
+    columns:
+      - - emdb_id
+        - text
+      - - entry_id
+        - text
+      - - id
+        - text
+      - - reconstruction_method
+        - text
+      - - aggregation_state
+        - text
+      - - entity_assembly_id
+        - text
+    primary_key:
+      - emdb_id
+      - entry_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entry_id
+        - entry
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - specimen_type
+  - name: em_single_particle_entity
+    columns:
+      - - emdb_id
+        - text
+      - - entry_id
+        - text
+      - - id
+        - integer
+      - - image_processing_id
+        - text
+      - - point_symmetry
+        - text
+    primary_key:
+      - emdb_id
+      - id
+      - image_processing_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords: []
+  - name: em_admin
+    columns:
+      - - emdb_id
+        - text
+      - - current_status
+        - text
+      - - deposition_date
+        - date
+      - - deposition_site
+        - text
+      - - details
+        - text
+      - - entry_id
+        - text
+      - - last_update
+        - date
+      - - map_release_date
+        - date
+      - - header_release_date
+        - date
+      - - title
+        - text
+      - - process_site
+        - text
+      - - composite_map
+        - text
+    primary_key:
+      - emdb_id
+      - entry_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entry_id
+        - entry
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - details
+      - title
+  - name: em_author_list
+    columns:
+      - - emdb_id
+        - text
+      - - author
+        - text
+      - - identifier_ORCID
+        - text
+      - - ordinal
+        - integer
+    primary_key:
+      - emdb_id
+      - ordinal
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - author
+      - identifier_ORCID
+  - name: em_db_reference
+    columns:
+      - - emdb_id
+        - text
+      - - access_code
+        - text
+      - - db_name
+        - text
+      - - details
+        - text
+      - - id
+        - text
+      - - relationship
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+  - name: em_db_reference_auxiliary
+    columns:
+      - - emdb_id
+        - text
+      - - id
+        - text
+      - - link_type
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords: []
+  - name: em_obsolete
+    columns:
+      - - emdb_id
+        - text
+      - - date
+        - date
+      - - details
+        - text
+      - - entry
+        - text
+      - - id
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+      - entry
+  - name: em_supersede
+    columns:
+      - - emdb_id
+        - text
+      - - entry
+        - text
+      - - id
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+      - entry
+  - name: em_entity_assembly_molwt
+    columns:
+      - - emdb_id
+        - text
+      - - entity_assembly_id
+        - text
+      - - experimental_flag
+        - text
+      - - id
+        - text
+      - - units
+        - text
+      - - value
+        - double precision
+    primary_key:
+      - emdb_id
+      - id
+      - entity_assembly_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entity_assembly_id
+        - em_entity_assembly
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - method
+  - name: em_entity_assembly_naturalsource
+    columns:
+      - - emdb_id
+        - text
+      - - cell
+        - text
+      - - cellular_location
+        - text
+      - - entity_assembly_id
+        - text
+      - - id
+        - text
+      - - ncbi_tax_id
+        - integer
+      - - organism
+        - text
+      - - organelle
+        - text
+      - - organ
+        - text
+      - - strain
+        - text
+      - - tissue
+        - text
+      - - details
+        - text
+    primary_key:
+      - emdb_id
+      - id
+      - entity_assembly_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entity_assembly_id
+        - em_entity_assembly
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - cell
+      - cellular_location
+      - organism
+      - organelle
+      - organ
+      - strain
+      - tissue
+      - details
+  - name: em_entity_assembly_recombinant
+    columns:
+      - - emdb_id
+        - text
+      - - cell
+        - text
+      - - entity_assembly_id
+        - text
+      - - id
+        - text
+      - - ncbi_tax_id
+        - integer
+      - - organism
+        - text
+      - - plasmid
+        - text
+      - - strain
+        - text
+    primary_key:
+      - emdb_id
+      - id
+      - entity_assembly_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entity_assembly_id
+        - em_entity_assembly
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - cell
+      - organism
+      - plasmid
+      - strain
+  - name: em_virus_natural_host
+    columns:
+      - - emdb_id
+        - text
+      - - entity_assembly_id
+        - text
+      - - id
+        - text
+      - - ncbi_tax_id
+        - integer
+      - - organism
+        - text
+      - - strain
+        - text
+    primary_key:
+      - emdb_id
+      - entity_assembly_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entity_assembly_id
+        - em_entity_assembly
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - organism
+      - strain
+  - name: em_virus_synthetic
+    columns:
+      - - emdb_id
+        - text
+      - - entity_assembly_id
+        - text
+      - - id
+        - text
+      - - organism
+        - text
+      - - ncbi_tax_id
+        - integer
+      - - strain
+        - text
+    primary_key:
+      - emdb_id
+      - entity_assembly_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entity_assembly_id
+        - em_entity_assembly
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - organism
+      - strain
+  - name: em_virus_shell
+    columns:
+      - - emdb_id
+        - text
+      - - diameter
+        - double precision
+      - - entity_assembly_id
+        - text
+      - - id
+        - text
+      - - name
+        - text
+      - - triangulation
+        - integer
+    primary_key:
+      - emdb_id
+      - entity_assembly_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entity_assembly_id
+        - em_entity_assembly
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - name
+  - name: em_specimen
+    columns:
+      - - emdb_id
+        - text
+      - - concentration
+        - double precision
+      - - details
+        - text
+      - - embedding_applied
+        - boolean
+      - - experiment_id
+        - text
+      - - id
+        - text
+      - - shadowing_applied
+        - boolean
+      - - staining_applied
+        - boolean
+      - - vitrification_applied
+        - boolean
+    primary_key:
+      - emdb_id
+      - id
+      - experiment_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+  - name: em_embedding
+    columns:
+      - - emdb_id
+        - text
+      - - details
+        - text
+      - - id
+        - text
+      - - material
+        - text
+      - - specimen_id
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+      - material
+  - name: em_fiducial_markers
+    columns:
+      - - emdb_id
+        - text
+      - - diameter
+        - double precision
+      - - em_tomography_specimen_id
+        - text
+      - - id
+        - text
+      - - manufacturer
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - em_tomography_specimen_id
+        - em_tomography_specimen
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - manufacturer
+  - name: em_focused_ion_beam
+    columns:
+      - - emdb_id
+        - text
+      - - current
+        - double precision
+      - - details
+        - text
+      - - duration
+        - double precision
+      - - em_tomography_specimen_id
+        - text
+      - - final_thickness
+        - integer
+      - - id
+        - text
+      - - initial_thickness
+        - integer
+      - - instrument
+        - text
+      - - ion
+        - text
+      - - temperature
+        - integer
+      - - voltage
+        - integer
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - em_tomography_specimen_id
+        - em_tomography_specimen
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - details
+      - instrument
+      - ion
+  - name: em_grid_pretreatment
+    columns:
+      - - emdb_id
+        - text
+      - - atmosphere
+        - text
+      - - id
+        - text
+      - - pressure
+        - double precision
+      - - sample_support_id
+        - text
+      - - time
+        - integer
+      - - type
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - atmosphere
+  - name: em_ultramicrotomy
+    columns:
+      - - emdb_id
+        - text
+      - - details
+        - text
+      - - em_tomography_specimen_id
+        - text
+      - - final_thickness
+        - integer
+      - - id
+        - text
+      - - instrument
+        - text
+      - - temperature
+        - integer
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - em_tomography_specimen_id
+        - em_tomography_specimen
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - details
+      - instrument
+  - name: em_high_pressure_freezing
+    columns:
+      - - emdb_id
+        - text
+      - - details
+        - text
+      - - em_tomography_specimen_id
+        - text
+      - - id
+        - text
+      - - instrument
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - em_tomography_specimen_id
+        - em_tomography_specimen
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - details
+      - instrument
+  - name: em_tomography_specimen
+    columns:
+      - - emdb_id
+        - text
+      - - cryo_protectant
+        - text
+      - - details
+        - text
+      - - fiducial_markers
+        - text
+      - - high_pressure_freezing
+        - text
+      - - id
+        - text
+      - - sectioning
+        - text
+      - - specimen_id
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - cryo_protectant
+      - details
+  - name: em_crystal_formation
+    columns:
+      - - emdb_id
+        - text
+      - - atmosphere
+        - text
+      - - details
+        - text
+      - - id
+        - text
+      - - instrument
+        - text
+      - - lipid_mixture
+        - text
+      - - lipid_protein_ratio
+        - double precision
+      - - specimen_id
+        - text
+      - - temperature
+        - integer
+      - - time
+        - integer
+      - - time_unit
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - atmosphere
+      - details
+      - instrument
+      - lipid_mixture
+  - name: em_staining
+    columns:
+      - - emdb_id
+        - text
+      - - details
+        - text
+      - - id
+        - text
+      - - material
+        - text
+      - - specimen_id
+        - text
+      - - type
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+      - material
+  - name: em_support_film
+    columns:
+      - - emdb_id
+        - text
+      - - id
+        - text
+      - - material
+        - text
+      - - sample_support_id
+        - text
+      - - thickness
+        - double precision
+      - - topology
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords: []
+  - name: em_buffer_component
+    columns:
+      - - emdb_id
+        - text
+      - - buffer_id
+        - text
+      - - concentration
+        - double precision
+      - - concentration_units
+        - text
+      - - formula
+        - text
+      - - id
+        - text
+      - - name
+        - text
+    primary_key:
+      - emdb_id
+      - id
+      - buffer_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - concentration_units
+      - name
+  - name: em_diffraction
+    columns:
+      - - emdb_id
+        - text
+      - - camera_length
+        - double precision
+      - - id
+        - text
+      - - imaging_id
+        - text
+      - - tilt_angle_list
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - tilt_angle_list
+  - name: em_diffraction_shell
+    columns:
+      - - emdb_id
+        - text
+      - - em_diffraction_stats_id
+        - text
+      - - fourier_space_coverage
+        - double precision
+      - - high_resolution
+        - double precision
+      - - id
+        - text
+      - - low_resolution
+        - double precision
+      - - multiplicity
+        - double precision
+      - - num_structure_factors
+        - integer
+      - - phase_residual
+        - double precision
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords: []
+  - name: em_diffraction_stats
+    columns:
+      - - emdb_id
+        - text
+      - - details
+        - text
+      - - fourier_space_coverage
+        - double precision
+      - - high_resolution
+        - double precision
+      - - id
+        - text
+      - - image_processing_id
+        - text
+      - - num_intensities_measured
+        - integer
+      - - num_structure_factors
+        - integer
+      - - overall_phase_error
+        - double precision
+      - - overall_phase_residual
+        - double precision
+      - - phase_error_rejection_criteria
+        - text
+      - - r_merge
+        - double precision
+      - - r_sym
+        - double precision
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+      - phase_error_rejection_criteria
+  - name: em_tomography
+    columns:
+      - - emdb_id
+        - text
+      - - axis1_angle_increment
+        - double precision
+      - - axis1_max_angle
+        - double precision
+      - - axis1_min_angle
+        - double precision
+      - - axis2_angle_increment
+        - double precision
+      - - axis2_max_angle
+        - double precision
+      - - axis2_min_angle
+        - double precision
+      - - id
+        - text
+      - - imaging_id
+        - text
+    primary_key:
+      - emdb_id
+      - id
+      - imaging_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords: []
+  - name: em_image_recording
+    columns:
+      - - emdb_id
+        - text
+      - - average_exposure_time
+        - double precision
+      - - avg_electron_dose_per_subtomogram
+        - double precision
+      - - avg_electron_dose_per_image
+        - double precision
+      - - details
+        - text
+      - - detector_mode
+        - text
+      - - film_or_detector_model
+        - text
+      - - id
+        - text
+      - - imaging_id
+        - text
+      - - num_diffraction_images
+        - integer
+      - - num_grids_imaged
+        - integer
+      - - num_real_images
+        - integer
+    primary_key:
+      - emdb_id
+      - id
+      - imaging_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+      - film_or_detector_model
+  - name: em_imaging_optics
+    columns:
+      - - emdb_id
+        - text
+      - - chr_aberration_corrector
+        - text
+      - - energyfilter_lower
+        - text
+      - - energyfilter_slit_width
+        - double precision
+      - - energyfilter_name
+        - text
+      - - energyfilter_upper
+        - text
+      - - id
+        - text
+      - - imaging_id
+        - text
+      - - phase_plate
+        - text
+      - - sph_aberration_corrector
+        - text
+      - - details
+        - text
+    primary_key:
+      - emdb_id
+      - id
+      - imaging_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - chr_aberration_corrector
+      - energyfilter_lower
+      - energyfilter_name
+      - energyfilter_upper
+      - phase_plate
+      - sph_aberration_corrector
+      - details
+  - name: em_final_classification
+    columns:
+      - - emdb_id
+        - text
+      - - avg_num_images_per_class
+        - integer
+      - - details
+        - text
+      - - id
+        - text
+      - - image_processing_id
+        - text
+      - - num_classes
+        - integer
+      - - type
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+  - name: em_start_model
+    columns:
+      - - emdb_id
+        - text
+      - - details
+        - text
+      - - id
+        - text
+      - - image_processing_id
+        - text
+      - - insilico_model
+        - text
+      - - orthogonal_tilt_angle1
+        - double precision
+      - - orthogonal_tilt_angle2
+        - double precision
+      - - orthogonal_tilt_num_images
+        - integer
+      - - other
+        - text
+      - - pdb_id
+        - text
+      - - random_conical_tilt_angle
+        - double precision
+      - - random_conical_tilt_num_images
+        - integer
+      - - type
+        - text
+    primary_key:
+      - emdb_id
+      - id
+      - image_processing_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+      - insilico_model
+      - other
+      - pdb_id
+    pkout: true
+  - name: em_software
+    columns:
+      - - emdb_id
+        - text
+      - - category
+        - text
+      - - details
+        - text
+      - - id
+        - text
+      - - image_processing_id
+        - text
+      - - fitting_id
+        - text
+      - - imaging_id
+        - text
+      - - name
+        - text
+      - - version
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+      - name
+      - version
+  - name: em_euler_angle_assignment
+    columns:
+      - - emdb_id
+        - text
+      - - details
+        - text
+      - - id
+        - text
+      - - image_processing_id
+        - text
+      - - order
+        - text
+      - - proj_matching_angular_sampling
+        - double precision
+      - - proj_matching_merit_function
+        - text
+      - - proj_matching_num_projections
+        - integer
+      - - type
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+      - proj_matching_merit_function
+  - name: em_ctf_correction
+    columns:
+      - - emdb_id
+        - text
+      - - details
+        - text
+      - - em_image_processing_id
+        - text
+      - - id
+        - text
+      - - type
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+      - type
+  - name: em_volume_selection
+    columns:
+      - - emdb_id
+        - text
+      - - details
+        - text
+      - - id
+        - text
+      - - image_processing_id
+        - text
+      - - method
+        - text
+      - - num_tomograms
+        - integer
+      - - num_volumes_extracted
+        - integer
+      - - reference_model
+        - text
+    primary_key:
+      - emdb_id
+      - id
+      - image_processing_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+      - method
+      - reference_model
+  - name: em_3d_crystal_entity
+    columns:
+      - - emdb_id
+        - text
+      - - angle_alpha
+        - double precision
+      - - angle_beta
+        - double precision
+      - - angle_gamma
+        - double precision
+      - - image_processing_id
+        - text
+      - - id
+        - text
+      - - length_a
+        - double precision
+      - - length_b
+        - double precision
+      - - length_c
+        - double precision
+      - - space_group_name
+        - text
+      - - space_group_num
+        - integer
+    primary_key:
+      - emdb_id
+      - id
+      - image_processing_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - space_group_name
+  - name: em_2d_crystal_entity
+    columns:
+      - - emdb_id
+        - text
+      - - angle_gamma
+        - double precision
+      - - c_sampling_length
+        - double precision
+      - - image_processing_id
+        - text
+      - - id
+        - text
+      - - entity_assembly_id
+        - text
+      - - length_a
+        - double precision
+      - - length_b
+        - double precision
+      - - length_c
+        - double precision
+      - - space_group_name_H-M
+        - text
+    primary_key:
+      - emdb_id
+      - id
+      - image_processing_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords: []
+  - name: em_image_processing
+    columns:
+      - - emdb_id
+        - text
+      - - details
+        - text
+      - - id
+        - text
+      - - image_recording_id
+        - text
+    primary_key:
+      - emdb_id
+      - image_recording_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+  - name: em_particle_selection
+    columns:
+      - - emdb_id
+        - text
+      - - details
+        - text
+      - - id
+        - text
+      - - image_processing_id
+        - text
+      - - num_particles_selected
+        - bigint
+    primary_key:
+      - emdb_id
+      - id
+      - image_processing_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - details
+      - method
+      - reference_model
+  - name: em_map
+    columns:
+      - - emdb_id
+        - text
+      - - annotation_details
+        - text
+      - - axis_order_fast
+        - text
+      - - axis_order_medium
+        - text
+      - - axis_order_slow
+        - text
+      - - cell_a
+        - double precision
+      - - cell_b
+        - double precision
+      - - cell_c
+        - double precision
+      - - cell_alpha
+        - double precision
+      - - cell_beta
+        - double precision
+      - - cell_gamma
+        - double precision
+      - - contour_level
+        - double precision
+      - - contour_level_source
+        - text
+      - - data_type
+        - text
+      - - dimensions_col
+        - integer
+      - - dimensions_row
+        - integer
+      - - dimensions_sec
+        - integer
+      - - endian_type
+        - text
+      - - file
+        - text
+      - - format
+        - text
+      - - id
+        - integer
+      - - partition
+        - integer
+      - - entry_id
+        - text
+      - - label
+        - text
+      - - limit_col
+        - integer
+      - - limit_row
+        - integer
+      - - limit_sec
+        - integer
+      - - origin_col
+        - integer
+      - - origin_row
+        - integer
+      - - origin_sec
+        - integer
+      - - pixel_spacing_x
+        - double precision
+      - - pixel_spacing_y
+        - double precision
+      - - pixel_spacing_z
+        - double precision
+      - - size_kb
+        - bigint
+      - - spacing_x
+        - integer
+      - - spacing_y
+        - integer
+      - - spacing_z
+        - integer
+      - - statistics_average
+        - double precision
+      - - statistics_maximum
+        - double precision
+      - - statistics_minimum
+        - double precision
+      - - statistics_std
+        - double precision
+      - - symmetry_space_group
+        - integer
+      - - type
+        - text
+    primary_key:
+      - emdb_id
+      - id
+      - entry_id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - entry_id
+        - entry
+        - - emdb_id
+          - id
+    unique_keys: []
+    keywords:
+      - annotation_details
+      - file
+      - original_file
+      - label
+  - name: pdbx_audit_revision_history
+    columns:
+      - - emdb_id
+        - text
+      - - ordinal
+        - integer
+      - - data_content_type
+        - text
+      - - major_revision
+        - integer
+      - - minor_revision
+        - integer
+      - - revision_date
+        - date
+      - - part_number
+        - integer
+    primary_key:
+      - emdb_id
+      - ordinal
+      - data_content_type
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords: []
+  - name: pdbx_audit_revision_group
+    columns:
+      - - emdb_id
+        - text
+      - - ordinal
+        - integer
+      - - revision_ordinal
+        - integer
+      - - data_content_type
+        - text
+      - - group
+        - text
+    primary_key:
+      - emdb_id
+      - ordinal
+      - revision_ordinal
+      - data_content_type
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - data_content_type
+          - revision_ordinal
+        - pdbx_audit_revision_history
+        - - emdb_id
+          - data_content_type
+          - ordinal
+    unique_keys: []
+    keywords: []
+  - name: pdbx_audit_revision_category
+    columns:
+      - - emdb_id
+        - text
+      - - ordinal
+        - integer
+      - - revision_ordinal
+        - integer
+      - - data_content_type
+        - text
+      - - category
+        - text
+    primary_key:
+      - emdb_id
+      - ordinal
+      - revision_ordinal
+      - data_content_type
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - data_content_type
+          - revision_ordinal
+        - pdbx_audit_revision_history
+        - - emdb_id
+          - data_content_type
+          - ordinal
+    unique_keys: []
+    keywords: []
+  - name: pdbx_audit_revision_details
+    columns:
+      - - emdb_id
+        - text
+      - - ordinal
+        - integer
+      - - revision_ordinal
+        - integer
+      - - data_content_type
+        - text
+      - - provider
+        - text
+      - - type
+        - text
+      - - description
+        - text
+      - - details
+        - text
+    primary_key:
+      - emdb_id
+      - ordinal
+      - revision_ordinal
+      - data_content_type
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - data_content_type
+          - revision_ordinal
+        - pdbx_audit_revision_history
+        - - emdb_id
+          - data_content_type
+          - ordinal
+    unique_keys: []
+    keywords:
+      - description
+      - details
+  - name: pdbx_audit_revision_item
+    columns:
+      - - emdb_id
+        - text
+      - - ordinal
+        - integer
+      - - revision_ordinal
+        - integer
+      - - data_content_type
+        - text
+      - - item
+        - text
+    primary_key:
+      - emdb_id
+      - ordinal
+      - revision_ordinal
+      - data_content_type
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+      - - - emdb_id
+          - data_content_type
+          - revision_ordinal
+        - pdbx_audit_revision_history
+        - - emdb_id
+          - data_content_type
+          - ordinal
+    unique_keys: []
+    keywords: []
+  - name: pdbx_audit_support
+    columns:
+      - - emdb_id
+        - text
+      - - funding_organization
+        - text
+      - - country
+        - text
+      - - grant_number
+        - text
+      - - details
+        - text
+      - - ordinal
+        - integer
+    primary_key:
+      - emdb_id
+      - ordinal
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - funding_organization
+      - country
+      - grant_number
+      - details
+  - name: pdbx_initial_refinement_model
+    columns:
+      - - emdb_id
+        - text
+      - - id
+        - integer
+      - - type
+        - text
+      - - source_name
+        - text
+      - - accession_code
+        - text
+      - - details
+        - text
+    primary_key:
+      - emdb_id
+      - id
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - accession_code
+      - details
+  - name: link_entry_pdbjplus
+    columns:
+      - - emdb_id
+        - text
+      - - db_name
+        - text
+      - - db_accession
+        - text[]
+    primary_key:
+      - emdb_id
+      - db_name
+    foreign_keys:
+      - - - emdb_id
+        - brief_summary
+        - - emdb_id
+    unique_keys: []
+    keywords:
+      - db_name
