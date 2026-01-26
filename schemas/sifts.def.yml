@@ -92,6 +92,31 @@ tables:
     foreign_keys: []
     unique_keys: []
     keywords: []
+  - name: pdb_uniprot_segments
+    columns:
+      - - pdbid
+        - text
+      - - entity_id
+        - integer
+      - - pdb_start
+        - integer
+      - - pdb_end
+        - integer
+      - - uniprot_id
+        - text
+      - - uniprot_start
+        - integer
+      - - uniprot_end
+        - integer
+    primary_key:
+      - pdbid
+      - entity_id
+      - pdb_start
+      - pdb_end
+      - uniprot_id
+    foreign_keys: []
+    unique_keys: []
+    keywords: []
   - name: pdb_cath
     columns:
       - - pdbid

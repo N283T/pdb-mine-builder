@@ -61,6 +61,20 @@ TTL_FILES = {
         "columns": ["pdbid", "entity_id", "uniprot_id"],
         "pk": ["pdbid", "entity_id", "uniprot_id"],
     },
+    "pdb_chain_uniprot.ttl.gz": {
+        "table": "pdb_uniprot_segments",
+        "pattern": r"<https://rdf\.wwpdb\.org/pdb/(\w+)/entity_poly/(\d+)#(\d+),(\d+)> sifts:region_match <https://purl\.uniprot\.org/uniprot/(\w+)#(\d+),(\d+)>",
+        "columns": [
+            "pdbid",
+            "entity_id",
+            "pdb_start",
+            "pdb_end",
+            "uniprot_id",
+            "uniprot_start",
+            "uniprot_end",
+        ],
+        "pk": ["pdbid", "entity_id", "pdb_start", "pdb_end", "uniprot_id"],
+    },
     "pdb_chain_cath_uniprot.ttl.gz": {
         "table": "pdb_cath",
         "pattern": r"<https://rdf\.wwpdb\.org/pdb/(\w+)/entity/(\d+)> rdfs:seeAlso <http://identifiers\.org/cath/([\d\.]+)>",
@@ -129,18 +143,26 @@ def load_ttl_file(
     total_updated = 0
     batch: list[tuple] = []
 
+    # Columns that should be converted to int
+    int_columns = {
+        "entity_id",
+        "taxonomy_id",
+        "pubmed_id",
+        "pdb_start",
+        "pdb_end",
+        "uniprot_start",
+        "uniprot_end",
+    }
+
     for row in parse_ttl_file(filepath, pattern):
-        # Convert entity_id and taxonomy_id/pubmed_id to int
         converted = []
-        for i, (col, val) in enumerate(zip(columns, row)):
-            if col == "entity_id" or col == "taxonomy_id" or col == "pubmed_id":
+        for col, val in zip(columns, row):
+            if col in int_columns:
                 converted.append(int(val))
+            elif col == "pdbid":
+                converted.append(val.lower())
             else:
-                # pdbid should be lowercase
-                if col == "pdbid":
-                    converted.append(val.lower())
-                else:
-                    converted.append(val)
+                converted.append(val)
         batch.append(tuple(converted))
 
         if len(batch) >= batch_size:

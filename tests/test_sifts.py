@@ -107,6 +107,27 @@ class TestParseTtlFile:
         assert results[0] == ("101M", "1", "P02185")
         assert results[1] == ("102L", "1", "P00720")
 
+    def test_parse_uniprot_segments(self, tmp_path: Path) -> None:
+        """Parse UniProt full TTL content with residue ranges."""
+        ttl_content = b"""@prefix sifts: <https://pdbj.org/schema/sifts.owl#> .
+
+<https://rdf.wwpdb.org/pdb/101m/entity_poly/1#1,154> sifts:region_match <https://purl.uniprot.org/uniprot/P02185#1,154> .
+<https://rdf.wwpdb.org/pdb/102l/entity_poly/1#1,40> sifts:region_match <https://purl.uniprot.org/uniprot/P00720#1,40> .
+<https://rdf.wwpdb.org/pdb/102l/entity_poly/1#42,165> sifts:region_match <https://purl.uniprot.org/uniprot/P00720#41,164> .
+"""
+        filepath = tmp_path / "test.ttl.gz"
+        with gzip.open(filepath, "wb") as f:
+            f.write(ttl_content)
+
+        pattern = TTL_FILES["pdb_chain_uniprot.ttl.gz"]["pattern"]
+        results = list(parse_ttl_file(filepath, pattern))
+
+        assert len(results) == 3
+        # (pdbid, entity_id, pdb_start, pdb_end, uniprot_id, uniprot_start, uniprot_end)
+        assert results[0] == ("101m", "1", "1", "154", "P02185", "1", "154")
+        assert results[1] == ("102l", "1", "1", "40", "P00720", "1", "40")
+        assert results[2] == ("102l", "1", "42", "165", "P00720", "41", "164")
+
     def test_parse_pubmed(self, tmp_path: Path) -> None:
         """Parse PubMed TTL content."""
         ttl_content = b"""@prefix pdbr: <https://rdf.wwpdb.org/pdb/> .
@@ -280,7 +301,9 @@ class TestTtlFilesConfig:
         for filename, config in TTL_FILES.items():
             pk_set = set(config["pk"])
             col_set = set(config["columns"])
-            assert pk_set <= col_set, f"{filename}: pk {pk_set} not in columns {col_set}"
+            assert pk_set <= col_set, (
+                f"{filename}: pk {pk_set} not in columns {col_set}"
+            )
 
     def test_patterns_are_valid_regex(self) -> None:
         """All patterns are valid regex."""

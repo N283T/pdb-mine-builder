@@ -266,6 +266,7 @@ Data is sourced from [SIFTS (PDBe)](https://www.ebi.ac.uk/pdbe/docs/sifts/) via 
 | `sifts.pdb_enzyme` | PDB entity → EC number |
 | `sifts.pdb_taxonomy` | PDB entity → NCBI Taxonomy |
 | `sifts.pdb_uniprot` | PDB entity → UniProt |
+| `sifts.pdb_uniprot_segments` | PDB entity → UniProt (residue range mapping) |
 | `sifts.pdb_cath` | PDB entity → CATH |
 | `sifts.pdb_scop` | PDB entity → SCOP |
 | `sifts.pdb_pubmed` | PDB entry → PubMed |
@@ -290,6 +291,11 @@ SELECT p.pdbid, p.title, f.pfam_id
 FROM pdbj.brief_summary p
 JOIN sifts.pdb_pfam f ON p.pdbid = f.pdbid
 WHERE p.resolution < 2.0;
+
+-- UniProt residue range mapping (pdb_uniprot_segments)
+SELECT * FROM sifts.pdb_uniprot_segments WHERE pdbid = '102l';
+-- Returns: pdbid=102l, entity_id=1, pdb_start=1, pdb_end=40, uniprot_id=P00720, uniprot_start=1, uniprot_end=40
+--          pdbid=102l, entity_id=1, pdb_start=42, pdb_end=165, uniprot_id=P00720, uniprot_start=41, uniprot_end=164
 ```
 
 ## Development
