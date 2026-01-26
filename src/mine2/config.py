@@ -43,9 +43,6 @@ class Settings(BaseModel):
     """Application settings."""
 
     rdb: RdbConfig = Field(default_factory=RdbConfig)
-    obabel: str = Field(
-        default="/usr/bin/obabel", description="OpenBabel executable path"
-    )
     sync: dict[str, SyncTarget] = Field(default_factory=dict)
     pipelines: dict[str, PipelineConfig] = Field(default_factory=dict)
 

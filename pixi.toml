@@ -24,11 +24,12 @@ db-stop = "pg_ctl -D $PGDATA stop"
 db-status = "pg_ctl -D $PGDATA status"
 
 [dependencies]
-postgresql = ">=12.0.0,<17"
+postgresql = ">=17.0.0,<19"
 python = ">=3.12"
-openbabel = ">=3.1.1,<4"
+rdkit-postgresql = ">=2024.09.0"
 
 [pypi-dependencies]
+ccd2rdmol = ">=0.2.0"
 gemmi = ">=0.7.0"
 typer = ">=0.15.0"
 rich = ">=13.0.0"

@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any
 
 import gemmi
+from ccd2rdmol import read_ccd_block
+from rdkit import Chem
 from rich.console import Console
 from rich.progress import (
     BarColumn,
@@ -23,6 +25,65 @@ from mine2.parsers.mmjson import normalize_column_name
 from mine2.pipelines.base import BasePipeline, transform_category
 
 console = Console()
+
+
+def _generate_canonical_smiles(block: gemmi.cif.Block) -> str | None:
+    """Generate canonical SMILES from a CIF block using ccd2rdmol.
+
+    Args:
+        block: gemmi CIF block containing chemical component data
+
+    Returns:
+        Canonical SMILES string, or None if conversion failed
+    """
+    try:
+        result = read_ccd_block(block, sanitize_mol=True, add_conformers=False)
+        if result.mol is not None:
+            return Chem.MolToSmiles(result.mol, canonical=True)
+    except Exception:
+        pass
+    return None
+
+
+def _canonicalize_smiles(smiles: str | None) -> str | None:
+    """Canonicalize a SMILES string using RDKit.
+
+    Args:
+        smiles: Input SMILES string
+
+    Returns:
+        Canonical SMILES string, or None if invalid
+    """
+    if not smiles:
+        return None
+    try:
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is not None:
+            return Chem.MolToSmiles(mol, canonical=True)
+    except Exception:
+        pass
+    return None
+
+
+def _extract_smiles_from_mmjson(data: dict[str, Any]) -> str | None:
+    """Extract SMILES from mmJSON pdbx_chem_comp_descriptor.
+
+    Looks for SMILES or SMILES_CANONICAL type descriptors.
+
+    Args:
+        data: Parsed mmJSON data
+
+    Returns:
+        SMILES string, or None if not found
+    """
+    descriptors = data.get("pdbx_chem_comp_descriptor", [])
+    for desc in descriptors:
+        desc_type = desc.get("type", "")
+        if "SMILES" in desc_type.upper():
+            smiles = desc.get("descriptor")
+            if smiles:
+                return smiles
+    return None
 
 
 # =============================================================================
@@ -62,12 +123,21 @@ def _process_cif_chunk(
             data = parse_block(block)
             rows_inserted = 0
 
+            # Generate canonical SMILES using ccd2rdmol
+            canonical_smiles = _generate_canonical_smiles(block)
+
             for table in schema_def.tables:
                 rows = data.get(table.name, [])
                 # CIF uses plain column names, no normalization needed
                 category_rows = transform_category(
                     rows, table, comp_id, schema_def.primary_key, None
                 )
+
+                # Add canonical_smiles to brief_summary table
+                if table.name == "brief_summary" and category_rows:
+                    for row in category_rows:
+                        row["canonical_smiles"] = canonical_smiles
+
                 if category_rows:
                     columns = list(category_rows[0].keys())
                     inserted, _ = bulk_upsert(
@@ -128,11 +198,21 @@ class CcPipeline(BasePipeline):
             data = parse_mmjson_file(job.filepath)
             rows_inserted = 0
 
+            # Extract and canonicalize SMILES from mmJSON
+            raw_smiles = _extract_smiles_from_mmjson(data)
+            canonical_smiles = _canonicalize_smiles(raw_smiles)
+
             # Load all tables from schema
             for table in schema_def.tables:
                 category_rows = self._transform_category(
                     data, table, job.entry_id, schema_def.primary_key
                 )
+
+                # Add canonical_smiles to brief_summary table
+                if table.name == "brief_summary" and category_rows:
+                    for row in category_rows:
+                        row["canonical_smiles"] = canonical_smiles
+
                 if category_rows:
                     columns = list(category_rows[0].keys())
                     inserted, _ = bulk_upsert(
@@ -352,10 +432,19 @@ class CcCifPipeline:
             data = parse_block(block)
             rows_inserted = 0
 
+            # Generate canonical SMILES using ccd2rdmol
+            canonical_smiles = _generate_canonical_smiles(block)
+
             for table in self.schema_def.tables:
                 category_rows = self._transform_category(
                     data, table, comp_id, self.schema_def.primary_key
                 )
+
+                # Add canonical_smiles to brief_summary table
+                if table.name == "brief_summary" and category_rows:
+                    for row in category_rows:
+                        row["canonical_smiles"] = canonical_smiles
+
                 if category_rows:
                     columns = list(category_rows[0].keys())
                     inserted, _ = bulk_upsert(
