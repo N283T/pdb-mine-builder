@@ -1,10 +1,90 @@
 """CIF parser using gemmi library."""
 
-import gzip
+import logging
 from pathlib import Path
 from typing import Any
 
 import gemmi
+
+logger = logging.getLogger(__name__)
+
+
+def _normalize_cif_value(value: Any) -> Any:
+    """Normalize CIF special values.
+
+    gemmi converts: '?' -> None, '.' -> False
+    We normalize both to None for database insertion.
+    """
+    if value is False:
+        return None
+    return value
+
+
+def parse_block(block: gemmi.cif.Block) -> dict[str, Any]:
+    """Parse a single gemmi Block into row-oriented dict."""
+    result: dict[str, Any] = {}
+    result["_block_name"] = block.name
+    logger.debug("Parsing block: %s", block.name)
+
+    for cat_name in block.get_mmcif_category_names():
+        # '_entry.' -> 'entry'
+        category = cat_name.strip("_").rstrip(".")
+        col_data = block.get_mmcif_category(cat_name)
+
+        if not col_data:
+            continue
+
+        # Convert column-oriented to row-oriented, normalizing values
+        keys = list(col_data.keys())
+        n_rows = len(col_data[keys[0]]) if keys else 0
+        rows = [
+            {k: _normalize_cif_value(col_data[k][i]) for k in keys}
+            for i in range(n_rows)
+        ]
+
+        if category in result:
+            result[category].extend(rows)
+        else:
+            result[category] = rows
+
+        logger.debug("  Category %s: %d rows, %d columns", category, n_rows, len(keys))
+
+    return result
+
+
+def parse_cif_document(doc: gemmi.cif.Document) -> dict[str, Any]:
+    """Parse gemmi Document into a dictionary.
+
+    Uses gemmi's get_mmcif_category() for efficient parsing.
+    Returns a dict where keys are category names (e.g., 'entry', 'atom_site')
+    and values are lists of rows (each row is a dict of column -> value).
+
+    For CIF files with multiple blocks, data from all blocks is merged.
+    Metadata:
+    - `_block_name`: Name of the last block (for backward compatibility)
+    - `_block_names`: List of all block names (when multiple blocks exist)
+    """
+    result: dict[str, Any] = {}
+    block_names: list[str] = []
+
+    for block in doc:
+        block_data = parse_block(block)
+        # Merge block data into result
+        for key, value in block_data.items():
+            if key == "_block_name":
+                block_names.append(value)
+            elif key in result and isinstance(value, list):
+                result[key].extend(value)
+            else:
+                result[key] = value
+
+    # Store block name(s)
+    if block_names:
+        result["_block_name"] = block_names[-1]  # Last block for compatibility
+        if len(block_names) > 1:
+            result["_block_names"] = block_names
+
+    return result
 
 
 def parse_cif(content: str) -> dict[str, Any]:
@@ -14,63 +94,13 @@ def parse_cif(content: str) -> dict[str, Any]:
     and values are lists of rows (each row is a dict of column -> value).
     """
     doc = gemmi.cif.read_string(content)
-
-    result: dict[str, Any] = {}
-
-    for block in doc:
-        block_name = block.name
-
-        for item in block:
-            if item.loop is not None:
-                # Loop (table) data
-                loop = item.loop
-                tags = [
-                    tag.split(".")[-1] for tag in loop.tags
-                ]  # Remove category prefix
-                category = (
-                    loop.tags[0].split(".")[0].lstrip("_") if loop.tags else "unknown"
-                )
-
-                rows = []
-                width = loop.width()
-                for row_idx in range(loop.length()):
-                    row_data = {}
-                    for col_idx, tag in enumerate(tags):
-                        value = loop.values[row_idx * width + col_idx]
-                        # Convert CIF special values
-                        if value in (".", "?"):
-                            value = None
-                        row_data[tag] = value
-                    rows.append(row_data)
-
-                if category in result:
-                    result[category].extend(rows)
-                else:
-                    result[category] = rows
-
-            elif item.pair is not None:
-                # Single key-value pair
-                tag, value = item.pair
-                category = tag.split(".")[0].lstrip("_")
-                column = tag.split(".")[-1]
-
-                if value in (".", "?"):
-                    value = None
-
-                if category not in result:
-                    result[category] = [{}]
-                if len(result[category]) == 0:
-                    result[category].append({})
-                result[category][0][column] = value
-
-        # Store block name for reference
-        result["_block_name"] = block_name
-
-    return result
+    return parse_cif_document(doc)
 
 
-def parse_cif_file(filepath: Path) -> dict[str, Any]:
+def parse_cif_file(filepath: Path | str) -> dict[str, Any]:
     """Parse a CIF file (supports gzip compression).
+
+    Uses gemmi.cif.read() which handles .gz files automatically.
 
     Args:
         filepath: Path to the CIF file (.cif or .cif.gz)
@@ -78,43 +108,75 @@ def parse_cif_file(filepath: Path) -> dict[str, Any]:
     Returns:
         Parsed CIF data as dictionary
     """
-    if filepath.suffix == ".gz" or str(filepath).endswith(".cif.gz"):
-        with gzip.open(filepath, "rt", encoding="utf-8") as f:
-            content = f.read()
-    else:
-        with open(filepath, encoding="utf-8") as f:
-            content = f.read()
-
-    return parse_cif(content)
+    logger.debug("Parsing CIF file: %s", filepath)
+    doc = gemmi.cif.read(str(filepath))
+    logger.debug("CIF document has %d block(s)", len(doc))
+    return parse_cif_document(doc)
 
 
-def cif_to_mmjson_format(cif_data: dict[str, Any]) -> dict[str, Any]:
-    """Convert CIF dict to mmJSON-like format.
+# =============================================================================
+# mmJSON support (using gemmi.cif.read_mmjson)
+# =============================================================================
 
-    mmJSON format uses arrays of values instead of list of dicts:
-    {
-        "category": {
-            "column1": ["val1", "val2"],
-            "column2": ["val1", "val2"]
-        }
-    }
+
+def parse_mmjson_document(doc: gemmi.cif.Document) -> dict[str, Any]:
+    """Parse gemmi Document (from mmJSON) into a dictionary.
+
+    Same output format as parse_cif_document - row-oriented dict.
+    Uses the first block by default (use parse_mmjson_blocks for multi-block).
     """
-    result: dict[str, Any] = {}
+    if len(doc) == 0:
+        return {}
+    return parse_block(doc[0])
 
-    for category, rows in cif_data.items():
-        if category.startswith("_"):
-            continue
-        if not rows:
-            continue
 
-        # Convert list of dicts to dict of lists
-        columns: dict[str, list] = {}
-        for row in rows:
-            for key, value in row.items():
-                if key not in columns:
-                    columns[key] = []
-                columns[key].append(value)
+def parse_mmjson_blocks(doc: gemmi.cif.Document) -> dict[str, dict[str, Any]]:
+    """Parse all blocks from mmJSON Document.
 
-        result[category] = columns
+    Returns dict mapping block names to their row-oriented data.
+    Useful for PRD files with multiple data blocks.
+    """
+    return {block.name: parse_block(block) for block in doc}
 
-    return result
+
+def parse_mmjson(content: str) -> dict[str, Any]:
+    """Parse mmJSON content string into a dictionary.
+
+    Returns row-oriented dict (same format as parse_cif).
+    """
+    doc = gemmi.cif.read_mmjson_string(content)
+    return parse_mmjson_document(doc)
+
+
+def parse_mmjson_file(filepath: Path | str) -> dict[str, Any]:
+    """Parse an mmJSON file (supports gzip compression).
+
+    Uses gemmi.cif.read_mmjson() which handles .gz files automatically.
+
+    Args:
+        filepath: Path to the mmJSON file (.json or .json.gz)
+
+    Returns:
+        Parsed data as row-oriented dictionary
+    """
+    logger.debug("Parsing mmJSON file: %s", filepath)
+    doc = gemmi.cif.read_mmjson(str(filepath))
+    logger.debug("mmJSON document has %d block(s)", len(doc))
+    return parse_mmjson_document(doc)
+
+
+def parse_mmjson_file_blocks(filepath: Path | str) -> dict[str, dict[str, Any]]:
+    """Parse an mmJSON file with multiple data blocks.
+
+    Useful for PRD files that contain both PRD and PRDCC blocks.
+
+    Args:
+        filepath: Path to the mmJSON file (.json or .json.gz)
+
+    Returns:
+        Dict mapping block names to their row-oriented data
+    """
+    logger.debug("Parsing mmJSON file (multi-block): %s", filepath)
+    doc = gemmi.cif.read_mmjson(str(filepath))
+    logger.debug("mmJSON document has %d block(s)", len(doc))
+    return parse_mmjson_blocks(doc)

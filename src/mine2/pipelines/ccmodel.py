@@ -7,8 +7,9 @@ from typing import Any
 from rich.console import Console
 
 from mine2.config import PipelineConfig, Settings
-from mine2.db.loader import Job, LoaderResult, SchemaDef, bulk_upsert
-from mine2.parsers.mmjson import get_rows, load_mmjson_file, normalize_column_name
+from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
+from mine2.parsers.cif import parse_mmjson_file
+from mine2.parsers.mmjson import normalize_column_name
 from mine2.pipelines.base import BasePipeline, transform_category
 
 console = Console()
@@ -38,7 +39,7 @@ class CcmodelPipeline(BasePipeline):
     ) -> LoaderResult:
         """Process a single component model."""
         try:
-            data = load_mmjson_file(job.filepath)
+            data = parse_mmjson_file(job.filepath)
             rows_inserted = 0
 
             # Generate and load brief_summary
@@ -93,7 +94,7 @@ class CcmodelPipeline(BasePipeline):
         self, data: dict[str, Any], model_id: str
     ) -> list[dict]:
         """Generate brief_summary from pdbx_chem_comp_model data."""
-        rows = get_rows(data, "pdbx_chem_comp_model")
+        rows = data.get("pdbx_chem_comp_model", [])
         if not rows:
             return [{"model_id": model_id}]
 
@@ -110,12 +111,12 @@ class CcmodelPipeline(BasePipeline):
     def _transform_category(
         self,
         data: dict[str, Any],
-        table: Any,
+        table: TableDef,
         model_id: str,
         pk_col: str,
     ) -> list[dict]:
         """Transform a category's data."""
-        rows = get_rows(data, table.name)
+        rows = data.get(table.name, [])
         return transform_category(rows, table, model_id, pk_col, normalize_column_name)
 
 

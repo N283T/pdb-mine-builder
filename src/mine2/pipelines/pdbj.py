@@ -8,13 +8,9 @@ from rich.console import Console
 
 from mine2.config import PipelineConfig, Settings
 from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
-from mine2.parsers.mmjson import (
-    get_rows,
-    load_mmjson_file,
-    merge_mmjson,
-    normalize_column_name,
-)
-from mine2.pipelines.base import BasePipeline
+from mine2.parsers.cif import parse_mmjson_file
+from mine2.parsers.mmjson import merge_data, normalize_column_name
+from mine2.pipelines.base import BasePipeline, transform_category
 
 console = Console()
 
@@ -89,14 +85,14 @@ class PdbjPipeline(BasePipeline):
     ) -> LoaderResult:
         """Process a single PDB entry."""
         try:
-            # Load main data
-            data = load_mmjson_file(job.filepath)
+            # Load main data (row-oriented)
+            data = parse_mmjson_file(job.filepath)
 
             # Merge with plus data if available
             plus_path = job.extra.get("plus_path")
             if plus_path:
-                plus_data = load_mmjson_file(plus_path)
-                data = merge_mmjson(data, plus_data)
+                plus_data = parse_mmjson_file(plus_path)
+                data = merge_data(data, plus_data)
 
             # Transform and load
             rows_inserted = 0
@@ -160,7 +156,7 @@ class PdbjPipeline(BasePipeline):
 
     def _transform_entry(self, data: dict[str, Any], entry_id: str) -> list[dict]:
         """Transform entry data."""
-        rows = get_rows(data, "entry")
+        rows = data.get("entry", [])
         if not rows:
             # Fallback: create minimal entry with both PK columns
             return [{"pdbid": entry_id, "id": entry_id.upper()}]
@@ -181,51 +177,9 @@ class PdbjPipeline(BasePipeline):
         table: TableDef,
         entry_id: str,
     ) -> list[dict]:
-        """Transform a category's data.
-
-        Args:
-            data: mmJSON data
-            table: Table definition from schema
-            entry_id: PDB entry ID
-        """
-        rows = get_rows(data, table.name)
-        if not rows:
-            return []
-
-        # Get column names from schema (preserving order)
-        schema_columns = [col_name for col_name, _ in table.columns]
-        valid_columns = set(schema_columns)
-
-        # First pass: collect all columns that appear in any row
-        used_columns = {"pdbid"}  # Always include pdbid
-        for row in rows:
-            for col_name in row:
-                normalized = normalize_column_name(col_name)
-                if normalized in valid_columns:
-                    used_columns.add(normalized)
-
-        # Determine final column order (pdbid first, then schema order)
-        final_columns = ["pdbid"] + [c for c in schema_columns if c in used_columns]
-
-        # Second pass: build rows with consistent columns
-        result = []
-        for row in rows:
-            # Normalize all column names
-            normalized_row = {}
-            for col_name, value in row.items():
-                normalized = normalize_column_name(col_name)
-                if normalized in valid_columns:
-                    normalized_row[normalized] = value
-
-            # Build row with all final_columns (None for missing)
-            transformed_row = {"pdbid": entry_id}
-            for col in final_columns:
-                if col == "pdbid":
-                    continue
-                transformed_row[col] = normalized_row.get(col)
-
-            result.append(transformed_row)
-        return result
+        """Transform a category's data."""
+        rows = data.get(table.name, [])
+        return transform_category(rows, table, entry_id, "pdbid", normalize_column_name)
 
 
 def run(
