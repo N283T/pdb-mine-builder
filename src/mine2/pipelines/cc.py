@@ -442,8 +442,25 @@ def _add_rdkit_descriptor_columns(cur: psycopg.Cursor) -> None:  # type: ignore[
 
     These are GENERATED columns derived from the mol column.
     When mol is NULL (invalid SMILES), all descriptors will also be NULL.
+
+    SECURITY: All column definitions are hardcoded allowlists.
+    DO NOT accept external input for column names, types, or functions.
     """
-    # List of (column_name, type, rdkit_function)
+    # Allowlist of valid column types
+    valid_types = {"double precision", "integer", "text"}
+    # Allowlist of valid RDKit functions
+    valid_funcs = {
+        "mol_amw(mol)",
+        "mol_logp(mol)",
+        "mol_tpsa(mol)",
+        "mol_hba(mol)",
+        "mol_hbd(mol)",
+        "mol_numrotatablebonds(mol)",
+        "mol_numrings(mol)",
+        "mol_formula(mol)",
+    }
+
+    # Hardcoded descriptors - NEVER derive from external sources
     descriptors = [
         ("rdkit_mw", "double precision", "mol_amw(mol)"),
         ("rdkit_logp", "double precision", "mol_logp(mol)"),
@@ -455,7 +472,17 @@ def _add_rdkit_descriptor_columns(cur: psycopg.Cursor) -> None:  # type: ignore[
         ("rdkit_formula", "text", "mol_formula(mol)"),
     ]
 
+    import re
+
     for col_name, col_type, rdkit_func in descriptors:
+        # Validate against allowlists (defense in depth)
+        if not re.match(r"^rdkit_[a-z]+$", col_name):
+            raise ValueError(f"Invalid column name: {col_name}")
+        if col_type not in valid_types:
+            raise ValueError(f"Invalid column type: {col_type}")
+        if rdkit_func not in valid_funcs:
+            raise ValueError(f"Invalid RDKit function: {rdkit_func}")
+
         # Add column if it doesn't exist (idempotent)
         # Note: mol_* functions return NULL when mol is NULL
         cur.execute(f"""
