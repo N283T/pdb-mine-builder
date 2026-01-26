@@ -18,7 +18,7 @@ BEGIN
         ALTER TABLE cc.brief_summary
         ADD COLUMN mol mol GENERATED ALWAYS AS (
             CASE
-                WHEN canonical_smiles IS NOT NULL AND is_valid_smiles(canonical_smiles)
+                WHEN canonical_smiles IS NOT NULL AND is_valid_smiles(canonical_smiles::cstring)
                 THEN mol_from_smiles(canonical_smiles::cstring)
                 ELSE NULL
             END

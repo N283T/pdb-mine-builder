@@ -86,6 +86,68 @@ def _extract_smiles_from_mmjson(data: dict[str, Any]) -> str | None:
     return None
 
 
+def _extract_descriptors_by_type(data: dict[str, Any], target_type: str) -> list[str]:
+    """Extract descriptors of a specific type from pdbx_chem_comp_descriptor."""
+    descriptors = data.get("pdbx_chem_comp_descriptor", [])
+    results = []
+    for desc in descriptors:
+        desc_type = desc.get("type", "")
+        if target_type.lower() in desc_type.lower():
+            value = desc.get("descriptor")
+            if value:
+                results.append(value)
+    return results
+
+
+def _generate_brief_summary(
+    data: dict[str, Any], comp_id: str, canonical_smiles: str | None
+) -> dict[str, Any]:
+    """Generate brief_summary row from mmJSON data.
+
+    This is a derived table aggregating data from chem_comp,
+    pdbx_chem_comp_descriptor, pdbx_chem_comp_identifier, etc.
+    """
+    # Get chem_comp data (first row)
+    chem_comp = data.get("chem_comp", [{}])
+    cc = chem_comp[0] if chem_comp else {}
+
+    # Get release date from audit
+    release_date = None
+    audits = data.get("pdbx_chem_comp_audit", [])
+    for audit in audits:
+        if audit.get("action_type") == "Initial release":
+            release_date = audit.get("date")
+            break
+
+    # Get identifier
+    identifiers = data.get("pdbx_chem_comp_identifier", [])
+    identifier = identifiers[0].get("identifier") if identifiers else None
+
+    # Extract SMILES and InChI arrays
+    smiles_list = _extract_descriptors_by_type(data, "smiles")
+    inchi_list = _extract_descriptors_by_type(data, "inchi")
+
+    # Parse synonyms into array
+    synonyms_str = cc.get("pdbx_synonyms")
+    pdbx_synonyms = [s.strip() for s in synonyms_str.split(";")] if synonyms_str else []
+
+    return {
+        "comp_id": comp_id,
+        "pdbx_initial_date": cc.get("pdbx_initial_date"),
+        "release_date": release_date,
+        "pdbx_modified_date": cc.get("pdbx_modified_date"),
+        "update_date": None,
+        "name": cc.get("name"),
+        "formula": cc.get("formula"),
+        "pdbx_synonyms": pdbx_synonyms if pdbx_synonyms else None,
+        "identifier": identifier,
+        "smiles": smiles_list if smiles_list else None,
+        "inchi": inchi_list if inchi_list else None,
+        "canonical_smiles": canonical_smiles,
+        "keywords": None,
+    }
+
+
 # =============================================================================
 # Worker function for parallel CIF processing (must be at module level)
 # =============================================================================
@@ -127,16 +189,16 @@ def _process_cif_chunk(
             canonical_smiles = _generate_canonical_smiles(block)
 
             for table in schema_def.tables:
-                rows = data.get(table.name, [])
-                # CIF uses plain column names, no normalization needed
-                category_rows = transform_category(
-                    rows, table, comp_id, schema_def.primary_key, None
-                )
-
-                # Add canonical_smiles to brief_summary table
-                if table.name == "brief_summary" and category_rows:
-                    for row in category_rows:
-                        row["canonical_smiles"] = canonical_smiles
+                # brief_summary is a derived table, generate it
+                if table.name == "brief_summary":
+                    brief_row = _generate_brief_summary(data, comp_id, canonical_smiles)
+                    category_rows = [brief_row]
+                else:
+                    rows = data.get(table.name, [])
+                    # CIF uses plain column names, no normalization needed
+                    category_rows = transform_category(
+                        rows, table, comp_id, schema_def.primary_key, None
+                    )
 
                 if category_rows:
                     columns = list(category_rows[0].keys())
@@ -204,14 +266,16 @@ class CcPipeline(BasePipeline):
 
             # Load all tables from schema
             for table in schema_def.tables:
-                category_rows = self._transform_category(
-                    data, table, job.entry_id, schema_def.primary_key
-                )
-
-                # Add canonical_smiles to brief_summary table
-                if table.name == "brief_summary" and category_rows:
-                    for row in category_rows:
-                        row["canonical_smiles"] = canonical_smiles
+                # brief_summary is a derived table, generate it
+                if table.name == "brief_summary":
+                    brief_row = _generate_brief_summary(
+                        data, job.entry_id, canonical_smiles
+                    )
+                    category_rows = [brief_row]
+                else:
+                    category_rows = self._transform_category(
+                        data, table, job.entry_id, schema_def.primary_key
+                    )
 
                 if category_rows:
                     columns = list(category_rows[0].keys())
@@ -436,14 +500,14 @@ class CcCifPipeline:
             canonical_smiles = _generate_canonical_smiles(block)
 
             for table in self.schema_def.tables:
-                category_rows = self._transform_category(
-                    data, table, comp_id, self.schema_def.primary_key
-                )
-
-                # Add canonical_smiles to brief_summary table
-                if table.name == "brief_summary" and category_rows:
-                    for row in category_rows:
-                        row["canonical_smiles"] = canonical_smiles
+                # brief_summary is a derived table, generate it
+                if table.name == "brief_summary":
+                    brief_row = _generate_brief_summary(data, comp_id, canonical_smiles)
+                    category_rows = [brief_row]
+                else:
+                    category_rows = self._transform_category(
+                        data, table, comp_id, self.schema_def.primary_key
+                    )
 
                 if category_rows:
                     columns = list(category_rows[0].keys())
