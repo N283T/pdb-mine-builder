@@ -8,8 +8,9 @@ from rich.console import Console
 
 from mine2.config import PipelineConfig, Settings
 from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
-from mine2.parsers.mmjson import get_rows, load_mmjson_file, normalize_column_name
-from mine2.pipelines.base import BasePipeline
+from mine2.parsers.cif import parse_mmjson_file
+from mine2.parsers.mmjson import normalize_column_name
+from mine2.pipelines.base import BasePipeline, transform_category
 
 console = Console()
 
@@ -38,7 +39,7 @@ class CcPipeline(BasePipeline):
     ) -> LoaderResult:
         """Process a single chemical component."""
         try:
-            data = load_mmjson_file(job.filepath)
+            data = parse_mmjson_file(job.filepath)
             rows_inserted = 0
 
             # Load all tables from schema
@@ -79,54 +80,9 @@ class CcPipeline(BasePipeline):
         comp_id: str,
         pk_col: str,
     ) -> list[dict]:
-        """Transform a category's data.
-
-        Args:
-            data: mmJSON data
-            table: Table definition from schema
-            comp_id: Chemical component ID
-            pk_col: Primary key column name (comp_id)
-        """
-        rows = get_rows(data, table.name)
-        if not rows:
-            return []
-
-        # Get column names from schema (preserving order)
-        schema_columns = [col_name for col_name, _ in table.columns]
-        valid_columns = set(schema_columns)
-
-        # First pass: collect all columns that appear in any row
-        used_columns = {pk_col}
-        for row in rows:
-            for col_name in row:
-                normalized = normalize_column_name(col_name)
-                if normalized in valid_columns:
-                    used_columns.add(normalized)
-
-        # Determine final column order (pk first, then schema order)
-        final_columns = [pk_col] + [
-            c for c in schema_columns if c in used_columns and c != pk_col
-        ]
-
-        # Second pass: build rows with consistent columns
-        result = []
-        for row in rows:
-            # Normalize all column names
-            normalized_row = {}
-            for col_name, value in row.items():
-                normalized = normalize_column_name(col_name)
-                if normalized in valid_columns:
-                    normalized_row[normalized] = value
-
-            # Build row with all final_columns (None for missing)
-            transformed_row = {pk_col: comp_id}
-            for col in final_columns:
-                if col == pk_col:
-                    continue
-                transformed_row[col] = normalized_row.get(col)
-
-            result.append(transformed_row)
-        return result
+        """Transform a category's data."""
+        rows = data.get(table.name, [])
+        return transform_category(rows, table, comp_id, pk_col, normalize_column_name)
 
 
 def run(

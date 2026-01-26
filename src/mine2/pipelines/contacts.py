@@ -76,8 +76,13 @@ class ContactsPipeline(BasePipeline):
                     "list",
                     columns,
                     [tuple(r[c] for c in columns) for r in contact_rows],
-                    ["pdbid", "label_asym_id_1", "label_asym_id_2",
-                     "label_seq_id_1", "label_seq_id_2"],
+                    [
+                        "pdbid",
+                        "label_asym_id_1",
+                        "label_asym_id_2",
+                        "label_seq_id_1",
+                        "label_seq_id_2",
+                    ],
                 )
                 rows_inserted += inserted
 
@@ -104,9 +109,7 @@ class ContactsPipeline(BasePipeline):
             with open(filepath, encoding="utf-8") as f:
                 return json.load(f)
 
-    def _transform_contacts(
-        self, data: list[list[Any]], pdbid: str
-    ) -> list[dict]:
+    def _transform_contacts(self, data: list[list[Any]], pdbid: str) -> list[dict]:
         """Transform contact records to database rows.
 
         Contact record format (array):
@@ -125,16 +128,18 @@ class ContactsPipeline(BasePipeline):
             if len(record) < 8:
                 continue
 
-            result.append({
-                "pdbid": pdbid,
-                "label_asym_id_1": record[1],
-                "label_asym_id_2": record[2],
-                "label_seq_id_1": record[3],
-                "label_seq_id_2": record[4],
-                "label_comp_id_1": record[5],
-                "label_comp_id_2": record[6],
-                "distance": record[7],
-            })
+            result.append(
+                {
+                    "pdbid": pdbid,
+                    "label_asym_id_1": record[1],
+                    "label_asym_id_2": record[2],
+                    "label_seq_id_1": record[3],
+                    "label_seq_id_2": record[4],
+                    "label_comp_id_1": record[5],
+                    "label_comp_id_2": record[6],
+                    "distance": record[7],
+                }
+            )
 
         return result
 

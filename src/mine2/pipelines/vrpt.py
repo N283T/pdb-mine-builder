@@ -4,10 +4,11 @@ import traceback
 from pathlib import Path
 from typing import Any
 
+import gemmi
 from rich.console import Console
 
 from mine2.config import PipelineConfig, Settings
-from mine2.db.loader import Job, LoaderResult, SchemaDef, bulk_upsert
+from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
 from mine2.parsers.cif import parse_cif_file
 from mine2.pipelines.base import BasePipeline, transform_category
 
@@ -20,23 +21,37 @@ class VrptPipeline(BasePipeline):
     Uses gemmi to parse CIF files directly - no JSON conversion needed.
 
     Directory structure: data/<2-3char>/<pdbid>/<pdbid>_validation.cif.gz
+
+    Note: file_pattern is not defined because this pipeline uses gemmi.CifWalk
+    with custom filtering (_is_validation_file) instead of rglob pattern matching.
+    CifWalk recursively finds all CIF files and handles .cif.gz automatically.
     """
 
     name = "vrpt"
-    file_pattern = "*_validation.cif.gz"
+    # file_pattern intentionally omitted - using gemmi.CifWalk instead
 
-    def extract_entry_id(self, filepath: Path) -> str:
+    def extract_entry_id(self, filepath: Path | str) -> str:
         """Extract PDB ID from validation report filename."""
         # Files are named like: 100d_validation.cif.gz
-        name = filepath.stem
+        name = Path(filepath).name
+        # Remove .gz suffix if present
+        if name.endswith(".gz"):
+            name = name[:-3]
+        # Remove .cif suffix
         if name.endswith(".cif"):
             name = name[:-4]
+        # Remove _validation suffix
         if name.endswith("_validation"):
             name = name[:-11]
         return name.lower()
 
+    def _is_validation_file(self, filepath: str) -> bool:
+        """Check if filepath is a validation report file."""
+        name = Path(filepath).name.lower()
+        return "_validation.cif" in name
+
     def find_jobs(self, limit: int | None = None) -> list[Job]:
-        """Find validation report files.
+        """Find validation report files using gemmi.CifWalk.
 
         Handles nested directory structure:
         data/<2-3char>/<pdbid>/<pdbid>_validation.cif.gz
@@ -48,21 +63,15 @@ class VrptPipeline(BasePipeline):
             return []
 
         jobs = []
-        # Iterate through hash directories (2-3 char subdirs) for efficiency
-        for hash_dir in sorted(data_dir.iterdir()):
-            if not hash_dir.is_dir():
+        for filepath in gemmi.CifWalk(str(data_dir)):
+            if not self._is_validation_file(filepath):
                 continue
-            # Iterate through entry directories
-            for entry_dir in sorted(hash_dir.iterdir()):
-                if not entry_dir.is_dir():
-                    continue
-                # Find validation files in entry directory
-                for filepath in entry_dir.glob(self.file_pattern):
-                    entry_id = self.extract_entry_id(filepath)
-                    jobs.append(Job(entry_id=entry_id, filepath=filepath))
 
-                    if limit and len(jobs) >= limit:
-                        return jobs
+            entry_id = self.extract_entry_id(filepath)
+            jobs.append(Job(entry_id=entry_id, filepath=Path(filepath)))
+
+            if limit and len(jobs) >= limit:
+                break
 
         return jobs
 
@@ -133,7 +142,7 @@ class VrptPipeline(BasePipeline):
     def _transform_category(
         self,
         data: dict[str, Any],
-        table: Any,
+        table: TableDef,
         pdbid: str,
         pk_col: str,
     ) -> list[dict]:
