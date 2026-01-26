@@ -8,11 +8,14 @@ import pytest
 
 from mine2.config import PipelineConfig, RdbConfig, Settings
 from mine2.db.loader import SchemaDef, TableDef
+from mine2.parsers.cif import parse_cif_file
 from mine2.pipelines.ccmodel import (
     CcmodelCifPipeline,
     _generate_brief_summary,
     _process_ccmodel_cif_block,
 )
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures" / "ccmodel"
 
 
 def create_test_ccmodel_cif_content(models: list[dict]) -> str:
@@ -279,3 +282,48 @@ class TestCcmodelCifPipelineRun:
         results = pipeline.run(limit=10)
 
         assert len(results) == 10
+
+
+class TestRealCcmodelFixtures:
+    """Tests using real ccmodel CIF fixture files."""
+
+    def test_parse_dal_model_fixture(self) -> None:
+        """Parse M_DAL_00001 (D-alanine model) fixture file."""
+        fixture_path = FIXTURES_DIR / "M_DAL_00001.cif.gz"
+        assert fixture_path.exists(), f"Fixture not found: {fixture_path}"
+
+        data = parse_cif_file(fixture_path)
+
+        # Check block name
+        assert data["_block_name"] == "M_DAL_00001"
+
+        # Should have pdbx_chem_comp_model data
+        assert "pdbx_chem_comp_model" in data
+        model = data["pdbx_chem_comp_model"][0]
+        assert model["id"] == "M_DAL_00001"
+        assert model["comp_id"] == "DAL"
+
+    def test_parse_eoh_model_fixture(self) -> None:
+        """Parse M_EOH_00001 (ethanol model) fixture file."""
+        fixture_path = FIXTURES_DIR / "M_EOH_00001.cif.gz"
+        assert fixture_path.exists(), f"Fixture not found: {fixture_path}"
+
+        data = parse_cif_file(fixture_path)
+
+        assert data["_block_name"] == "M_EOH_00001"
+        assert "pdbx_chem_comp_model" in data
+        model = data["pdbx_chem_comp_model"][0]
+        assert model["comp_id"] == "EOH"
+
+    def test_fixture_has_atom_data(self) -> None:
+        """Fixture contains atom coordinate data."""
+        fixture_path = FIXTURES_DIR / "M_DAL_00001.cif.gz"
+        data = parse_cif_file(fixture_path)
+
+        # Model files should have atom coordinates
+        assert "pdbx_chem_comp_model_atom" in data
+        atoms = data["pdbx_chem_comp_model_atom"]
+        assert len(atoms) > 0
+        # Check atom has coordinates
+        atom = atoms[0]
+        assert "model_Cartn_x" in atom or "x" in atom
