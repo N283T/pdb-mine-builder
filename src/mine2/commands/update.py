@@ -13,6 +13,7 @@ console = Console()
 # Available pipelines
 AVAILABLE_PIPELINES = [
     "pdbj",
+    "pdbj-cif",
     "cc",
     "cc-cif",
     "ccmodel",
@@ -98,6 +99,7 @@ def _get_pipeline_runner(pipeline_name: str) -> tuple[str, str]:
     """
     # Special cases where pipeline name differs from module
     special_cases = {
+        "pdbj-cif": ("pdbj", "run_cif"),
         "cc-cif": ("cc", "run_cif"),
         "ccmodel-cif": ("ccmodel", "run_cif"),
         "prd-cif": ("prd", "run_cif"),

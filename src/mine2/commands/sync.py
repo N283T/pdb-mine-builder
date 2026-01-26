@@ -17,6 +17,11 @@ SYNC_TARGETS: dict[str, dict] = {
         "dest": "data/mmjson-noatom/",
         "options": ["-avz", "--delete"],
     },
+    "pdbj-cif": {
+        "source": "rsync.pdbj.org::ftp_data/structures/divided/mmCIF/",
+        "dest": "data/structures/divided/mmCIF/",
+        "options": ["-avz", "--delete"],
+    },
     "pdbj-plus": {
         "source": "rsync.pdbj.org::mine/ftp_data/mine_data/mmjson-plus/",
         "dest": "pdbj/pdbjplus/",

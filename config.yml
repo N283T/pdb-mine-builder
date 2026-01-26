@@ -9,6 +9,9 @@ pipelines:
     deffile: ${CWD}schemas/pdbj.def.yml
     data: /mnt/c/pdb/pdbj/pdbjplus/data/pdb/mmjson-noatom/
     data-plus: /mnt/c/pdb/pdbj/pdbjplus/data/pdb/mmjson-plus/
+  pdbj-cif:
+    deffile: ${CWD}schemas/pdbj.def.yml
+    data: /mnt/c/pdb/data/structures/divided/mmCIF/
   cc:
     deffile: ${CWD}schemas/cc.def.yml
     data: /mnt/c/pdb/pdbj/pdbjplus/data/cc/mmjson/
