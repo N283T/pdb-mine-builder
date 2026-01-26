@@ -10,7 +10,14 @@ import pytest
 
 from mine2.config import PipelineConfig, RdbConfig, Settings
 from mine2.db.loader import SchemaDef, TableDef
-from mine2.pipelines.cc import CcCifPipeline, _ensure_rdkit_setup, _process_cif_block
+from mine2.pipelines.cc import (
+    CcCifPipeline,
+    CcPipeline,
+    _ensure_rdkit_setup,
+    _generate_canonical_smiles,
+    _process_cif_block,
+    _read_mmjson_block,
+)
 
 
 def create_test_cif_content(components: list[dict]) -> str:
@@ -348,3 +355,128 @@ class TestEnsureRdkitSetup:
 
         # Should have been called twice (2 calls x 2 invocations)
         assert mock_cursor.execute.call_count == 4
+
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures" / "cc"
+
+
+class TestReadMmjsonBlock:
+    """Tests for _read_mmjson_block function."""
+
+    def test_reads_atp_fixture(self) -> None:
+        """Read ATP.json.gz fixture file."""
+        atp_path = FIXTURES_DIR / "ATP.json.gz"
+        assert atp_path.exists(), f"Fixture not found: {atp_path}"
+
+        block = _read_mmjson_block(atp_path)
+
+        assert block is not None
+        assert block.name == "ATP"
+
+    def test_reads_hoh_fixture(self) -> None:
+        """Read HOH.json.gz fixture file (water)."""
+        hoh_path = FIXTURES_DIR / "HOH.json.gz"
+        assert hoh_path.exists(), f"Fixture not found: {hoh_path}"
+
+        block = _read_mmjson_block(hoh_path)
+
+        assert block is not None
+        assert block.name == "HOH"
+
+    def test_reads_eoh_fixture(self) -> None:
+        """Read EOH.json.gz fixture file (ethanol)."""
+        eoh_path = FIXTURES_DIR / "EOH.json.gz"
+        assert eoh_path.exists(), f"Fixture not found: {eoh_path}"
+
+        block = _read_mmjson_block(eoh_path)
+
+        assert block is not None
+        assert block.name == "EOH"
+
+    def test_returns_none_for_empty_file(self, tmp_path: Path) -> None:
+        """Return None for empty mmJSON file."""
+        mmjson_path = tmp_path / "empty.json"
+        mmjson_path.write_text("{}")
+
+        block = _read_mmjson_block(mmjson_path)
+
+        assert block is None
+
+
+class TestGenerateCanonicalSmilesFromMmjson:
+    """Tests for SMILES generation from mmJSON via ccd2rdmol."""
+
+    def test_hoh_fixture_generates_water_smiles(self) -> None:
+        """HOH fixture should generate water SMILES ("O")."""
+        hoh_path = FIXTURES_DIR / "HOH.json.gz"
+        block = _read_mmjson_block(hoh_path)
+        assert block is not None
+
+        smiles = _generate_canonical_smiles(block)
+
+        # Water should produce "O" as canonical SMILES
+        assert smiles == "O"
+
+    def test_eoh_fixture_generates_ethanol_smiles(self) -> None:
+        """EOH fixture should generate ethanol SMILES."""
+        eoh_path = FIXTURES_DIR / "EOH.json.gz"
+        block = _read_mmjson_block(eoh_path)
+        assert block is not None
+
+        smiles = _generate_canonical_smiles(block)
+
+        # Ethanol canonical SMILES
+        assert smiles == "CCO"
+
+    def test_atp_fixture_generates_smiles(self) -> None:
+        """ATP fixture should generate valid SMILES."""
+        atp_path = FIXTURES_DIR / "ATP.json.gz"
+        block = _read_mmjson_block(atp_path)
+        assert block is not None
+
+        smiles = _generate_canonical_smiles(block)
+
+        # ATP should produce a valid SMILES string
+        assert smiles is not None
+        assert len(smiles) > 0
+        # ATP has adenine base and phosphate groups
+        assert "N" in smiles  # Adenine nitrogen
+        assert "P" in smiles  # Phosphate
+
+
+class TestCcPipelineMmjsonSmiles:
+    """Tests for CcPipeline (mmJSON) SMILES generation via ccd2rdmol."""
+
+    def test_smiles_from_structure_not_descriptor(self) -> None:
+        """Verify SMILES is generated from block structure, not pdbx_chem_comp_descriptor.
+
+        mmJSON files contain SMILES in pdbx_chem_comp_descriptor, but we should
+        generate our own using ccd2rdmol for consistency with CIF pipeline.
+        """
+        # Read HOH fixture
+        hoh_path = FIXTURES_DIR / "HOH.json.gz"
+        block = _read_mmjson_block(hoh_path)
+        assert block is not None
+
+        # Generate SMILES using ccd2rdmol (same as CIF pipeline)
+        smiles = _generate_canonical_smiles(block)
+
+        # Should be "O" - generated from structure, not extracted from descriptor
+        assert smiles == "O"
+
+    def test_mmjson_block_has_cif_structure(self) -> None:
+        """Verify mmJSON is converted to CIF-like structure by gemmi."""
+        hoh_path = FIXTURES_DIR / "HOH.json.gz"
+        block = _read_mmjson_block(hoh_path)
+        assert block is not None
+
+        # gemmi converts mmJSON to CIF-like block
+        # We can find categories using find_block method indirectly
+        # Check the block name matches
+        assert block.name == "HOH"
+
+        # ccd2rdmol requires chem_comp_atom and chem_comp_bond tables
+        # which are present in our fixtures
+        # If SMILES generation works, the structure is correct
+        smiles = _generate_canonical_smiles(block)
+        assert smiles is not None

@@ -8,7 +8,10 @@ import pytest
 
 from mine2.config import PipelineConfig, RdbConfig, Settings
 from mine2.db.loader import LoaderResult, SchemaDef, TableDef
+from mine2.parsers.cif import parse_cif_file
 from mine2.pipelines.pdbj import PdbjCifPipeline
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures" / "pdbj"
 
 
 def create_test_pdbj_cif_content(entries: list[dict]) -> str:
@@ -312,3 +315,56 @@ class TestTransformEntry:
         assert len(result) == 1
         assert result[0]["pdbid"] == "100d"
         assert result[0]["id"] == "100D"
+
+
+class TestRealPdbFixtures:
+    """Tests using real PDB CIF fixture files."""
+
+    def test_parse_1crn_fixture(self) -> None:
+        """Parse 1crn (crambin) fixture file."""
+        fixture_path = FIXTURES_DIR / "1crn.cif.gz"
+        assert fixture_path.exists(), f"Fixture not found: {fixture_path}"
+
+        data = parse_cif_file(fixture_path)
+
+        # 1crn is crambin - a small protein
+        assert data["_block_name"] == "1CRN"
+
+        # Should have entry data
+        assert "entry" in data
+        assert data["entry"][0]["id"] == "1CRN"
+
+        # Should have cell parameters
+        assert "cell" in data
+        cell = data["cell"][0]
+        assert "length_a" in cell
+        assert "length_b" in cell
+        assert "length_c" in cell
+
+    def test_parse_1ubq_fixture(self) -> None:
+        """Parse 1ubq (ubiquitin) fixture file."""
+        fixture_path = FIXTURES_DIR / "1ubq.cif.gz"
+        assert fixture_path.exists(), f"Fixture not found: {fixture_path}"
+
+        data = parse_cif_file(fixture_path)
+
+        # 1ubq is ubiquitin
+        assert data["_block_name"] == "1UBQ"
+        assert "entry" in data
+        assert data["entry"][0]["id"] == "1UBQ"
+
+    def test_fixture_has_expected_categories(self) -> None:
+        """Fixture contains expected mmCIF categories."""
+        fixture_path = FIXTURES_DIR / "1crn.cif.gz"
+        data = parse_cif_file(fixture_path)
+
+        # Common mmCIF categories
+        expected_categories = [
+            "entry",
+            "cell",
+            "symmetry",
+            "entity",
+            "struct",
+        ]
+        for cat in expected_categories:
+            assert cat in data, f"Missing category: {cat}"

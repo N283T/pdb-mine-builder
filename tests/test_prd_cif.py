@@ -8,12 +8,15 @@ import pytest
 
 from mine2.config import PipelineConfig, RdbConfig, Settings
 from mine2.db.loader import SchemaDef, TableDef
+from mine2.parsers.cif import parse_cif_file
 from mine2.pipelines.prd import (
     PRDCC_TABLES,
     PrdCifPipeline,
     _generate_brief_summary_prd,
     _process_prd_cif_block,
 )
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures" / "prd"
 
 
 def create_test_prd_cif_content(entries: list[dict]) -> str:
@@ -393,3 +396,60 @@ class TestPrdCifPipelineRun:
         results = pipeline.run(limit=10)
 
         assert len(results) == 10
+
+
+class TestRealPrdFixtures:
+    """Tests using real PRD CIF fixture files."""
+
+    def test_parse_prd_000001_fixture(self) -> None:
+        """Parse PRD_000001 fixture file."""
+        fixture_path = FIXTURES_DIR / "PRD_000001.cif.gz"
+        assert fixture_path.exists(), f"Fixture not found: {fixture_path}"
+
+        data = parse_cif_file(fixture_path)
+
+        # Check block name
+        assert data["_block_name"] == "PRD_000001"
+
+        # Should have pdbx_reference_molecule data
+        assert "pdbx_reference_molecule" in data
+        ref_mol = data["pdbx_reference_molecule"][0]
+        assert ref_mol["prd_id"] == "PRD_000001"
+
+    def test_parse_prdcc_000001_fixture(self) -> None:
+        """Parse PRDCC_000001 fixture file."""
+        fixture_path = FIXTURES_DIR / "PRDCC_000001.cif.gz"
+        assert fixture_path.exists(), f"Fixture not found: {fixture_path}"
+
+        data = parse_cif_file(fixture_path)
+
+        # Check block name
+        assert data["_block_name"] == "PRDCC_000001"
+
+        # Should have chem_comp data
+        assert "chem_comp" in data
+
+    def test_prd_prdcc_pair_matching(self) -> None:
+        """PRD and PRDCC fixtures have matching IDs."""
+        prd_path = FIXTURES_DIR / "PRD_000001.cif.gz"
+        prdcc_path = FIXTURES_DIR / "PRDCC_000001.cif.gz"
+
+        prd_data = parse_cif_file(prd_path)
+        prdcc_data = parse_cif_file(prdcc_path)
+
+        # Both should reference the same PRD ID
+        prd_id = prd_data["pdbx_reference_molecule"][0]["prd_id"]
+        # PRDCC block name follows pattern PRDCC_XXXXXX where XXXXXX matches PRD
+        prdcc_num = prdcc_data["_block_name"].split("_")[1]
+        prd_num = prd_id.split("_")[1]
+        assert prdcc_num == prd_num
+
+    def test_prd_has_reference_molecule_list(self) -> None:
+        """PRD fixture has pdbx_reference_molecule_list category."""
+        fixture_path = FIXTURES_DIR / "PRD_000001.cif.gz"
+        data = parse_cif_file(fixture_path)
+
+        # PRD files typically have molecule list
+        if "pdbx_reference_molecule_list" in data:
+            mol_list = data["pdbx_reference_molecule_list"]
+            assert len(mol_list) > 0

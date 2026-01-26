@@ -110,18 +110,24 @@ rows = transform_category(rows, table, pk_value, pk_col, None)
 ```
 
 ### Chemical SMILES Generation (cc pipeline)
-The cc pipeline generates canonical SMILES using ccd2rdmol + RDKit:
+Both CIF and mmJSON cc pipelines generate canonical SMILES using ccd2rdmol + RDKit.
+This ensures consistent SMILES quality regardless of input format:
 ```python
-# CIF: direct conversion via ccd2rdmol
+# Both CIF and mmJSON use the same approach:
+# gemmi reads the file into a CIF-like block, then ccd2rdmol generates SMILES
 from ccd2rdmol import read_ccd_block
-result = read_ccd_block(block, sanitize_mol=True)
-smiles = Chem.MolToSmiles(result.mol, canonical=True)
 
-# mmJSON: extract existing SMILES and canonicalize
-raw_smiles = data["pdbx_chem_comp_descriptor"][0]["descriptor"]
-mol = Chem.MolFromSmiles(raw_smiles)
-smiles = Chem.MolToSmiles(mol, canonical=True)
+# gemmi can read both CIF and mmJSON
+block = gemmi.cif.read(cif_path)[0]       # CIF
+block = gemmi.cif.read_mmjson(json_path)[0]  # mmJSON
+
+# ccd2rdmol works on the gemmi block directly
+result = read_ccd_block(block, sanitize_mol=True, add_conformers=False)
+smiles = Chem.MolToSmiles(result.mol, canonical=True)
 ```
+
+Note: The SMILES in `pdbx_chem_comp_descriptor` is NOT used. SMILES is always
+generated from the molecular structure for consistency and quality.
 
 ### RDKit PostgreSQL Cartridge
 Chemical searches use RDKit extension (auto-configured on `cc`/`cc-json` pipeline run):
