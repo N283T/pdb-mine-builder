@@ -438,7 +438,7 @@ class CcCifPipeline:
 
 
 def _ensure_rdkit_setup(conninfo: str) -> None:
-    """Ensure RDKit extension and mol column exist.
+    """Ensure RDKit extension, mol column, and SQL functions exist.
 
     This is idempotent - safe to call on every pipeline run.
     """
@@ -483,6 +483,19 @@ def _ensure_rdkit_setup(conninfo: str) -> None:
                     END IF;
                 END $$
             """)
+
+            # Load RDKit SQL functions (CREATE OR REPLACE is idempotent)
+            sql_path = (
+                Path(__file__).parent.parent.parent.parent
+                / "scripts"
+                / "rdkit_functions.sql"
+            )
+            if sql_path.exists():
+                # Trusted SQL file from codebase - type: ignore for LiteralString
+                sql_content = sql_path.read_text()
+                cur.execute(sql_content)  # type: ignore[arg-type]
+                logger.debug(f"Loaded RDKit functions from {sql_path}")
+
         conn.commit()
     console.print("  [green]RDKit setup verified[/green]")
 

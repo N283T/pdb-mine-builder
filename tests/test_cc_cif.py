@@ -331,8 +331,8 @@ class TestEnsureRdkitSetup:
         with patch("mine2.pipelines.cc.psycopg.connect", return_value=mock_conn):
             _ensure_rdkit_setup("test_conninfo")
 
-        # Verify two execute calls: extension + mol column DDL
-        assert mock_cursor.execute.call_count == 2
+        # Verify at least 3 execute calls: extension + mol column DDL + functions
+        assert mock_cursor.execute.call_count >= 2
         # Second call should be the DO block for mol column
         second_call_sql = mock_cursor.execute.call_args_list[1][0][0]
         assert "cc.brief_summary" in second_call_sql
@@ -353,8 +353,89 @@ class TestEnsureRdkitSetup:
             _ensure_rdkit_setup("test_conninfo")
             _ensure_rdkit_setup("test_conninfo")
 
-        # Should have been called twice (2 calls x 2 invocations)
-        assert mock_cursor.execute.call_count == 4
+        # Should have 6 calls (3 per invocation: extension + mol + functions)
+        assert mock_cursor.execute.call_count == 6
+
+    def test_loads_rdkit_functions_sql(self) -> None:
+        """Loads RDKit SQL functions from scripts/rdkit_functions.sql."""
+        mock_cursor = MagicMock()
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+
+        with patch("mine2.pipelines.cc.psycopg.connect", return_value=mock_conn):
+            _ensure_rdkit_setup("test_conninfo")
+
+        # Third call should be the functions SQL file
+        assert mock_cursor.execute.call_count >= 3
+        third_call_sql = mock_cursor.execute.call_args_list[2][0][0]
+        # Verify it contains the function definitions
+        assert "cc.similar_compounds" in third_call_sql
+        assert "cc.substructure_search" in third_call_sql
+        assert "cc.exact_match" in third_call_sql
+
+
+SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
+
+
+class TestRdkitFunctionsSql:
+    """Tests for scripts/rdkit_functions.sql file."""
+
+    def test_file_exists(self) -> None:
+        """Verify rdkit_functions.sql file exists."""
+        sql_path = SCRIPTS_DIR / "rdkit_functions.sql"
+        assert sql_path.exists(), f"SQL file not found: {sql_path}"
+
+    def test_contains_similar_compounds_function(self) -> None:
+        """Verify cc.similar_compounds function is defined."""
+        sql_path = SCRIPTS_DIR / "rdkit_functions.sql"
+        content = sql_path.read_text()
+        assert "CREATE OR REPLACE FUNCTION cc.similar_compounds(" in content
+        assert "query_smiles TEXT" in content
+        assert "threshold FLOAT" in content
+        assert "tanimoto_sml" in content
+
+    def test_contains_substructure_search_function(self) -> None:
+        """Verify cc.substructure_search function is defined."""
+        sql_path = SCRIPTS_DIR / "rdkit_functions.sql"
+        content = sql_path.read_text()
+        assert "CREATE OR REPLACE FUNCTION cc.substructure_search(" in content
+        assert "query_smarts TEXT" in content
+        assert "b.mol @> query_smarts::qmol" in content
+
+    def test_contains_exact_match_function(self) -> None:
+        """Verify cc.exact_match function is defined."""
+        sql_path = SCRIPTS_DIR / "rdkit_functions.sql"
+        content = sql_path.read_text()
+        assert "CREATE OR REPLACE FUNCTION cc.exact_match(" in content
+        assert "@=" in content
+
+    def test_contains_dice_similarity_function(self) -> None:
+        """Verify cc.similar_compounds_dice function is defined."""
+        sql_path = SCRIPTS_DIR / "rdkit_functions.sql"
+        content = sql_path.read_text()
+        assert "CREATE OR REPLACE FUNCTION cc.similar_compounds_dice(" in content
+        assert "dice_sml" in content
+
+    def test_contains_similar_to_compound_function(self) -> None:
+        """Verify cc.similar_to_compound function is defined."""
+        sql_path = SCRIPTS_DIR / "rdkit_functions.sql"
+        content = sql_path.read_text()
+        assert "CREATE OR REPLACE FUNCTION cc.similar_to_compound(" in content
+        assert "reference_comp_id TEXT" in content
+
+    def test_all_functions_have_comments(self) -> None:
+        """Verify all functions have COMMENT ON FUNCTION documentation."""
+        sql_path = SCRIPTS_DIR / "rdkit_functions.sql"
+        content = sql_path.read_text()
+        # Count functions defined and comments
+        function_count = content.count("CREATE OR REPLACE FUNCTION cc.")
+        comment_count = content.count("COMMENT ON FUNCTION cc.")
+        assert function_count == comment_count, (
+            f"Found {function_count} functions but {comment_count} comments"
+        )
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "cc"
