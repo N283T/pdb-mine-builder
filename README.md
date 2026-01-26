@@ -180,29 +180,43 @@ pixi run db-status
 
 ### RDKit Extension Setup
 
-RDKit extension and mol column are **automatically configured** when running the `cc` or `cc-json` pipeline.
+RDKit extension, mol column, and SQL functions are **automatically configured** when running the `cc` or `cc-json` pipeline.
 
 > **Note**: Requires superuser privileges for initial `CREATE EXTENSION rdkit`.
 > If auto-setup fails, run manually: `psql -d mine2 -f scripts/init_rdkit.sql`
 
-This enables:
-- **Substructure search**: `mol @> 'c1ccccc1'::mol`
-- **Similarity search**: `morganbv_fp(mol) % morganbv_fp('CCO'::mol)`
-- **SMILES validation**: `is_valid_smiles(smiles)`
+### Chemical Search Functions
 
-Example queries:
+The following SQL functions are available in the `cc` schema:
+
+| Function | Description |
+|----------|-------------|
+| `cc.similar_compounds(smiles, threshold, limit)` | Tanimoto similarity search (Morgan FP) |
+| `cc.similar_compounds_dice(smiles, threshold, limit)` | Dice similarity search |
+| `cc.substructure_search(smarts, limit)` | Substructure search (SMARTS) |
+| `cc.exact_match(smiles)` | Exact structure match |
+| `cc.similar_to_compound(comp_id, threshold, limit)` | Find compounds similar to existing component |
+| `cc.compound_similarity(comp_id, smiles)` | Calculate similarity between component and SMILES |
+
+### Usage Examples
 
 ```sql
--- Find compounds containing benzene ring
-SELECT comp_id, name FROM cc.brief_summary
-WHERE mol @> 'c1ccccc1'::mol;
+-- Find compounds similar to aspirin (Tanimoto >= 0.7)
+SELECT * FROM cc.similar_compounds('CC(=O)Oc1ccccc1C(=O)O', 0.7, 20);
 
--- Find similar compounds (Tanimoto > 0.8)
-SELECT comp_id, name,
-       tanimoto_sml(morganbv_fp(mol), morganbv_fp('CCO'::mol)) as similarity
-FROM cc.brief_summary
-WHERE morganbv_fp(mol) % morganbv_fp('CCO'::mol)
-ORDER BY similarity DESC;
+-- Find compounds containing benzene ring
+SELECT * FROM cc.substructure_search('c1ccccc1', 50);
+
+-- Find compounds similar to ATP
+SELECT * FROM cc.similar_to_compound('ATP', 0.6, 50);
+
+-- Calculate similarity between ADP and ATP
+SELECT cc.compound_similarity('ADP',
+    (SELECT canonical_smiles FROM cc.brief_summary WHERE comp_id = 'ATP'));
+
+-- Direct RDKit operators (for advanced queries)
+SELECT comp_id, name FROM cc.brief_summary
+WHERE mol @> 'C(=O)O'::qmol;  -- Carboxylic acid substructure
 ```
 
 ## Development
