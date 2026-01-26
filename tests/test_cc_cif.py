@@ -13,6 +13,7 @@ from mine2.db.loader import SchemaDef, TableDef
 from mine2.pipelines.cc import (
     CcCifPipeline,
     CcPipeline,
+    _add_rdkit_descriptor_columns,
     _ensure_rdkit_setup,
     _generate_canonical_smiles,
     _process_cif_block,
@@ -353,8 +354,9 @@ class TestEnsureRdkitSetup:
             _ensure_rdkit_setup("test_conninfo")
             _ensure_rdkit_setup("test_conninfo")
 
-        # Should have 6 calls (3 per invocation: extension + mol + functions)
-        assert mock_cursor.execute.call_count == 6
+        # Multiple calls should work (idempotent)
+        # Each invocation: extension + mol + 8 descriptors + functions = 11 calls
+        assert mock_cursor.execute.call_count == 22
 
     def test_loads_rdkit_functions_sql(self) -> None:
         """Loads RDKit SQL functions from scripts/rdkit_functions.sql."""
@@ -368,13 +370,115 @@ class TestEnsureRdkitSetup:
         with patch("mine2.pipelines.cc.psycopg.connect", return_value=mock_conn):
             _ensure_rdkit_setup("test_conninfo")
 
-        # Third call should be the functions SQL file
-        assert mock_cursor.execute.call_count >= 3
-        third_call_sql = mock_cursor.execute.call_args_list[2][0][0]
+        # Last call should be the functions SQL file
+        # Calls: extension + mol + 8 descriptors + functions = 11 total
+        assert mock_cursor.execute.call_count == 11
+        last_call_sql = mock_cursor.execute.call_args_list[-1][0][0]
         # Verify it contains the function definitions
-        assert "cc.similar_compounds" in third_call_sql
-        assert "cc.substructure_search" in third_call_sql
-        assert "cc.exact_match" in third_call_sql
+        assert "cc.similar_compounds" in last_call_sql
+        assert "cc.substructure_search" in last_call_sql
+        assert "cc.exact_match" in last_call_sql
+
+    def test_adds_descriptor_columns(self) -> None:
+        """Adds RDKit molecular descriptor columns."""
+        mock_cursor = MagicMock()
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+
+        with patch("mine2.pipelines.cc.psycopg.connect", return_value=mock_conn):
+            _ensure_rdkit_setup("test_conninfo")
+
+        # Collect all executed SQL
+        all_sql = " ".join(
+            str(call[0][0]) for call in mock_cursor.execute.call_args_list
+        )
+
+        # Verify descriptor columns are added
+        assert "rdkit_mw" in all_sql
+        assert "rdkit_logp" in all_sql
+        assert "rdkit_tpsa" in all_sql
+        assert "rdkit_hba" in all_sql
+        assert "rdkit_hbd" in all_sql
+        assert "rdkit_rotbonds" in all_sql
+        assert "rdkit_rings" in all_sql
+        assert "rdkit_formula" in all_sql
+
+        # Verify RDKit functions are used
+        assert "mol_amw(mol)" in all_sql
+        assert "mol_logp(mol)" in all_sql
+        assert "mol_tpsa(mol)" in all_sql
+
+
+class TestAddRdkitDescriptorColumns:
+    """Tests for _add_rdkit_descriptor_columns function."""
+
+    def test_adds_all_descriptor_columns(self) -> None:
+        """Adds all 8 RDKit descriptor columns."""
+        mock_cursor = MagicMock()
+
+        _add_rdkit_descriptor_columns(mock_cursor)
+
+        # Should execute 8 DDL statements (one per descriptor)
+        assert mock_cursor.execute.call_count == 8
+
+        # Collect all SQL statements
+        all_sql = " ".join(
+            str(call[0][0]) for call in mock_cursor.execute.call_args_list
+        )
+
+        # Verify all descriptor columns
+        expected_columns = [
+            "rdkit_mw",
+            "rdkit_logp",
+            "rdkit_tpsa",
+            "rdkit_hba",
+            "rdkit_hbd",
+            "rdkit_rotbonds",
+            "rdkit_rings",
+            "rdkit_formula",
+        ]
+        for col in expected_columns:
+            assert col in all_sql, f"Column {col} not found in SQL"
+
+    def test_uses_correct_rdkit_functions(self) -> None:
+        """Uses correct RDKit functions for each descriptor."""
+        mock_cursor = MagicMock()
+
+        _add_rdkit_descriptor_columns(mock_cursor)
+
+        all_sql = " ".join(
+            str(call[0][0]) for call in mock_cursor.execute.call_args_list
+        )
+
+        # Verify RDKit functions
+        expected_functions = [
+            "mol_amw(mol)",
+            "mol_logp(mol)",
+            "mol_tpsa(mol)",
+            "mol_hba(mol)",
+            "mol_hbd(mol)",
+            "mol_numrotatablebonds(mol)",
+            "mol_numrings(mol)",
+            "mol_formula(mol)",
+        ]
+        for func in expected_functions:
+            assert func in all_sql, f"Function {func} not found in SQL"
+
+    def test_uses_generated_always_as(self) -> None:
+        """Uses GENERATED ALWAYS AS for computed columns."""
+        mock_cursor = MagicMock()
+
+        _add_rdkit_descriptor_columns(mock_cursor)
+
+        all_sql = " ".join(
+            str(call[0][0]) for call in mock_cursor.execute.call_args_list
+        )
+
+        assert "GENERATED ALWAYS AS" in all_sql
+        assert "STORED" in all_sql
 
 
 SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"

@@ -437,6 +437,79 @@ class CcCifPipeline:
         return None
 
 
+def _add_rdkit_descriptor_columns(cur: psycopg.Cursor) -> None:  # type: ignore[type-arg]
+    """Add RDKit molecular descriptor columns to brief_summary.
+
+    These are GENERATED columns derived from the mol column.
+    When mol is NULL (invalid SMILES), all descriptors will also be NULL.
+
+    SECURITY: All column definitions are hardcoded allowlists.
+    DO NOT accept external input for column names, types, or functions.
+    """
+    # Allowlist of valid column types
+    valid_types = {"double precision", "integer", "text"}
+    # Allowlist of valid RDKit functions
+    valid_funcs = {
+        "mol_amw(mol)",
+        "mol_logp(mol)",
+        "mol_tpsa(mol)",
+        "mol_hba(mol)",
+        "mol_hbd(mol)",
+        "mol_numrotatablebonds(mol)",
+        "mol_numrings(mol)",
+        "mol_formula(mol)",
+    }
+
+    # Hardcoded descriptors - NEVER derive from external sources
+    descriptors = [
+        ("rdkit_mw", "double precision", "mol_amw(mol)"),
+        ("rdkit_logp", "double precision", "mol_logp(mol)"),
+        ("rdkit_tpsa", "double precision", "mol_tpsa(mol)"),
+        ("rdkit_hba", "integer", "mol_hba(mol)"),
+        ("rdkit_hbd", "integer", "mol_hbd(mol)"),
+        ("rdkit_rotbonds", "integer", "mol_numrotatablebonds(mol)"),
+        ("rdkit_rings", "integer", "mol_numrings(mol)"),
+        ("rdkit_formula", "text", "mol_formula(mol)"),
+    ]
+
+    import re
+
+    for col_name, col_type, rdkit_func in descriptors:
+        # Validate against allowlists (defense in depth)
+        if not re.match(r"^rdkit_[a-z]+$", col_name):
+            raise ValueError(f"Invalid column name: {col_name}")
+        if col_type not in valid_types:
+            raise ValueError(f"Invalid column type: {col_type}")
+        if rdkit_func not in valid_funcs:
+            raise ValueError(f"Invalid RDKit function: {rdkit_func}")
+
+        # Add column if it doesn't exist (idempotent)
+        # Note: mol_* functions return NULL when mol is NULL
+        cur.execute(f"""
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1 FROM information_schema.tables
+                    WHERE table_schema = 'cc' AND table_name = 'brief_summary'
+                ) AND EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = 'cc'
+                    AND table_name = 'brief_summary'
+                    AND column_name = 'mol'
+                ) AND NOT EXISTS (
+                    SELECT 1 FROM information_schema.columns
+                    WHERE table_schema = 'cc'
+                    AND table_name = 'brief_summary'
+                    AND column_name = '{col_name}'
+                ) THEN
+                    ALTER TABLE cc.brief_summary
+                    ADD COLUMN {col_name} {col_type}
+                    GENERATED ALWAYS AS ({rdkit_func}) STORED;
+                END IF;
+            END $$
+        """)  # type: ignore[arg-type]
+
+
 def _ensure_rdkit_setup(conninfo: str) -> None:
     """Ensure RDKit extension, mol column, and SQL functions exist.
 
@@ -483,6 +556,10 @@ def _ensure_rdkit_setup(conninfo: str) -> None:
                     END IF;
                 END $$
             """)
+
+            # Add RDKit descriptor columns (molecular properties)
+            # These are generated columns derived from mol column
+            _add_rdkit_descriptor_columns(cur)
 
             # Load RDKit SQL functions (CREATE OR REPLACE is idempotent)
             sql_path = (

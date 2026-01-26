@@ -204,6 +204,23 @@ The following SQL functions are available in the `cc` schema:
 | `cc.similar_to_compound(comp_id, threshold, limit)` | Find compounds similar to existing component |
 | `cc.compound_similarity(comp_id, smiles)` | Calculate similarity between component and SMILES |
 
+### Molecular Descriptors
+
+The `cc.brief_summary` table includes RDKit-calculated molecular descriptors:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `rdkit_mw` | double | Average molecular weight |
+| `rdkit_logp` | double | Wildman-Crippen LogP |
+| `rdkit_tpsa` | double | Topological polar surface area |
+| `rdkit_hba` | int | Hydrogen bond acceptors |
+| `rdkit_hbd` | int | Hydrogen bond donors |
+| `rdkit_rotbonds` | int | Rotatable bonds |
+| `rdkit_rings` | int | Number of rings |
+| `rdkit_formula` | text | Molecular formula |
+
+> **Note**: Descriptors are NULL when `mol` column is NULL (invalid SMILES).
+
 ### Usage Examples
 
 ```sql
@@ -216,9 +233,19 @@ SELECT * FROM cc.substructure_search('c1ccccc1', 50);
 -- Find compounds similar to ATP
 SELECT * FROM cc.similar_to_compound('ATP', 0.6, 50);
 
--- Calculate similarity between ADP and ATP
-SELECT cc.compound_similarity('ADP',
-    (SELECT canonical_smiles FROM cc.brief_summary WHERE comp_id = 'ATP'));
+-- Lipinski's Rule of Five filter (drug-like compounds)
+SELECT comp_id, name, rdkit_mw, rdkit_logp, rdkit_hba, rdkit_hbd
+FROM cc.brief_summary
+WHERE rdkit_mw < 500
+  AND rdkit_logp < 5
+  AND rdkit_hba <= 10
+  AND rdkit_hbd <= 5;
+
+-- Combine similarity search with property filter
+SELECT s.*, b.rdkit_mw, b.rdkit_logp
+FROM cc.similar_compounds('c1ccccc1C(=O)O', 0.5, 100) s
+JOIN cc.brief_summary b USING (comp_id)
+WHERE b.rdkit_mw BETWEEN 100 AND 300;
 
 -- Direct RDKit operators (for advanced queries)
 SELECT comp_id, name FROM cc.brief_summary
