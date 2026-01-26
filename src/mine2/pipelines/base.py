@@ -2,6 +2,7 @@
 
 from abc import ABC, abstractmethod
 from collections.abc import Callable
+from math import floor, log10
 from pathlib import Path
 from typing import Any
 
@@ -74,8 +75,6 @@ def _coerce_float(value: Any, is_pk: bool = False) -> Any:
         # Round to 15 significant figures
         if f == 0:
             return 0.0
-        from math import log10, floor
-
         magnitude = floor(log10(abs(f)))
         return round(f, 14 - magnitude)
     except (ValueError, TypeError):

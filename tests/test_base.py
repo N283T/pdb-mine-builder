@@ -100,11 +100,17 @@ class TestCoerceFloat:
     def test_invalid_string_returns_none(self):
         assert _coerce_float("invalid") is None
 
+    def test_zero_returns_zero(self):
+        assert _coerce_float(0) == 0.0
+        assert _coerce_float(0.0) == 0.0
+
     def test_precision_15_digits(self):
         # Test that we maintain 15 significant figures
         result = _coerce_float(1.23456789012345678)
         # Should round to 15 significant figures
         assert result is not None
+        # Verify the precision is approximately correct
+        assert abs(result - 1.23456789012346) < 1e-14
 
 
 class TestCoerceBoolean:
