@@ -11,7 +11,16 @@ from mine2.db.loader import ensure_schema, load_schema_def
 console = Console()
 
 # Available pipelines
-AVAILABLE_PIPELINES = ["pdbj", "cc", "cc-cif", "ccmodel", "prd", "vrpt", "contacts"]
+AVAILABLE_PIPELINES = [
+    "pdbj",
+    "cc",
+    "cc-cif",
+    "ccmodel",
+    "ccmodel-cif",
+    "prd",
+    "vrpt",
+    "contacts",
+]
 
 
 def run_update(
@@ -89,6 +98,7 @@ def _get_pipeline_runner(pipeline_name: str) -> tuple[str, str]:
     # Special cases where pipeline name differs from module
     special_cases = {
         "cc-cif": ("cc", "run_cif"),
+        "ccmodel-cif": ("ccmodel", "run_cif"),
     }
     if pipeline_name in special_cases:
         return special_cases[pipeline_name]

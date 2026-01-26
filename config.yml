@@ -21,6 +21,9 @@ pipelines:
   ccmodel:
     deffile: ${CWD}schemas/ccmodel.def.yml
     data: /mnt/c/pdb/pdbj/pdbjplus/data/ccmodel/mmjson/
+  ccmodel-cif:
+    deffile: ${CWD}schemas/ccmodel.def.yml
+    data: /mnt/c/pdb/data/component-models/complete/
   vrpt:
     deffile: ${CWD}schemas/vrpt.def.yml
     data: /mnt/c/pdb/validation_reports/
