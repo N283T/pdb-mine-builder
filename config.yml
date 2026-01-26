@@ -1,5 +1,5 @@
 rdb:
-  nworkers: 8
+  nworkers: null
   constring: "dbname='mine2' user='pdbj' port=5433"
 
 obabel: /usr/bin/obabel

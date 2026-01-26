@@ -428,13 +428,13 @@ class CcCifPipeline:
             return None
 
         # Try direct path first
-        cif_path = data_dir / "components.cif.gz"
+        cif_path = data_dir.joinpath("components.cif.gz")
         if cif_path.is_file():
             return cif_path
 
         # Handle rsync quirk where filename becomes directory
         # e.g., data/monomers/components.cif.gz/components.cif.gz
-        nested_path = data_dir / "components.cif.gz" / "components.cif.gz"
+        nested_path = data_dir.joinpath("components.cif.gz", "components.cif.gz")
         if nested_path.is_file():
             return nested_path
 

@@ -422,12 +422,12 @@ class PrdCifPipeline:
     def _find_file(self, data_dir: Path, filename: str) -> Path | None:
         """Find a CIF file, handling rsync quirks."""
         # Try direct path
-        direct_path = data_dir / filename
+        direct_path = data_dir.joinpath(filename)
         if direct_path.is_file():
             return direct_path
 
         # Handle rsync quirk (filename becomes directory)
-        nested_path = data_dir / filename / filename
+        nested_path = data_dir.joinpath(filename, filename)
         if nested_path.is_file():
             return nested_path
 

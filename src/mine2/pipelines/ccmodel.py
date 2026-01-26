@@ -340,17 +340,19 @@ class CcmodelCifPipeline:
             return None
 
         # Try direct path first
-        cif_path = data_dir / "chem_comp_model.cif.gz"
+        cif_path = data_dir.joinpath("chem_comp_model.cif.gz")
         if cif_path.is_file():
             return cif_path
 
         # Handle rsync quirk where filename becomes directory
-        nested_path = data_dir / "chem_comp_model.cif.gz" / "chem_comp_model.cif.gz"
+        nested_path = data_dir.joinpath(
+            "chem_comp_model.cif.gz", "chem_comp_model.cif.gz"
+        )
         if nested_path.is_file():
             return nested_path
 
         # Also check 'complete' subdirectory (rsync quirk)
-        complete_path = data_dir / "complete" / "chem_comp_model.cif.gz"
+        complete_path = data_dir.joinpath("complete", "chem_comp_model.cif.gz")
         if complete_path.is_file():
             return complete_path
 

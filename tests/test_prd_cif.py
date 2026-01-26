@@ -214,8 +214,8 @@ class TestFindCifFiles:
 
     def test_direct_path(self, tmp_path: Path) -> None:
         """Find CIF files at direct path."""
-        prd_path = tmp_path / "prd-all.cif.gz"
-        prdcc_path = tmp_path / "prdcc-all.cif.gz"
+        prd_path = tmp_path.joinpath("prd-all.cif.gz")
+        prdcc_path = tmp_path.joinpath("prdcc-all.cif.gz")
         create_test_prd_cif_file(prd_path, [{"id": "PRD_000001"}])
         create_test_prdcc_cif_file(prdcc_path, [{"id": "PRDCC_000001"}])
 
@@ -231,7 +231,7 @@ class TestFindCifFiles:
 
     def test_prd_only(self, tmp_path: Path) -> None:
         """Find PRD file when PRDCC is missing."""
-        prd_path = tmp_path / "prd-all.cif.gz"
+        prd_path = tmp_path.joinpath("prd-all.cif.gz")
         create_test_prd_cif_file(prd_path, [{"id": "PRD_000001"}])
 
         settings = create_test_settings(tmp_path)
@@ -246,9 +246,9 @@ class TestFindCifFiles:
 
     def test_nested_path_rsync_quirk(self, tmp_path: Path) -> None:
         """Find CIF files in nested directory (rsync quirk)."""
-        nested_dir = tmp_path / "prd-all.cif.gz"
+        nested_dir = tmp_path.joinpath("prd-all.cif.gz")
         nested_dir.mkdir()
-        prd_path = nested_dir / "prd-all.cif.gz"
+        prd_path = nested_dir.joinpath("prd-all.cif.gz")
         create_test_prd_cif_file(prd_path, [{"id": "PRD_000001"}])
 
         settings = create_test_settings(tmp_path)
@@ -274,7 +274,7 @@ class TestFindCifFiles:
 
     def test_directory_not_exists(self, tmp_path: Path) -> None:
         """Return None when data directory doesn't exist."""
-        settings = create_test_settings(tmp_path / "nonexistent")
+        settings = create_test_settings(tmp_path.joinpath("nonexistent"))
         config = settings.pipelines["prd-cif"]
         schema_def = create_test_schema_def()
 
@@ -289,8 +289,8 @@ class TestProcessPrdCifBlock:
 
     def test_process_single_block(self, tmp_path: Path) -> None:
         """Process a single PRD block with PRDCC."""
-        prd_path = tmp_path / "prd.cif"
-        prdcc_path = tmp_path / "prdcc.cif"
+        prd_path = tmp_path.joinpath("prd.cif")
+        prdcc_path = tmp_path.joinpath("prdcc.cif")
         create_test_prd_cif_file(
             prd_path,
             [{"id": "PRD_000001", "name": "Test", "formula": "C10H20"}],
@@ -320,7 +320,7 @@ class TestProcessPrdCifBlock:
 
     def test_process_without_prdcc(self, tmp_path: Path) -> None:
         """Process PRD block without PRDCC."""
-        prd_path = tmp_path / "prd.cif"
+        prd_path = tmp_path.joinpath("prd.cif")
         create_test_prd_cif_file(
             prd_path,
             [{"id": "PRD_000001", "name": "Test", "formula": "C10H20"}],
@@ -357,8 +357,8 @@ class TestPrdCifPipelineRun:
 
     def test_run_sequential_for_small_count(self, tmp_path: Path) -> None:
         """Run uses sequential processing for small block counts."""
-        prd_path = tmp_path / "prd-all.cif.gz"
-        prdcc_path = tmp_path / "prdcc-all.cif.gz"
+        prd_path = tmp_path.joinpath("prd-all.cif.gz")
+        prdcc_path = tmp_path.joinpath("prdcc-all.cif.gz")
         create_test_prd_cif_file(
             prd_path,
             [{"id": f"PRD_{i:06d}"} for i in range(1, 6)],
@@ -379,7 +379,7 @@ class TestPrdCifPipelineRun:
 
     def test_run_respects_limit(self, tmp_path: Path) -> None:
         """Run respects the limit parameter."""
-        prd_path = tmp_path / "prd-all.cif.gz"
+        prd_path = tmp_path.joinpath("prd-all.cif.gz")
         create_test_prd_cif_file(
             prd_path,
             [{"id": f"PRD_{i:06d}"} for i in range(1, 51)],

@@ -119,7 +119,7 @@ class TestFindCifFile:
 
     def test_direct_path(self, tmp_path: Path) -> None:
         """Find CIF file at direct path."""
-        cif_path = tmp_path / "chem_comp_model.cif.gz"
+        cif_path = tmp_path.joinpath("chem_comp_model.cif.gz")
         create_test_ccmodel_cif_file(cif_path, [{"id": "M_DAL_00001"}])
 
         settings = create_test_settings(tmp_path)
@@ -133,9 +133,9 @@ class TestFindCifFile:
 
     def test_nested_path_rsync_quirk(self, tmp_path: Path) -> None:
         """Find CIF file in nested directory (rsync quirk)."""
-        nested_dir = tmp_path / "chem_comp_model.cif.gz"
+        nested_dir = tmp_path.joinpath("chem_comp_model.cif.gz")
         nested_dir.mkdir()
-        cif_path = nested_dir / "chem_comp_model.cif.gz"
+        cif_path = nested_dir.joinpath("chem_comp_model.cif.gz")
         create_test_ccmodel_cif_file(cif_path, [{"id": "M_DAL_00001"}])
 
         settings = create_test_settings(tmp_path)
@@ -149,9 +149,9 @@ class TestFindCifFile:
 
     def test_complete_subdir(self, tmp_path: Path) -> None:
         """Find CIF file in 'complete' subdirectory."""
-        complete_dir = tmp_path / "complete"
+        complete_dir = tmp_path.joinpath("complete")
         complete_dir.mkdir()
-        cif_path = complete_dir / "chem_comp_model.cif.gz"
+        cif_path = complete_dir.joinpath("chem_comp_model.cif.gz")
         create_test_ccmodel_cif_file(cif_path, [{"id": "M_DAL_00001"}])
 
         settings = create_test_settings(tmp_path)
@@ -176,7 +176,7 @@ class TestFindCifFile:
 
     def test_directory_not_exists(self, tmp_path: Path) -> None:
         """Return None when data directory doesn't exist."""
-        settings = create_test_settings(tmp_path / "nonexistent")
+        settings = create_test_settings(tmp_path.joinpath("nonexistent"))
         config = settings.pipelines["ccmodel-cif"]
         schema_def = create_test_schema_def()
 
@@ -191,7 +191,7 @@ class TestProcessCcmodelCifBlock:
 
     def test_process_single_block(self, tmp_path: Path) -> None:
         """Process a single CIF block."""
-        cif_path = tmp_path / "test.cif"
+        cif_path = tmp_path.joinpath("test.cif")
         create_test_ccmodel_cif_file(
             cif_path,
             [{"id": "M_DAL_00001", "comp_id": "DAL"}],
@@ -213,7 +213,7 @@ class TestProcessCcmodelCifBlock:
 
     def test_process_block_extracts_model_id(self, tmp_path: Path) -> None:
         """Block name is used as model_id."""
-        cif_path = tmp_path / "test.cif"
+        cif_path = tmp_path.joinpath("test.cif")
         create_test_ccmodel_cif_file(
             cif_path,
             [{"id": "M_ALA_00001", "comp_id": "ALA"}],
@@ -248,7 +248,7 @@ class TestCcmodelCifPipelineRun:
 
     def test_run_sequential_for_small_count(self, tmp_path: Path) -> None:
         """Run uses sequential processing for small block counts."""
-        cif_path = tmp_path / "chem_comp_model.cif.gz"
+        cif_path = tmp_path.joinpath("chem_comp_model.cif.gz")
         create_test_ccmodel_cif_file(
             cif_path,
             [{"id": f"M_TEST_{i:05d}"} for i in range(5)],
@@ -265,7 +265,7 @@ class TestCcmodelCifPipelineRun:
 
     def test_run_respects_limit(self, tmp_path: Path) -> None:
         """Run respects the limit parameter."""
-        cif_path = tmp_path / "chem_comp_model.cif.gz"
+        cif_path = tmp_path.joinpath("chem_comp_model.cif.gz")
         create_test_ccmodel_cif_file(
             cif_path,
             [{"id": f"M_TEST_{i:05d}"} for i in range(100)],

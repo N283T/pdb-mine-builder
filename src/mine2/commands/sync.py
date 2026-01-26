@@ -153,7 +153,7 @@ def run_sync(
             task = progress.add_task(f"Syncing {target}...", total=None)
 
             config = SYNC_TARGETS[target]
-            dest = data_dir / config["dest"]
+            dest = data_dir.joinpath(config["dest"])
 
             success = run_rsync(
                 source=config["source"],

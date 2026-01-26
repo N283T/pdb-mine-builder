@@ -52,7 +52,7 @@ class PdbjPipeline(BasePipeline):
             # Look for plus file: 100d-plus.json.gz
             plus_path = None
             if plus_dir and plus_dir.exists():
-                candidate = plus_dir / f"{entry_id}-plus.json.gz"
+                candidate = plus_dir.joinpath(f"{entry_id}-plus.json.gz")
                 # Validate path is within plus_dir to prevent path traversal
                 try:
                     resolved = candidate.resolve()

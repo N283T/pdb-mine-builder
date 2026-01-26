@@ -96,7 +96,7 @@ class TestFindCifFile:
 
     def test_direct_path(self, tmp_path: Path) -> None:
         """Find CIF file at direct path."""
-        cif_path = tmp_path / "components.cif.gz"
+        cif_path = tmp_path.joinpath("components.cif.gz")
         create_test_cif_file(cif_path, [{"id": "ATP"}])
 
         settings = create_test_settings(tmp_path)
@@ -111,9 +111,9 @@ class TestFindCifFile:
     def test_nested_path_rsync_quirk(self, tmp_path: Path) -> None:
         """Find CIF file in nested directory (rsync quirk)."""
         # Create nested structure: data/components.cif.gz/components.cif.gz
-        nested_dir = tmp_path / "components.cif.gz"
+        nested_dir = tmp_path.joinpath("components.cif.gz")
         nested_dir.mkdir()
-        cif_path = nested_dir / "components.cif.gz"
+        cif_path = nested_dir.joinpath("components.cif.gz")
         create_test_cif_file(cif_path, [{"id": "ATP"}])
 
         settings = create_test_settings(tmp_path)
@@ -128,9 +128,9 @@ class TestFindCifFile:
     def test_recursive_search(self, tmp_path: Path) -> None:
         """Find CIF file via recursive search."""
         # Create file in subdirectory
-        subdir = tmp_path / "subdir" / "another"
+        subdir = tmp_path.joinpath("subdir", "another")
         subdir.mkdir(parents=True)
-        cif_path = subdir / "components.cif.gz"
+        cif_path = subdir.joinpath("components.cif.gz")
         create_test_cif_file(cif_path, [{"id": "ATP"}])
 
         settings = create_test_settings(tmp_path)
@@ -155,7 +155,7 @@ class TestFindCifFile:
 
     def test_directory_not_exists(self, tmp_path: Path) -> None:
         """Return None when data directory doesn't exist."""
-        settings = create_test_settings(tmp_path / "nonexistent")
+        settings = create_test_settings(tmp_path.joinpath("nonexistent"))
         config = settings.pipelines["cc-cif"]
         schema_def = create_test_schema_def()
 
@@ -170,7 +170,7 @@ class TestProcessCifBlock:
 
     def test_process_single_block(self, tmp_path: Path) -> None:
         """Process a single CIF block."""
-        cif_path = tmp_path / "test.cif"
+        cif_path = tmp_path.joinpath("test.cif")
         create_test_cif_file(
             cif_path,
             [
@@ -198,7 +198,7 @@ class TestProcessCifBlock:
 
     def test_process_block_extracts_comp_id(self, tmp_path: Path) -> None:
         """Block name is used as comp_id."""
-        cif_path = tmp_path / "test.cif"
+        cif_path = tmp_path.joinpath("test.cif")
         create_test_cif_file(
             cif_path,
             [
@@ -236,7 +236,7 @@ class TestCcCifPipelineRun:
 
     def test_run_sequential_for_small_count(self, tmp_path: Path) -> None:
         """Run uses sequential processing for small block counts."""
-        cif_path = tmp_path / "components.cif.gz"
+        cif_path = tmp_path.joinpath("components.cif.gz")
         create_test_cif_file(
             cif_path,
             [{"id": f"COMP{i}"} for i in range(5)],
@@ -255,7 +255,7 @@ class TestCcCifPipelineRun:
 
     def test_run_respects_limit(self, tmp_path: Path) -> None:
         """Run respects the limit parameter."""
-        cif_path = tmp_path / "components.cif.gz"
+        cif_path = tmp_path.joinpath("components.cif.gz")
         create_test_cif_file(
             cif_path,
             [{"id": f"COMP{i}"} for i in range(100)],
