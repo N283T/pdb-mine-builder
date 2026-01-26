@@ -1,15 +1,18 @@
 """Tests for pdbj pipeline (CIF format)."""
 
 import gzip
+import json
 from pathlib import Path
+from unittest.mock import patch
 
 import gemmi
 import pytest
 
 from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import LoaderResult, SchemaDef, TableDef
+from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef
 from mine2.parsers.cif import parse_cif_file
 from mine2.pipelines.pdbj import PdbjCifPipeline
+from mine2.utils.assembly import hex_sha256
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "pdbj"
 
@@ -35,6 +38,73 @@ _cell.length_b 1.0
 _cell.length_c 1.0
 """)
     return "\n".join(blocks)
+
+
+def create_test_pdbj_cif_with_assembly(
+    path: Path,
+    entry_id: str,
+    assembly_data: dict | None = None,
+) -> None:
+    """Create a test CIF file with assembly data for Phase 5 feature testing.
+
+    Args:
+        path: Path to write the file
+        entry_id: PDB entry ID (e.g., "100d")
+        assembly_data: Dict with optional keys:
+            - asym_id_list: str (e.g., "A,B,C")
+            - assembly_id: str (e.g., "1")
+            - oper_expression: str (e.g., "1")
+            - formula_weight: str (e.g., "1000.0")
+            - assembly_details: str (e.g., "author_defined_assembly")
+            - include_brief_summary: bool
+    """
+    if assembly_data is None:
+        assembly_data = {}
+
+    pdb_id_upper = entry_id.upper()
+    asym_id_list = assembly_data.get("asym_id_list", "A")
+    assembly_id = assembly_data.get("assembly_id", "1")
+    oper_expression = assembly_data.get("oper_expression", "1")
+    formula_weight = assembly_data.get("formula_weight", "1000.0")
+    assembly_details = assembly_data.get("assembly_details", "author_defined_assembly")
+    include_brief_summary = assembly_data.get("include_brief_summary", False)
+
+    content = f"""data_{pdb_id_upper}
+_entry.id {pdb_id_upper}
+
+_entity.id 1
+_entity.formula_weight {formula_weight}
+
+_struct_asym.id A
+_struct_asym.entity_id 1
+
+_pdbx_struct_assembly.id {assembly_id}
+_pdbx_struct_assembly.details '{assembly_details}'
+
+_pdbx_struct_assembly_gen.assembly_id {assembly_id}
+_pdbx_struct_assembly_gen.asym_id_list '{asym_id_list}'
+_pdbx_struct_assembly_gen.oper_expression {oper_expression}
+"""
+
+    if include_brief_summary:
+        content += f"""
+_brief_summary.pdbid {entry_id}
+_brief_summary.docid 100
+"""
+
+    doc = gemmi.cif.read_string(content)
+
+    if str(path).endswith(".gz"):
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(suffix=".cif", delete=False) as tmp:
+            doc.write_file(tmp.name)
+            with open(tmp.name, "rb") as f_in:
+                with gzip.open(path, "wb") as f_out:
+                    f_out.write(f_in.read())
+            Path(tmp.name).unlink()
+    else:
+        doc.write_file(str(path))
 
 
 def create_test_pdbj_cif_file(path: Path, entries: list[dict]) -> None:
@@ -92,6 +162,68 @@ def create_test_schema_def() -> SchemaDef:
                     ("length_c", "REAL"),
                 ],
                 primary_key=["pdbid"],
+            ),
+        ],
+    )
+
+
+def create_test_schema_def_with_assembly() -> SchemaDef:
+    """Create test schema definition with assembly tables for Phase 5 testing."""
+    return SchemaDef(
+        schema_name="pdbj",
+        primary_key="pdbid",
+        tables=[
+            TableDef(
+                name="entry",
+                columns=[("pdbid", "text"), ("id", "text")],
+                primary_key=["pdbid", "id"],
+            ),
+            TableDef(
+                name="pdbx_struct_assembly_gen",
+                columns=[
+                    ("pdbid", "text"),
+                    ("asym_id_list", "text"),
+                    ("_hash_asym_id_list", "text"),
+                    ("assembly_id", "text"),
+                    ("oper_expression", "text"),
+                ],
+                primary_key=["pdbid", "assembly_id"],
+            ),
+            TableDef(
+                name="brief_summary",
+                columns=[
+                    ("pdbid", "text"),
+                    ("docid", "bigint"),
+                    ("plus_fields", "jsonb"),
+                ],
+                primary_key=["pdbid"],
+            ),
+            TableDef(
+                name="entity",
+                columns=[
+                    ("pdbid", "text"),
+                    ("id", "text"),
+                    ("formula_weight", "double precision"),
+                ],
+                primary_key=["pdbid", "id"],
+            ),
+            TableDef(
+                name="struct_asym",
+                columns=[
+                    ("pdbid", "text"),
+                    ("id", "text"),
+                    ("entity_id", "text"),
+                ],
+                primary_key=["pdbid", "id"],
+            ),
+            TableDef(
+                name="pdbx_struct_assembly",
+                columns=[
+                    ("pdbid", "text"),
+                    ("id", "text"),
+                    ("details", "text"),
+                ],
+                primary_key=["pdbid", "id"],
             ),
         ],
     )
@@ -638,3 +770,230 @@ class TestProcessJobWithPlusData:
             calls = mock_upsert.call_args_list
             table_names = [call[0][2] for call in calls]
             assert "entry" in table_names
+
+
+# =============================================================================
+# Phase 5 Feature Tests for CIF Pipeline
+# =============================================================================
+
+
+class TestCifHashAsymIdList:
+    """Tests for _hash_asym_id_list computation in CIF pipeline."""
+
+    @patch("mine2.pipelines.pdbj.bulk_upsert")
+    def test_hash_added_to_assembly_gen_cif(self, mock_bulk_upsert, tmp_path):
+        """Test that _hash_asym_id_list is computed for CIF data."""
+        cif_dir = tmp_path / "mmCIF"
+        cif_dir.mkdir()
+
+        cif_path = cif_dir / "100d.cif.gz"
+        create_test_pdbj_cif_with_assembly(
+            cif_path,
+            "100d",
+            {
+                "asym_id_list": "A,B,C",
+                "assembly_id": "1",
+                "oper_expression": "1",
+            },
+        )
+
+        settings = create_test_settings(cif_dir)
+        config = settings.pipelines["pdbj"]
+        schema_def = create_test_schema_def_with_assembly()
+
+        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        mock_bulk_upsert.return_value = (1, 0)
+
+        job = Job(entry_id="100d", filepath=cif_path, extra={})
+        result = pipeline.process_job(job, schema_def, "test_conninfo")
+
+        assert result.success
+
+        # Find the call for pdbx_struct_assembly_gen
+        for call in mock_bulk_upsert.call_args_list:
+            table_name = call[0][2]
+            if table_name == "pdbx_struct_assembly_gen":
+                columns = call[0][3]
+                rows = call[0][4]
+
+                assert "_hash_asym_id_list" in columns
+
+                hash_idx = columns.index("_hash_asym_id_list")
+                asym_list_idx = columns.index("asym_id_list")
+
+                for row in rows:
+                    expected_hash = hex_sha256(row[asym_list_idx])
+                    assert row[hash_idx] == expected_hash
+                break
+        else:
+            pytest.fail("pdbx_struct_assembly_gen was not loaded")
+
+    @patch("mine2.pipelines.pdbj.bulk_upsert")
+    def test_hash_is_sha256_cif(self, mock_bulk_upsert, tmp_path):
+        """Test that the hash is SHA256 (64 hex chars) for CIF data."""
+        cif_dir = tmp_path / "mmCIF"
+        cif_dir.mkdir()
+
+        cif_path = cif_dir / "100d.cif.gz"
+        create_test_pdbj_cif_with_assembly(
+            cif_path,
+            "100d",
+            {"asym_id_list": "A,B,C"},
+        )
+
+        settings = create_test_settings(cif_dir)
+        config = settings.pipelines["pdbj"]
+        schema_def = create_test_schema_def_with_assembly()
+
+        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        mock_bulk_upsert.return_value = (1, 0)
+
+        job = Job(entry_id="100d", filepath=cif_path, extra={})
+        pipeline.process_job(job, schema_def, "test_conninfo")
+
+        for call in mock_bulk_upsert.call_args_list:
+            table_name = call[0][2]
+            if table_name == "pdbx_struct_assembly_gen":
+                columns = call[0][3]
+                rows = call[0][4]
+                hash_idx = columns.index("_hash_asym_id_list")
+
+                for row in rows:
+                    hash_value = row[hash_idx]
+                    assert len(hash_value) == 64
+                    assert all(c in "0123456789abcdef" for c in hash_value)
+                break
+
+
+class TestCifBuMwCalculation:
+    """Tests for bu_mw calculation in CIF pipeline."""
+
+    @patch("mine2.pipelines.pdbj.bulk_upsert")
+    def test_bu_mw_in_plus_fields_cif(self, mock_bulk_upsert, tmp_path):
+        """Test that bu_mw is calculated and added to plus_fields for CIF."""
+        cif_dir = tmp_path / "mmCIF"
+        cif_dir.mkdir()
+
+        cif_path = cif_dir / "100d.cif.gz"
+        create_test_pdbj_cif_with_assembly(
+            cif_path,
+            "100d",
+            {
+                "asym_id_list": "A",
+                "assembly_id": "1",
+                "oper_expression": "1",
+                "formula_weight": "1000.0",
+                "assembly_details": "author_defined_assembly",
+                "include_brief_summary": True,
+            },
+        )
+
+        settings = create_test_settings(cif_dir)
+        config = settings.pipelines["pdbj"]
+        schema_def = create_test_schema_def_with_assembly()
+
+        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        mock_bulk_upsert.return_value = (1, 0)
+
+        job = Job(entry_id="100d", filepath=cif_path, extra={})
+        result = pipeline.process_job(job, schema_def, "test_conninfo")
+
+        assert result.success
+
+        for call in mock_bulk_upsert.call_args_list:
+            table_name = call[0][2]
+            if table_name == "brief_summary":
+                columns = call[0][3]
+                rows = call[0][4]
+
+                assert "plus_fields" in columns
+                plus_idx = columns.index("plus_fields")
+
+                for row in rows:
+                    plus_fields = json.loads(row[plus_idx])
+                    assert "bu_mw" in plus_fields
+                    assert plus_fields["bu_mw"] == 1000.0
+                break
+        else:
+            pytest.fail("brief_summary was not loaded")
+
+    @patch("mine2.pipelines.pdbj.bulk_upsert")
+    def test_bu_mw_zero_when_no_assembly_cif(self, mock_bulk_upsert, tmp_path):
+        """Test that bu_mw is 0 when no assembly data in CIF."""
+        cif_dir = tmp_path / "mmCIF"
+        cif_dir.mkdir()
+
+        # Create a simple CIF with brief_summary but no assembly
+        pdb_id = "100d"
+        content = f"""data_{pdb_id.upper()}
+_entry.id {pdb_id.upper()}
+_brief_summary.pdbid {pdb_id}
+_brief_summary.docid 100
+"""
+        doc = gemmi.cif.read_string(content)
+        cif_path = cif_dir / f"{pdb_id}.cif.gz"
+
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(suffix=".cif", delete=False) as tmp:
+            doc.write_file(tmp.name)
+            with open(tmp.name, "rb") as f_in:
+                with gzip.open(cif_path, "wb") as f_out:
+                    f_out.write(f_in.read())
+            Path(tmp.name).unlink()
+
+        settings = create_test_settings(cif_dir)
+        config = settings.pipelines["pdbj"]
+        schema_def = create_test_schema_def_with_assembly()
+
+        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        mock_bulk_upsert.return_value = (1, 0)
+
+        job = Job(entry_id=pdb_id, filepath=cif_path, extra={})
+        result = pipeline.process_job(job, schema_def, "test_conninfo")
+
+        assert result.success
+
+        for call in mock_bulk_upsert.call_args_list:
+            table_name = call[0][2]
+            if table_name == "brief_summary":
+                columns = call[0][3]
+                rows = call[0][4]
+                plus_idx = columns.index("plus_fields")
+
+                for row in rows:
+                    plus_fields = json.loads(row[plus_idx])
+                    assert "bu_mw" in plus_fields
+                    assert plus_fields["bu_mw"] == 0.0
+                break
+
+
+class TestCifPatchApplication:
+    """Tests for apply_patches() in CIF pipeline."""
+
+    @patch("mine2.pipelines.pdbj.bulk_upsert")
+    def test_patches_applied_to_cif_data(self, mock_bulk_upsert, tmp_path):
+        """Test that entry-specific patches are applied to CIF data."""
+        from mine2.utils.patches import apply_patches
+
+        # Test that patches work with CIF-like data structure
+        data = {"entry": [{"id": "7ED1"}]}
+        result = apply_patches("7ed1", data)
+
+        # 7ed1 patch adds MET to chem_comp
+        assert "chem_comp" in result
+        met_ids = [row["id"] for row in result["chem_comp"] if row.get("id") == "MET"]
+        assert "MET" in met_ids
+
+    @patch("mine2.pipelines.pdbj.bulk_upsert")
+    def test_patches_not_applied_to_non_matching_entry(
+        self, mock_bulk_upsert, tmp_path
+    ):
+        """Test that patches are not applied to non-matching entries."""
+        from mine2.utils.patches import apply_patches
+
+        data = {"entry": [{"id": "100D"}]}
+        result = apply_patches("100d", data)
+
+        # No patches for 100d, pdbx_chem_comp_identifier should not be added
+        assert "pdbx_chem_comp_identifier" not in result
