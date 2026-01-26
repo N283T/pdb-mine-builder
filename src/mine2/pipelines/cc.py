@@ -22,7 +22,7 @@ from tqdm import tqdm
 
 from mine2.config import PipelineConfig, Settings
 from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
-from mine2.parsers.cif import parse_block, parse_mmjson_file
+from mine2.parsers.cif import parse_block
 from mine2.parsers.mmjson import normalize_column_name
 from mine2.pipelines.base import BasePipeline, transform_category
 
@@ -48,45 +48,22 @@ def _generate_canonical_smiles(block: gemmi.cif.Block) -> str | None:
     return None
 
 
-def _canonicalize_smiles(smiles: str | None) -> str | None:
-    """Canonicalize a SMILES string using RDKit.
+def _read_mmjson_block(filepath: Path) -> gemmi.cif.Block | None:
+    """Read mmJSON file and return the first gemmi Block.
+
+    gemmi can read mmJSON files and convert them to CIF-like structures,
+    allowing us to use ccd2rdmol for SMILES generation.
 
     Args:
-        smiles: Input SMILES string
+        filepath: Path to mmJSON file (.json or .json.gz)
 
     Returns:
-        Canonical SMILES string, or None if invalid
+        gemmi.cif.Block, or None if file is empty
     """
-    if not smiles:
+    doc = gemmi.cif.read_mmjson(str(filepath))
+    if len(doc) == 0:
         return None
-    try:
-        mol = Chem.MolFromSmiles(smiles)
-        if mol is not None:
-            return Chem.MolToSmiles(mol, canonical=True)
-    except Exception:
-        pass
-    return None
-
-
-def _extract_smiles_from_mmjson(data: dict[str, Any]) -> str | None:
-    """Extract SMILES from mmJSON pdbx_chem_comp_descriptor.
-
-    Looks for SMILES or SMILES_CANONICAL type descriptors.
-
-    Args:
-        data: Parsed mmJSON data
-
-    Returns:
-        SMILES string, or None if not found
-    """
-    descriptors = data.get("pdbx_chem_comp_descriptor", [])
-    for desc in descriptors:
-        desc_type = desc.get("type", "")
-        if "SMILES" in desc_type.upper():
-            smiles = desc.get("descriptor")
-            if smiles:
-                return smiles
-    return None
+    return doc[0]
 
 
 def _extract_descriptors_by_type(data: dict[str, Any], target_type: str) -> list[str]:
@@ -242,12 +219,22 @@ class CcPipeline(BasePipeline):
     ) -> LoaderResult:
         """Process a single chemical component."""
         try:
-            data = parse_mmjson_file(job.filepath)
+            # Read mmJSON as gemmi block for ccd2rdmol SMILES generation
+            block = _read_mmjson_block(job.filepath)
+            if block is None:
+                return LoaderResult(
+                    entry_id=job.entry_id,
+                    success=False,
+                    error="Empty mmJSON file",
+                )
+
+            # Parse block data for database insertion
+            data = parse_block(block)
             rows_inserted = 0
 
-            # Extract and canonicalize SMILES from mmJSON
-            raw_smiles = _extract_smiles_from_mmjson(data)
-            canonical_smiles = _canonicalize_smiles(raw_smiles)
+            # Generate canonical SMILES using ccd2rdmol (same as CIF pipeline)
+            # This is more reliable than extracting SMILES from CCD data
+            canonical_smiles = _generate_canonical_smiles(block)
 
             # Load all tables from schema
             for table in schema_def.tables:
