@@ -193,15 +193,7 @@ class PdbjCifPipeline(BasePipeline):
     name = "pdbj-cif"
     file_pattern = "*.cif.gz"
 
-    def extract_entry_id(self, filepath: Path) -> str:
-        """Extract entry ID from filepath.
-
-        Handles filenames like: 100d.cif.gz -> 100d
-        """
-        name = filepath.name
-        if name.endswith(".cif.gz"):
-            name = name[:-7]
-        return name
+    # extract_entry_id inherited from BasePipeline handles .cif.gz and .cif
 
     def process_job(
         self,

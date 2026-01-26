@@ -115,11 +115,10 @@ class TestExtractEntryId:
         schema_def = create_test_schema_def()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
-        # This shouldn't happen in practice but test the edge case
+        # Base class handles .cif extension as well
         entry_id = pipeline.extract_entry_id(Path("/path/to/100d.cif"))
 
-        # Won't strip .cif (only .cif.gz), but that's OK
-        assert "100d" in entry_id
+        assert entry_id == "100d"
 
 
 class TestFindJobs:
