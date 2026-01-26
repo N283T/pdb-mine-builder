@@ -151,8 +151,8 @@ def calculate_mw_for_bu(mmjson: dict[str, Any]) -> float:
         asym_id = row.get("id")
         entity_id = row.get("entity_id")
         if asym_id and entity_id:
-            mw = entity_mw.get(entity_id, 0)
-            asym_to_mw[asym_id] = float(mw) if mw else 0.0
+            mw = entity_mw.get(entity_id)
+            asym_to_mw[asym_id] = float(mw) if mw is not None else 0.0
 
     # Calculate total MW for assembly
     total_mw = 0.0

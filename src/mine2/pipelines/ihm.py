@@ -38,7 +38,8 @@ from mine2.utils.assembly import (
 console = Console()
 
 
-# Keep local aliases for backward compatibility with tests
+# Local aliases for backward compatibility with existing tests.
+# TODO: Remove once tests import directly from mine2.utils.assembly
 _hex_sha256 = hex_sha256
 _calculate_mw_for_bu = calculate_mw_for_bu
 _expand_oper_expression = expand_oper_expression

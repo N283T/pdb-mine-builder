@@ -2,6 +2,11 @@
 
 Some PDB entries have data issues that need to be corrected during loading.
 This module provides patch functions for specific entries.
+
+Note: Functions in this module mutate the input data dict in place for
+performance reasons. PDB data can be very large (hundreds of MB), and
+creating copies would significantly impact memory usage and processing time.
+The mutation is intentional and documented.
 """
 
 from typing import Any
@@ -10,12 +15,15 @@ from typing import Any
 def apply_patches(entry_id: str, data: dict[str, Any]) -> dict[str, Any]:
     """Apply entry-specific patches to data.
 
+    Note: This function mutates the input data dict in place for performance.
+    See module docstring for rationale.
+
     Args:
         entry_id: PDB entry ID (lowercase, e.g., "7ed1")
-        data: Parsed mmJSON/CIF data to patch
+        data: Parsed mmJSON/CIF data to patch (modified in place)
 
     Returns:
-        Patched data (modified in place)
+        The same data dict (for method chaining convenience)
     """
     # 7ed1: Missing MET record in chem_comp
     if entry_id == "7ed1":
