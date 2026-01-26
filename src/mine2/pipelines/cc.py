@@ -328,7 +328,7 @@ class CcCifPipeline:
         total_blocks = len(doc)
         console.print(f"  Found {total_blocks} components")
 
-        max_workers = self.settings.rdb.nworkers
+        max_workers = self.settings.rdb.get_workers()
         conninfo = self.settings.rdb.constring
 
         # Collect blocks to process

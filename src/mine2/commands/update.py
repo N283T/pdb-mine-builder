@@ -49,7 +49,7 @@ def run_update(
     console.print(f"[bold]Running {len(pipelines)} pipeline(s)...[/bold]")
 
     # Initialize connection pool
-    init_pool(settings.rdb.constring, max_size=settings.rdb.nworkers + 2)
+    init_pool(settings.rdb.constring, max_size=settings.rdb.get_workers() + 2)
 
     try:
         for pipeline_name in pipelines:

@@ -12,11 +12,19 @@ from pydantic import BaseModel, Field
 class RdbConfig(BaseModel):
     """Database configuration."""
 
-    nworkers: int = Field(default=4, description="Number of worker processes")
+    nworkers: int | None = Field(
+        default=None, description="Number of worker processes (None = auto-detect)"
+    )
     constring: str = Field(
         default="host=localhost port=5433 dbname=mine2 user=pdbj",
         description="PostgreSQL connection string",
     )
+
+    def get_workers(self) -> int:
+        """Get effective worker count (auto-detect if not set)."""
+        if self.nworkers is not None:
+            return self.nworkers
+        return os.cpu_count() or 4
 
 
 class SyncTarget(BaseModel):

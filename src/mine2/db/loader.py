@@ -199,7 +199,7 @@ def run_loader(
         List of results for each job
     """
     if max_workers is None:
-        max_workers = settings.rdb.nworkers
+        max_workers = settings.rdb.get_workers()
 
     conninfo = settings.rdb.constring
     results: list[LoaderResult] = []

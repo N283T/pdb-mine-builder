@@ -337,7 +337,7 @@ class PrdCifPipeline:
             total_blocks = min(total_blocks, limit)
             console.print(f"  Processing {total_blocks} (limited)")
 
-        max_workers = self.settings.rdb.nworkers
+        max_workers = self.settings.rdb.get_workers()
         conninfo = self.settings.rdb.constring
 
         # For small counts, process sequentially

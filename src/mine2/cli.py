@@ -74,11 +74,19 @@ def update(
         Optional[int],
         typer.Option("--limit", "-l", help="Limit number of entries to process"),
     ] = None,
+    workers: Annotated[
+        Optional[int],
+        typer.Option(
+            "--workers", "-w", help="Number of worker processes (overrides config)"
+        ),
+    ] = None,
 ) -> None:
     """Run database update pipelines."""
     from mine2.commands.update import run_update
 
     settings = load_config(config)
+    if workers is not None:
+        settings.rdb.nworkers = workers
     run_update(settings, pipelines or [], limit=limit)
 
 
@@ -123,11 +131,19 @@ def test(
         int,
         typer.Option("--limit", "-l", help="Limit number of files to process"),
     ] = 10,
+    workers: Annotated[
+        Optional[int],
+        typer.Option(
+            "--workers", "-w", help="Number of worker processes (overrides config)"
+        ),
+    ] = None,
 ) -> None:
     """Create test database and validate pipelines."""
     from mine2.commands.test import run_test
 
     settings = load_config(config)
+    if workers is not None:
+        settings.rdb.nworkers = workers
     run_test(settings, pipelines or [], drop=drop, limit=limit)
 
 

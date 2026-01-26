@@ -1,5 +1,5 @@
 rdb:
-  nworkers: 4  # テスト用なので少なめ
+  # nworkers: auto-detected (use --workers to override)
   constring: "dbname='mine2_test' user='pdbj' port=5433"
 
 pipelines:
