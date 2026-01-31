@@ -143,6 +143,7 @@ def update(
         Optional[int],
         typer.Option(
             "--chunk-size",
+            min=1,
             help="Batch insert chunk size for file-based pipelines (pdbj, contacts, vrpt). "
             "Default: per-entry insert. Recommended: 1000-5000",
         ),

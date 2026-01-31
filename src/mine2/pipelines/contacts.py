@@ -149,8 +149,6 @@ def _parse_contacts_entry(job: Job, schema_def: SchemaDef) -> ParsedEntry:
         )
 
     except Exception as e:
-        import traceback
-
         error_msg = f"{e}\n{traceback.format_exc()}"
         return ParsedEntry(
             entry_id=job.entry_id,
