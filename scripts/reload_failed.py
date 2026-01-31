@@ -13,6 +13,7 @@ import sys
 from pathlib import Path
 
 import psycopg
+from psycopg import sql
 from tqdm import tqdm
 
 # Add src to path
@@ -29,18 +30,22 @@ def recreate_primary_key(conninfo: str, schema: str = "pdbj") -> None:
 
     with psycopg.connect(conninfo) as conn:
         with conn.cursor() as cur:
-            # Drop existing primary key
-            cur.execute(f"""
-                ALTER TABLE {schema}.pdbx_struct_assembly_gen
-                DROP CONSTRAINT IF EXISTS pdbx_struct_assembly_gen_pkey
-            """)
+            # Drop existing primary key (use sql.Identifier for safe quoting)
+            cur.execute(
+                sql.SQL(
+                    "ALTER TABLE {}.pdbx_struct_assembly_gen "
+                    "DROP CONSTRAINT IF EXISTS pdbx_struct_assembly_gen_pkey"
+                ).format(sql.Identifier(schema))
+            )
 
             # Create new primary key with _hash_asym_id_list
-            cur.execute(f"""
-                ALTER TABLE {schema}.pdbx_struct_assembly_gen
-                ADD CONSTRAINT pdbx_struct_assembly_gen_pkey
-                PRIMARY KEY (pdbid, assembly_id, _hash_asym_id_list, oper_expression)
-            """)
+            cur.execute(
+                sql.SQL(
+                    "ALTER TABLE {}.pdbx_struct_assembly_gen "
+                    "ADD CONSTRAINT pdbx_struct_assembly_gen_pkey "
+                    "PRIMARY KEY (pdbid, assembly_id, _hash_asym_id_list, oper_expression)"
+                ).format(sql.Identifier(schema))
+            )
 
             conn.commit()
 
@@ -125,7 +130,9 @@ def main():
     with psycopg.connect(conninfo) as conn:
         with conn.cursor() as cur:
             cur.execute(
-                "DELETE FROM pdbj.pdbx_struct_assembly_gen WHERE pdbid = ANY(%s)",
+                sql.SQL(
+                    "DELETE FROM {}.pdbx_struct_assembly_gen WHERE pdbid = ANY(%s)"
+                ).format(sql.Identifier("pdbj")),
                 (pdbids,),
             )
             deleted = cur.rowcount
