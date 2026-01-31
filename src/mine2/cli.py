@@ -139,6 +139,14 @@ def update(
         bool,
         typer.Option("--verbose", "-v", help="Enable verbose (DEBUG) logging"),
     ] = False,
+    chunk_size: Annotated[
+        Optional[int],
+        typer.Option(
+            "--chunk-size",
+            help="Batch insert chunk size for file-based pipelines (pdbj, contacts, vrpt). "
+            "Default: per-entry insert. Recommended: 1000-5000",
+        ),
+    ] = None,
 ) -> None:
     """Run database update pipelines."""
     from mine2.commands.update import run_update
@@ -163,7 +171,14 @@ def update(
         settings.rdb.nworkers = workers
 
     logger.info(f"Starting update: pipelines={pipelines or 'all'}, limit={limit}")
-    run_update(settings, pipelines or [], limit=limit, tables=tables, logger=logger)
+    run_update(
+        settings,
+        pipelines or [],
+        limit=limit,
+        tables=tables,
+        chunk_size=chunk_size,
+        logger=logger,
+    )
     logger.info("Update completed")
 
 

@@ -1,5 +1,6 @@
 """Update command - run database pipelines."""
 
+import logging
 from pathlib import Path
 
 from rich.console import Console
@@ -10,6 +11,8 @@ from mine2.db.connection import close_pool, init_pool
 from mine2.db.loader import ensure_schema, load_schema_def
 
 console = Console()
+# Default logger (no-op if not configured)
+_default_logger = logging.getLogger("mine2.update")
 
 # Available pipelines (CIF is default, -json suffix for mmJSON)
 AVAILABLE_PIPELINES = [
@@ -42,6 +45,8 @@ def run_update(
     pipelines: list[str],
     limit: int | None = None,
     tables: list[str] | None = None,
+    chunk_size: int | None = None,
+    logger: logging.Logger | None = None,
 ) -> None:
     """Run database update pipelines.
 
@@ -50,7 +55,11 @@ def run_update(
         pipelines: List of pipeline names to run (empty = all)
         limit: Optional limit on number of entries to process per pipeline
         tables: Optional list of tables for SIFTS pipeline (default: all)
+        chunk_size: Optional chunk size for batch insert (pdbj, contacts, vrpt)
+        logger: Optional logger for file output
     """
+    if logger is None:
+        logger = _default_logger
     # If no pipelines specified, run all
     if not pipelines:
         pipelines = AVAILABLE_PIPELINES
@@ -63,9 +72,11 @@ def run_update(
     if invalid:
         console.print(f"[red]Invalid pipelines: {', '.join(invalid)}[/red]")
         console.print(f"[dim]Available: {', '.join(AVAILABLE_PIPELINES)}[/dim]")
+        logger.error(f"Invalid pipelines: {invalid}")
         return
 
     console.print(f"[bold]Running {len(pipelines)} pipeline(s)...[/bold]")
+    logger.info(f"Running pipelines: {pipelines}")
 
     # Initialize connection pool
     init_pool(settings.rdb.constring, max_size=settings.rdb.get_workers() + 2)
@@ -73,16 +84,21 @@ def run_update(
     try:
         for pipeline_name in pipelines:
             console.print(f"\n[bold blue]Pipeline: {pipeline_name}[/bold blue]")
+            logger.info(f"Starting pipeline: {pipeline_name}")
 
             pipeline_config = settings.pipelines.get(pipeline_name)
             if not pipeline_config:
                 console.print("  [yellow]No config found, skipping[/yellow]")
+                logger.warning(f"Pipeline {pipeline_name}: no config found, skipping")
                 continue
 
             # Load schema definition
             deffile = Path(pipeline_config.deffile)
             if not deffile.exists():
                 console.print(f"  [red]Schema file not found: {deffile}[/red]")
+                logger.error(
+                    f"Pipeline {pipeline_name}: schema file not found: {deffile}"
+                )
                 continue
 
             schema_def = load_schema_def(deffile)
@@ -97,21 +113,26 @@ def run_update(
                 module_name, run_func = _get_pipeline_runner(pipeline_name)
                 pipeline_module = _import_pipeline(module_name)
                 runner = getattr(pipeline_module, run_func)
+
+                # Build kwargs based on pipeline type
+                kwargs: dict = {"limit": limit, "logger": logger}
+
                 # SIFTS pipeline accepts tables parameter
                 if pipeline_name == "sifts" and tables:
-                    runner(
-                        settings,
-                        pipeline_config,
-                        schema_def,
-                        limit=limit,
-                        tables=tables,
-                    )
-                else:
-                    runner(settings, pipeline_config, schema_def, limit=limit)
+                    kwargs["tables"] = tables
+
+                # File-based pipelines accept chunk_size parameter
+                if pipeline_name in ("pdbj", "contacts", "vrpt") and chunk_size:
+                    kwargs["chunk_size"] = chunk_size
+
+                runner(settings, pipeline_config, schema_def, **kwargs)
+                logger.info(f"Pipeline {pipeline_name}: completed successfully")
             except ImportError as e:
                 console.print(f"  [red]Pipeline not implemented: {e}[/red]")
+                logger.error(f"Pipeline {pipeline_name}: not implemented - {e}")
             except Exception as e:
                 console.print(f"  [red]Pipeline error: {e}[/red]")
+                logger.exception(f"Pipeline {pipeline_name}: error - {e}")
                 raise
 
     finally:
