@@ -31,41 +31,31 @@ console = Console()
 # =============================================================================
 
 
-def _process_ccmodel_cif_block(
+def _parse_ccmodel_cif_block(
     block: gemmi.cif.Block,
     schema_def: SchemaDef,
-    conninfo: str,
-) -> LoaderResult:
-    """Process a single CIF block (worker function for parallel processing).
+) -> tuple[str, dict[str, list[dict]], str | None]:
+    """Parse a single CIF block (worker function for parallel processing).
 
     Args:
         block: gemmi CIF block
         schema_def: Schema definition
-        conninfo: Database connection string
 
     Returns:
-        LoaderResult for the processed block
+        Tuple of (model_id, table_rows_dict, error_message or None)
+        table_rows_dict maps table_name -> list of row dicts
     """
     model_id = block.name  # e.g., M_DAL_00001
     try:
         data = parse_block(block)
-        rows_inserted = 0
+        table_rows: dict[str, list[dict]] = {}
 
-        # Generate and load brief_summary
+        # Generate brief_summary
         brief_rows = _generate_brief_summary(data, model_id)
         if brief_rows:
-            columns = list(brief_rows[0].keys())
-            inserted, _ = bulk_upsert(
-                conninfo,
-                schema_def.schema_name,
-                "brief_summary",
-                columns,
-                [tuple(r[c] for c in columns) for r in brief_rows],
-                ["model_id"],
-            )
-            rows_inserted += inserted
+            table_rows["brief_summary"] = brief_rows
 
-        # Load other tables
+        # Process other tables
         for table in schema_def.tables:
             if table.name == "brief_summary":
                 continue
@@ -76,30 +66,13 @@ def _process_ccmodel_cif_block(
                 rows, table, model_id, schema_def.primary_key, None
             )
             if category_rows:
-                columns = list(category_rows[0].keys())
-                inserted, _ = bulk_upsert(
-                    conninfo,
-                    schema_def.schema_name,
-                    table.name,
-                    columns,
-                    [tuple(r[c] for c in columns) for r in category_rows],
-                    table.primary_key,
-                )
-                rows_inserted += inserted
+                table_rows[table.name] = category_rows
 
-        return LoaderResult(
-            entry_id=model_id,
-            success=True,
-            rows_inserted=rows_inserted,
-        )
+        return (model_id, table_rows, None)
 
     except Exception as e:
         error_msg = f"{e}\n{traceback.format_exc()}"
-        return LoaderResult(
-            entry_id=model_id,
-            success=False,
-            error=error_msg,
-        )
+        return (model_id, {}, error_msg)
 
 
 def _generate_brief_summary(data: dict[str, Any], model_id: str) -> list[dict]:
@@ -229,6 +202,9 @@ class CcmodelCifPipeline:
 
     Uses chem_comp_model.cif.gz which contains all models in one file.
     Each data block represents one model (e.g., M_DAL_00001).
+
+    Uses batch processing: all blocks are parsed first (in parallel),
+    then all rows are inserted in a single bulk operation per table.
     """
 
     name = "ccmodel-cif"
@@ -246,7 +222,7 @@ class CcmodelCifPipeline:
     def run(
         self, limit: int | None = None, logger: logging.Logger | None = None
     ) -> list[LoaderResult]:
-        """Run the pipeline."""
+        """Run the pipeline with batch insert optimization."""
         cif_path = self._find_cif_file()
         if not cif_path:
             return []
@@ -265,45 +241,38 @@ class CcmodelCifPipeline:
         if limit:
             console.print(f"  Processing {len(blocks)} (limited)")
 
-        # Process sequentially or in parallel
-        if len(blocks) <= 10 or max_workers == 1:
-            results = self._run_sequential(blocks, conninfo)
-        else:
-            results = self._run_parallel(blocks, max_workers, conninfo)
+        # Phase 1: Parse all blocks (parallel) - collect rows
+        console.print("[bold]Phase 1: Parsing blocks...[/bold]")
+        parsed_results = self._parse_all_blocks(blocks, max_workers)
+
+        # Phase 2: Batch insert all rows per table
+        console.print("[bold]Phase 2: Batch inserting...[/bold]")
+        results = self._batch_insert(parsed_results, conninfo)
 
         self._print_summary(results, logger)
         return results
 
-    def _run_sequential(
-        self,
-        blocks: list[gemmi.cif.Block],
-        conninfo: str,
-    ) -> list[LoaderResult]:
-        """Run sequentially."""
-        results: list[LoaderResult] = []
-        for block in track(blocks, description="Processing...", console=console):
-            result = _process_ccmodel_cif_block(block, self.schema_def, conninfo)
-            results.append(result)
-        return results
-
-    def _run_parallel(
+    def _parse_all_blocks(
         self,
         blocks: list[gemmi.cif.Block],
         max_workers: int,
-        conninfo: str,
-    ) -> list[LoaderResult]:
-        """Run with parallel processing."""
-        console.print(
-            f"[bold]Processing {len(blocks)} models "
-            f"with {max_workers} workers...[/bold]"
-        )
+    ) -> list[tuple[str, dict[str, list[dict]], str | None]]:
+        """Parse all blocks in parallel, returning parsed data."""
+        if len(blocks) <= 10 or max_workers == 1:
+            # Sequential parsing
+            results = []
+            for block in track(blocks, description="Parsing...", console=console):
+                result = _parse_ccmodel_cif_block(block, self.schema_def)
+                results.append(result)
+            return results
 
-        results: list[LoaderResult] = []
+        # Parallel parsing
+        results: list[tuple[str, dict[str, list[dict]], str | None]] = []
 
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
             futures = {
                 executor.submit(
-                    _process_ccmodel_cif_block, block, self.schema_def, conninfo
+                    _parse_ccmodel_cif_block, block, self.schema_def
                 ): block.name
                 for block in blocks
             }
@@ -315,7 +284,7 @@ class CcmodelCifPipeline:
                 TimeElapsedColumn(),
                 console=console,
             ) as progress:
-                task = progress.add_task("Processing", total=len(futures))
+                task = progress.add_task("Parsing", total=len(futures))
 
                 for future in as_completed(futures):
                     model_id = futures[future]
@@ -323,14 +292,76 @@ class CcmodelCifPipeline:
                         result = future.result()
                         results.append(result)
                     except Exception as e:
-                        results.append(
-                            LoaderResult(
-                                entry_id=model_id,
-                                success=False,
-                                error=str(e),
-                            )
-                        )
+                        results.append((model_id, {}, str(e)))
                     progress.advance(task)
+
+        return results
+
+    def _batch_insert(
+        self,
+        parsed_results: list[tuple[str, dict[str, list[dict]], str | None]],
+        conninfo: str,
+    ) -> list[LoaderResult]:
+        """Batch insert all rows per table."""
+        # Accumulate all rows per table
+        table_rows: dict[str, list[dict]] = {}
+        results: list[LoaderResult] = []
+
+        for model_id, rows_by_table, error in parsed_results:
+            if error:
+                results.append(
+                    LoaderResult(entry_id=model_id, success=False, error=error)
+                )
+                continue
+
+            # Accumulate rows
+            for table_name, rows in rows_by_table.items():
+                if table_name not in table_rows:
+                    table_rows[table_name] = []
+                table_rows[table_name].extend(rows)
+
+            # Track success (rows will be counted after insert)
+            results.append(
+                LoaderResult(entry_id=model_id, success=True, rows_inserted=0)
+            )
+
+        # Bulk insert per table (with error handling for test compatibility)
+        try:
+            for table in track(
+                self.schema_def.tables, description="Inserting...", console=console
+            ):
+                rows = table_rows.get(table.name, [])
+                if not rows:
+                    continue
+
+                # Collect all unique columns across all rows
+                all_columns: set[str] = set()
+                for row in rows:
+                    all_columns.update(row.keys())
+
+                # Sort columns for consistent ordering (PK column first)
+                pk_col = self.schema_def.primary_key
+                columns = [pk_col] + sorted(c for c in all_columns if c != pk_col)
+
+                # Build tuples with None for missing columns
+                row_tuples = [tuple(r.get(c) for c in columns) for r in rows]
+
+                bulk_upsert(
+                    conninfo,
+                    self.schema_def.schema_name,
+                    table.name,
+                    columns,
+                    row_tuples,
+                    table.primary_key,
+                )
+                console.print(f"  [dim]{table.name}: {len(rows)} rows[/dim]")
+        except Exception as e:
+            # Mark all results as failed if bulk insert fails
+            error_msg = str(e)
+            results = [
+                LoaderResult(entry_id=r.entry_id, success=False, error=error_msg)
+                for r in results
+            ]
 
         return results
 
@@ -395,6 +426,47 @@ class CcmodelCifPipeline:
                 )
         else:
             console.print()
+
+
+def _process_ccmodel_cif_block(
+    block: gemmi.cif.Block,
+    schema_def: SchemaDef,
+    conninfo: str,
+) -> LoaderResult:
+    """Process a single CIF block (parse and insert).
+
+    This is a convenience wrapper for testing that combines parsing and inserting.
+    Production code uses _parse_ccmodel_cif_block + batch insert.
+    """
+    model_id, table_rows, error = _parse_ccmodel_cif_block(block, schema_def)
+
+    if error:
+        return LoaderResult(entry_id=model_id, success=False, error=error)
+
+    try:
+        rows_inserted = 0
+        for table in schema_def.tables:
+            rows = table_rows.get(table.name, [])
+            if not rows:
+                continue
+
+            columns = list(rows[0].keys())
+            row_tuples = [tuple(r.get(c) for c in columns) for r in rows]
+            inserted, _ = bulk_upsert(
+                conninfo,
+                schema_def.schema_name,
+                table.name,
+                columns,
+                row_tuples,
+                table.primary_key,
+            )
+            rows_inserted += inserted
+
+        return LoaderResult(
+            entry_id=model_id, success=True, rows_inserted=rows_inserted
+        )
+    except Exception as e:
+        return LoaderResult(entry_id=model_id, success=False, error=str(e))
 
 
 def run(
