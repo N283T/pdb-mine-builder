@@ -17,8 +17,8 @@ from rich.progress import (
     TaskProgressColumn,
     TextColumn,
     TimeElapsedColumn,
+    track,
 )
-from tqdm import tqdm
 
 from mine2.config import PipelineConfig, Settings
 from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
@@ -306,7 +306,9 @@ class CcCifPipeline:
         self.config = config
         self.schema_def = schema_def
 
-    def run(self, limit: int | None = None) -> list[LoaderResult]:
+    def run(
+        self, limit: int | None = None, logger: logging.Logger | None = None
+    ) -> list[LoaderResult]:
         """Run the pipeline."""
         cif_path = self._find_cif_file()
         if not cif_path:
@@ -332,7 +334,7 @@ class CcCifPipeline:
         else:
             results = self._run_parallel(blocks, max_workers, conninfo)
 
-        self._print_summary(results)
+        self._print_summary(results, logger)
         return results
 
     def _run_sequential(
@@ -342,7 +344,7 @@ class CcCifPipeline:
     ) -> list[LoaderResult]:
         """Run sequentially."""
         results: list[LoaderResult] = []
-        for block in tqdm(blocks, desc="Processing"):
+        for block in track(blocks, description="Processing...", console=console):
             result = _process_cif_block(block, self.schema_def, conninfo)
             results.append(result)
         return results
@@ -395,17 +397,32 @@ class CcCifPipeline:
 
         return results
 
-    def _print_summary(self, results: list[LoaderResult]) -> None:
+    def _print_summary(
+        self, results: list[LoaderResult], logger: logging.Logger | None = None
+    ) -> None:
         """Print processing summary."""
         success_count = sum(1 for r in results if r.success)
         fail_count = len(results) - success_count
 
+        if logger:
+            logger.info(f"Completed: {success_count} succeeded, {fail_count} failed")
+
         console.print(f"\n[green]✓ {success_count} succeeded[/green]", end="")
         if fail_count > 0:
             console.print(f", [red]✗ {fail_count} failed[/red]")
-            for r in results[:5]:
+            shown = 0
+            for r in results:
                 if not r.success and r.error:
-                    console.print(f"  [dim]{r.entry_id}: {r.error}[/dim]")
+                    if shown < 5:
+                        error_line = r.error.split("\n")[0][:100]
+                        console.print(f"  [dim]{r.entry_id}: {error_line}[/dim]")
+                        shown += 1
+                    if logger:
+                        logger.error(f"FAILED {r.entry_id}:\n{r.error}")
+            if fail_count > 5:
+                console.print(
+                    f"  [dim]... and {fail_count - 5} more (see log file)[/dim]"
+                )
         else:
             console.print()
 
@@ -437,77 +454,152 @@ class CcCifPipeline:
         return None
 
 
-def _add_rdkit_descriptor_columns(cur: psycopg.Cursor) -> None:  # type: ignore[type-arg]
+def _add_rdkit_descriptor_columns(cur: "psycopg.Cursor[tuple[Any, ...]]") -> None:
     """Add RDKit molecular descriptor columns to brief_summary.
 
-    These are GENERATED columns derived from the mol column.
+    These are regular columns populated via trigger since PostgreSQL does not
+    allow generated columns to reference other generated columns (mol is generated
+    from canonical_smiles).
+
     When mol is NULL (invalid SMILES), all descriptors will also be NULL.
 
     SECURITY: All column definitions are hardcoded allowlists.
     DO NOT accept external input for column names, types, or functions.
     """
-    # Allowlist of valid column types
-    valid_types = {"double precision", "integer", "text"}
-    # Allowlist of valid RDKit functions
-    valid_funcs = {
-        "mol_amw(mol)",
-        "mol_logp(mol)",
-        "mol_tpsa(mol)",
-        "mol_hba(mol)",
-        "mol_hbd(mol)",
-        "mol_numrotatablebonds(mol)",
-        "mol_numrings(mol)",
-        "mol_formula(mol)",
-    }
+    # Check if table and mol column exist
+    cur.execute("""
+        SELECT EXISTS (
+            SELECT 1 FROM information_schema.tables
+            WHERE table_schema = 'cc' AND table_name = 'brief_summary'
+        ) AND EXISTS (
+            SELECT 1 FROM information_schema.columns
+            WHERE table_schema = 'cc'
+            AND table_name = 'brief_summary'
+            AND column_name = 'mol'
+        )
+    """)
+    result = cur.fetchone()
+    if not result or not result[0]:
+        return  # Table or mol column doesn't exist yet
 
     # Hardcoded descriptors - NEVER derive from external sources
+    # Format: (column_name, column_type, rdkit_function)
     descriptors = [
-        ("rdkit_mw", "double precision", "mol_amw(mol)"),
-        ("rdkit_logp", "double precision", "mol_logp(mol)"),
-        ("rdkit_tpsa", "double precision", "mol_tpsa(mol)"),
-        ("rdkit_hba", "integer", "mol_hba(mol)"),
-        ("rdkit_hbd", "integer", "mol_hbd(mol)"),
-        ("rdkit_rotbonds", "integer", "mol_numrotatablebonds(mol)"),
-        ("rdkit_rings", "integer", "mol_numrings(mol)"),
-        ("rdkit_formula", "text", "mol_formula(mol)"),
+        ("rdkit_mw", "double precision", "mol_amw"),
+        ("rdkit_logp", "double precision", "mol_logp"),
+        ("rdkit_tpsa", "double precision", "mol_tpsa"),
+        ("rdkit_hba", "integer", "mol_hba"),
+        ("rdkit_hbd", "integer", "mol_hbd"),
+        ("rdkit_rotbonds", "integer", "mol_numrotatablebonds"),
+        ("rdkit_rings", "integer", "mol_numrings"),
+        ("rdkit_formula", "text", "mol_formula"),
     ]
 
-    import re
-
-    for col_name, col_type, rdkit_func in descriptors:
-        # Validate against allowlists (defense in depth)
-        if not re.match(r"^rdkit_[a-z]+$", col_name):
-            raise ValueError(f"Invalid column name: {col_name}")
-        if col_type not in valid_types:
-            raise ValueError(f"Invalid column type: {col_type}")
-        if rdkit_func not in valid_funcs:
-            raise ValueError(f"Invalid RDKit function: {rdkit_func}")
-
-        # Add column if it doesn't exist (idempotent)
-        # Note: mol_* functions return NULL when mol is NULL
-        cur.execute(f"""
-            DO $$
-            BEGIN
-                IF EXISTS (
-                    SELECT 1 FROM information_schema.tables
-                    WHERE table_schema = 'cc' AND table_name = 'brief_summary'
-                ) AND EXISTS (
+    # Add columns if they don't exist, or drop and recreate if they're generated columns
+    for col_name, col_type, _ in descriptors:
+        # Check if column exists and if it's a generated column
+        cur.execute(
+            """
+            SELECT
+                EXISTS (
                     SELECT 1 FROM information_schema.columns
                     WHERE table_schema = 'cc'
                     AND table_name = 'brief_summary'
-                    AND column_name = 'mol'
-                ) AND NOT EXISTS (
-                    SELECT 1 FROM information_schema.columns
+                    AND column_name = %s
+                ),
+                (
+                    SELECT is_generated FROM information_schema.columns
                     WHERE table_schema = 'cc'
                     AND table_name = 'brief_summary'
-                    AND column_name = '{col_name}'
-                ) THEN
-                    ALTER TABLE cc.brief_summary
-                    ADD COLUMN {col_name} {col_type}
-                    GENERATED ALWAYS AS ({rdkit_func}) STORED;
-                END IF;
-            END $$
-        """)  # type: ignore[arg-type]
+                    AND column_name = %s
+                )
+        """,
+            (col_name, col_name),
+        )
+        result = cur.fetchone()
+        col_exists = result[0] if result else False
+        is_generated = result[1] if result else None
+
+        if col_exists and is_generated == "ALWAYS":
+            # Column exists as generated column - drop and recreate as regular
+            cur.execute(f"ALTER TABLE cc.brief_summary DROP COLUMN {col_name}")  # type: ignore[arg-type]
+            col_exists = False
+
+        if not col_exists:
+            # Column doesn't exist, add it as regular column
+            # Safe: col_name and col_type are from hardcoded list above
+            cur.execute(
+                f"ALTER TABLE cc.brief_summary ADD COLUMN {col_name} {col_type}"
+            )  # type: ignore[arg-type]
+
+    # Create or replace trigger function to compute descriptors
+    cur.execute("""
+        CREATE OR REPLACE FUNCTION cc.compute_rdkit_descriptors()
+        RETURNS TRIGGER AS $$
+        DECLARE
+            mol_obj mol;
+        BEGIN
+            -- Only compute if mol would be valid
+            IF NEW.canonical_smiles IS NOT NULL
+               AND is_valid_smiles(NEW.canonical_smiles::cstring) THEN
+                -- Compute mol once and reuse for all descriptors
+                mol_obj := mol_from_smiles(NEW.canonical_smiles::cstring);
+                NEW.rdkit_mw := mol_amw(mol_obj);
+                NEW.rdkit_logp := mol_logp(mol_obj);
+                NEW.rdkit_tpsa := mol_tpsa(mol_obj);
+                NEW.rdkit_hba := mol_hba(mol_obj);
+                NEW.rdkit_hbd := mol_hbd(mol_obj);
+                NEW.rdkit_rotbonds := mol_numrotatablebonds(mol_obj);
+                NEW.rdkit_rings := mol_numrings(mol_obj);
+                NEW.rdkit_formula := mol_formula(mol_obj);
+            ELSE
+                NEW.rdkit_mw := NULL;
+                NEW.rdkit_logp := NULL;
+                NEW.rdkit_tpsa := NULL;
+                NEW.rdkit_hba := NULL;
+                NEW.rdkit_hbd := NULL;
+                NEW.rdkit_rotbonds := NULL;
+                NEW.rdkit_rings := NULL;
+                NEW.rdkit_formula := NULL;
+            END IF;
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
+    """)
+
+    # Create trigger if it doesn't exist
+    cur.execute("""
+        DO $$
+        BEGIN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_trigger
+                WHERE tgname = 'trg_compute_rdkit_descriptors'
+            ) THEN
+                CREATE TRIGGER trg_compute_rdkit_descriptors
+                BEFORE INSERT OR UPDATE OF canonical_smiles
+                ON cc.brief_summary
+                FOR EACH ROW
+                EXECUTE FUNCTION cc.compute_rdkit_descriptors();
+            END IF;
+        END $$
+    """)
+
+    # Populate existing rows that have NULL descriptor values
+    # This handles rows inserted before the trigger was created
+    cur.execute("""
+        UPDATE cc.brief_summary
+        SET rdkit_mw = mol_amw(mol),
+            rdkit_logp = mol_logp(mol),
+            rdkit_tpsa = mol_tpsa(mol),
+            rdkit_hba = mol_hba(mol),
+            rdkit_hbd = mol_hbd(mol),
+            rdkit_rotbonds = mol_numrotatablebonds(mol),
+            rdkit_rings = mol_numrings(mol),
+            rdkit_formula = mol_formula(mol)
+        WHERE canonical_smiles IS NOT NULL
+          AND mol IS NOT NULL
+          AND rdkit_mw IS NULL
+    """)
 
 
 def _ensure_rdkit_setup(conninfo: str) -> None:
@@ -582,11 +674,12 @@ def run(
     config: PipelineConfig,
     schema_def: SchemaDef,
     limit: int | None = None,
+    logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the cc pipeline (mmJSON version)."""
     _ensure_rdkit_setup(settings.rdb.constring)
     pipeline = CcPipeline(settings, config, schema_def)
-    return pipeline.run(limit)
+    return pipeline.run(limit, logger=logger)
 
 
 def run_cif(
@@ -594,8 +687,9 @@ def run_cif(
     config: PipelineConfig,
     schema_def: SchemaDef,
     limit: int | None = None,
+    logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the cc-cif pipeline (single CIF version)."""
     _ensure_rdkit_setup(settings.rdb.constring)
     pipeline = CcCifPipeline(settings, config, schema_def)
-    return pipeline.run(limit)
+    return pipeline.run(limit, logger=logger)
