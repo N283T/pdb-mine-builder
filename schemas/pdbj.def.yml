@@ -6597,11 +6597,13 @@ tables:
         - text
       - - oper_expression
         - text
+      - - _hash_oper_expression
+        - text
     primary_key:
       - pdbid
       - assembly_id
       - _hash_asym_id_list
-      - oper_expression
+      - _hash_oper_expression
     foreign_keys:
       - - - pdbid
         - brief_summary

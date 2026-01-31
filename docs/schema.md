@@ -152,12 +152,13 @@ potentially long text columns in the primary key, we use SHA256 hash columns.
 
 ### Example: pdbx_struct_assembly_gen
 
-The `asym_id_list` column can contain very long comma-separated chain IDs for
-large structures (e.g., ribosomes with hundreds of chains). This exceeds the
-B-tree index limit.
+Two columns can exceed the B-tree index limit:
 
-**Solution**: Add `_hash_asym_id_list` (SHA256 hash, always 64 chars) and use it
-in the primary key instead of `asym_id_list`.
+- `asym_id_list`: Comma-separated chain IDs (e.g., ribosomes with hundreds of chains)
+- `oper_expression`: Comma-separated operator IDs (e.g., 7r1c has 100 operators)
+
+**Solution**: Add SHA256 hash columns (`_hash_asym_id_list`, `_hash_oper_expression`)
+and use them in the primary key instead of the original columns.
 
 ```yaml
 - name: pdbx_struct_assembly_gen
@@ -166,15 +167,16 @@ in the primary key instead of `asym_id_list`.
     - [asym_id_list, text]           # Original value (kept for queries)
     - [_hash_asym_id_list, text]     # SHA256 hash (64 chars fixed)
     - [assembly_id, text]
-    - [oper_expression, text]
+    - [oper_expression, text]        # Original value (kept for queries)
+    - [_hash_oper_expression, text]  # SHA256 hash (64 chars fixed)
   primary_key:
     - pdbid
     - assembly_id
     - _hash_asym_id_list             # Use hash, not original
-    - oper_expression
+    - _hash_oper_expression          # Use hash, not original
 ```
 
-The pipeline generates the hash:
+The pipeline generates the hashes:
 
 ```python
 import hashlib
@@ -184,6 +186,7 @@ def hex_sha256(value: str) -> str:
 
 # In pipeline processing:
 row["_hash_asym_id_list"] = hex_sha256(row.get("asym_id_list", ""))
+row["_hash_oper_expression"] = hex_sha256(row.get("oper_expression", ""))
 ```
 
 This pattern is also used in the original mine2updater (dynamically replaces

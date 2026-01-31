@@ -38,12 +38,12 @@ def recreate_primary_key(conninfo: str, schema: str = "pdbj") -> None:
                 ).format(sql.Identifier(schema))
             )
 
-            # Create new primary key with _hash_asym_id_list
+            # Create new primary key with hash columns
             cur.execute(
                 sql.SQL(
                     "ALTER TABLE {}.pdbx_struct_assembly_gen "
                     "ADD CONSTRAINT pdbx_struct_assembly_gen_pkey "
-                    "PRIMARY KEY (pdbid, assembly_id, _hash_asym_id_list, oper_expression)"
+                    "PRIMARY KEY (pdbid, assembly_id, _hash_asym_id_list, _hash_oper_expression)"
                 ).format(sql.Identifier(schema))
             )
 
