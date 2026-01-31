@@ -213,6 +213,15 @@ class LoaderResult:
     error: str | None = None
 
 
+@dataclass
+class ParsedEntry:
+    """Parsed entry data (for chunked processing)."""
+
+    entry_id: str
+    table_rows: dict[str, list[dict]]
+    error: str | None = None
+
+
 def run_loader(
     settings: Settings,
     schema_def: SchemaDef,
@@ -418,6 +427,206 @@ def run_loader_streaming(
             console.print(f"  [dim]... and {fail_count - 5} more (see log file)[/dim]")
     else:
         console.print()
+
+    return results
+
+
+def run_loader_chunked(
+    settings: Settings,
+    schema_def: SchemaDef,
+    jobs: list[Job],
+    parse_func: Callable[[Job, SchemaDef], ParsedEntry],
+    chunk_size: int = 1000,
+    max_workers: int | None = None,
+    logger: logging.Logger | None = None,
+) -> list[LoaderResult]:
+    """Run loader with chunked batch insert.
+
+    Workers parse entries and return data (no DB insert).
+    Main process accumulates chunks and does batch insert per table.
+
+    Args:
+        settings: Application settings
+        schema_def: Schema definition
+        jobs: List of jobs to process
+        parse_func: Function to parse each job (returns ParsedEntry)
+        chunk_size: Number of entries per batch insert (default 1000)
+        max_workers: Max worker processes (default from settings)
+        logger: Optional logger for file output
+
+    Returns:
+        List of results for each job
+    """
+    if logger is None:
+        logger = _default_logger
+
+    if max_workers is None:
+        max_workers = settings.rdb.get_workers()
+
+    conninfo = settings.rdb.constring
+    results: list[LoaderResult] = []
+
+    console.print(
+        f"[bold]Processing {len(jobs)} entries "
+        f"(chunk_size={chunk_size}, workers={max_workers})...[/bold]"
+    )
+
+    # Process in chunks
+    total_chunks = (len(jobs) + chunk_size - 1) // chunk_size
+
+    for chunk_idx in range(total_chunks):
+        start = chunk_idx * chunk_size
+        end = min(start + chunk_size, len(jobs))
+        chunk_jobs = jobs[start:end]
+
+        console.print(
+            f"[dim]Chunk {chunk_idx + 1}/{total_chunks} "
+            f"(entries {start + 1}-{end})[/dim]"
+        )
+
+        # Phase 1: Parse all entries in chunk (parallel)
+        parsed_entries = _parse_chunk(chunk_jobs, parse_func, schema_def, max_workers)
+
+        # Phase 2: Batch insert per table
+        chunk_results = _batch_insert_chunk(parsed_entries, schema_def, conninfo)
+        results.extend(chunk_results)
+
+    # Summary
+    success_count = sum(1 for r in results if r.success)
+    fail_count = len(results) - success_count
+
+    logger.info(f"Completed: {success_count} succeeded, {fail_count} failed")
+
+    console.print(f"\n[green]✓ {success_count} succeeded[/green]", end="")
+    if fail_count > 0:
+        console.print(f", [red]✗ {fail_count} failed[/red]")
+        shown = 0
+        for r in results:
+            if not r.success and r.error:
+                if shown < 5:
+                    error_line = r.error.split("\n")[0][:100]
+                    console.print(f"  [dim]{r.entry_id}: {error_line}[/dim]")
+                    shown += 1
+                logger.error(f"FAILED {r.entry_id}:\n{r.error}")
+        if fail_count > 5:
+            console.print(f"  [dim]... and {fail_count - 5} more (see log file)[/dim]")
+    else:
+        console.print()
+
+    return results
+
+
+def _parse_chunk(
+    jobs: list[Job],
+    parse_func: Callable[[Job, SchemaDef], ParsedEntry],
+    schema_def: SchemaDef,
+    max_workers: int,
+) -> list[ParsedEntry]:
+    """Parse a chunk of jobs in parallel."""
+    if len(jobs) <= 2 or max_workers == 1:
+        # Sequential for small chunks
+        return [parse_func(job, schema_def) for job in jobs]
+
+    # Parallel parsing
+    parsed: list[ParsedEntry] = []
+
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        future_to_job = {
+            executor.submit(parse_func, job, schema_def): job for job in jobs
+        }
+
+        with Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Parsing", total=len(jobs))
+
+            for future in as_completed(future_to_job):
+                job = future_to_job[future]
+                try:
+                    result = future.result()
+                    parsed.append(result)
+                except Exception as e:
+                    parsed.append(
+                        ParsedEntry(
+                            entry_id=job.entry_id,
+                            table_rows={},
+                            error=str(e),
+                        )
+                    )
+                progress.advance(task)
+
+    return parsed
+
+
+def _batch_insert_chunk(
+    parsed_entries: list[ParsedEntry],
+    schema_def: SchemaDef,
+    conninfo: str,
+) -> list[LoaderResult]:
+    """Batch insert parsed entries per table."""
+    # Accumulate all rows per table
+    table_rows: dict[str, list[dict]] = {}
+    results: list[LoaderResult] = []
+
+    for entry in parsed_entries:
+        if entry.error:
+            results.append(
+                LoaderResult(entry_id=entry.entry_id, success=False, error=entry.error)
+            )
+            continue
+
+        # Accumulate rows
+        for table_name, rows in entry.table_rows.items():
+            if table_name not in table_rows:
+                table_rows[table_name] = []
+            table_rows[table_name].extend(rows)
+
+        results.append(
+            LoaderResult(entry_id=entry.entry_id, success=True, rows_inserted=0)
+        )
+
+    # Bulk insert per table
+    try:
+        for table in track(
+            schema_def.tables, description="Inserting...", console=console
+        ):
+            rows = table_rows.get(table.name, [])
+            if not rows:
+                continue
+
+            # Collect all unique columns across all rows
+            all_columns: set[str] = set()
+            for row in rows:
+                all_columns.update(row.keys())
+
+            # Sort columns for consistent ordering (PK column first)
+            pk_col = schema_def.primary_key
+            columns = [pk_col] + sorted(c for c in all_columns if c != pk_col)
+
+            # Build tuples with None for missing columns
+            row_tuples = [tuple(r.get(c) for c in columns) for r in rows]
+
+            bulk_upsert(
+                conninfo,
+                schema_def.schema_name,
+                table.name,
+                columns,
+                row_tuples,
+                table.primary_key,
+            )
+    except Exception as e:
+        # Mark all successful results as failed
+        error_msg = str(e)
+        results = [
+            LoaderResult(entry_id=r.entry_id, success=False, error=error_msg)
+            if r.success
+            else r
+            for r in results
+        ]
 
     return results
 
