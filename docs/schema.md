@@ -145,9 +145,54 @@ Schema files are validated at load time by Pydantic. Errors include:
 - Invalid YAML syntax
 - Unknown field names
 
+## Hash Columns for Long Primary Keys
+
+PostgreSQL B-tree indexes have a maximum row size of 2704 bytes. For tables with
+potentially long text columns in the primary key, we use SHA256 hash columns.
+
+### Example: pdbx_struct_assembly_gen
+
+The `asym_id_list` column can contain very long comma-separated chain IDs for
+large structures (e.g., ribosomes with hundreds of chains). This exceeds the
+B-tree index limit.
+
+**Solution**: Add `_hash_asym_id_list` (SHA256 hash, always 64 chars) and use it
+in the primary key instead of `asym_id_list`.
+
+```yaml
+- name: pdbx_struct_assembly_gen
+  columns:
+    - [pdbid, text]
+    - [asym_id_list, text]           # Original value (kept for queries)
+    - [_hash_asym_id_list, text]     # SHA256 hash (64 chars fixed)
+    - [assembly_id, text]
+    - [oper_expression, text]
+  primary_key:
+    - pdbid
+    - assembly_id
+    - _hash_asym_id_list             # Use hash, not original
+    - oper_expression
+```
+
+The pipeline generates the hash:
+
+```python
+import hashlib
+
+def hex_sha256(value: str) -> str:
+    return hashlib.sha256(value.encode()).hexdigest()
+
+# In pipeline processing:
+row["_hash_asym_id_list"] = hex_sha256(row.get("asym_id_list", ""))
+```
+
+This pattern is also used in the original mine2updater (dynamically replaces
+primary key columns with `_hash_` prefixed versions at runtime).
+
 ## Tips
 
 1. **Order matters**: Define tables in dependency order
 2. **Use TEXT for IDs**: Even numeric-looking IDs should be TEXT
 3. **Nullable by default**: All columns except primary keys can be NULL
 4. **No foreign keys**: For performance, foreign keys are not enforced
+5. **Hash long PK columns**: Use `_hash_<column>` for columns that may exceed index limits
