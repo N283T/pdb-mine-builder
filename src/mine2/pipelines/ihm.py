@@ -9,6 +9,7 @@ Uses mmJSON input (noatom + plus files) like the pdbj pipeline.
 """
 
 import json
+import logging
 import traceback
 from pathlib import Path
 from typing import Any
@@ -86,22 +87,15 @@ class IhmPipeline(BasePipeline):
             return []
 
         jobs = []
-        for filepath in sorted(data_dir.rglob(self.file_pattern)):
+        for filepath in data_dir.rglob(self.file_pattern):
             entry_id = self.extract_entry_id(filepath)
 
-            # Look for plus file
+            # Look for plus file: {entry_id}-plus.json.gz
             plus_path = None
-            if plus_dir and plus_dir.exists():
-                candidate = plus_dir.joinpath(f"{entry_id}-plus.json.gz")
-                try:
-                    resolved = candidate.resolve()
-                    if (
-                        resolved.is_relative_to(plus_dir.resolve())
-                        and resolved.exists()
-                    ):
-                        plus_path = candidate
-                except (ValueError, OSError):
-                    pass
+            if plus_dir:
+                candidate = plus_dir / f"{entry_id}-plus.json.gz"
+                if candidate.exists():
+                    plus_path = candidate
 
             jobs.append(
                 Job(
@@ -113,7 +107,6 @@ class IhmPipeline(BasePipeline):
 
             if limit and len(jobs) >= limit:
                 break
-
         return jobs
 
     def process_job(
@@ -133,11 +126,13 @@ class IhmPipeline(BasePipeline):
                 plus_data = parse_mmjson_file(plus_path)
                 data = merge_data(data, plus_data)
 
-            # Add _hash_asym_id_list to pdbx_struct_assembly_gen
+            # Add hash columns to pdbx_struct_assembly_gen (avoid B-tree index limit)
             if "pdbx_struct_assembly_gen" in data:
                 for row in data["pdbx_struct_assembly_gen"]:
-                    asym_id_list = row.get("asym_id_list", "")
-                    row["_hash_asym_id_list"] = _hex_sha256(asym_id_list)
+                    row["_hash_asym_id_list"] = _hex_sha256(row.get("asym_id_list", ""))
+                    row["_hash_oper_expression"] = _hex_sha256(
+                        row.get("oper_expression", "")
+                    )
 
             # Transform and load
             rows_inserted = 0
@@ -524,7 +519,8 @@ def run(
     config: PipelineConfig,
     schema_def: SchemaDef,
     limit: int | None = None,
+    logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the IHM pipeline."""
     pipeline = IhmPipeline(settings, config, schema_def)
-    return pipeline.run(limit)
+    return pipeline.run(limit, logger=logger)

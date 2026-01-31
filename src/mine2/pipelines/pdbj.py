@@ -1,6 +1,7 @@
 """PDBj pipeline - main PDB structure data loader."""
 
 import json
+import logging
 import traceback
 from pathlib import Path
 from typing import Any
@@ -9,7 +10,14 @@ import gemmi
 from rich.console import Console
 
 from mine2.config import PipelineConfig, Settings
-from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
+from mine2.db.loader import (
+    Job,
+    LoaderResult,
+    SchemaDef,
+    TableDef,
+    bulk_upsert,
+    run_loader_streaming,
+)
 from mine2.parsers.cif import parse_cif_file, parse_mmjson_file
 from mine2.parsers.mmjson import merge_data, normalize_column_name
 from mine2.pipelines.base import BasePipeline, transform_category
@@ -17,6 +25,7 @@ from mine2.utils.assembly import calculate_mw_for_bu, hex_sha256
 from mine2.utils.patches import apply_patches
 
 console = Console()
+_default_logger = logging.getLogger("mine2.pipelines.pdbj")
 
 
 class PdbjPipeline(BasePipeline):
@@ -49,24 +58,15 @@ class PdbjPipeline(BasePipeline):
             return []
 
         jobs = []
-        for filepath in sorted(data_dir.rglob(self.file_pattern)):
+        for filepath in data_dir.rglob(self.file_pattern):
             entry_id = self.extract_entry_id(filepath)
 
-            # Look for plus file: 100d-plus.json.gz
+            # Look for plus file: {entry_id}-plus.json.gz
             plus_path = None
-            if plus_dir and plus_dir.exists():
-                candidate = plus_dir.joinpath(f"{entry_id}-plus.json.gz")
-                # Validate path is within plus_dir to prevent path traversal
-                try:
-                    resolved = candidate.resolve()
-                    if (
-                        resolved.is_relative_to(plus_dir.resolve())
-                        and resolved.exists()
-                    ):
-                        plus_path = candidate
-                except (ValueError, OSError):
-                    # is_relative_to raises ValueError if not relative
-                    pass
+            if plus_dir:
+                candidate = plus_dir / f"{entry_id}-plus.json.gz"
+                if candidate.exists():
+                    plus_path = candidate
 
             jobs.append(
                 Job(
@@ -78,7 +78,6 @@ class PdbjPipeline(BasePipeline):
 
             if limit and len(jobs) >= limit:
                 break
-
         return jobs
 
     def process_job(
@@ -101,11 +100,13 @@ class PdbjPipeline(BasePipeline):
             # Apply entry-specific patches
             apply_patches(job.entry_id, data)
 
-            # Add _hash_asym_id_list to pdbx_struct_assembly_gen
+            # Add hash columns to pdbx_struct_assembly_gen (avoid B-tree index limit)
             if "pdbx_struct_assembly_gen" in data:
                 for row in data["pdbx_struct_assembly_gen"]:
-                    asym_id_list = row.get("asym_id_list", "")
-                    row["_hash_asym_id_list"] = hex_sha256(asym_id_list)
+                    row["_hash_asym_id_list"] = hex_sha256(row.get("asym_id_list", ""))
+                    row["_hash_oper_expression"] = hex_sha256(
+                        row.get("oper_expression", "")
+                    )
 
             # Transform and load
             rows_inserted = 0
@@ -254,7 +255,7 @@ class PdbjCifPipeline(BasePipeline):
     Unlike mmJSON, CIF files contain full atomic data but we only
     load categories defined in the schema (atom_site is excluded).
 
-    Uses gemmi.CifWalk for fast file discovery instead of rglob.
+    Uses gemmi.CifWalk for fast file discovery with streaming job submission.
     """
 
     name = "pdbj-cif"
@@ -262,53 +263,65 @@ class PdbjCifPipeline(BasePipeline):
 
     # extract_entry_id inherited from BasePipeline handles .cif.gz and .cif
 
-    def find_jobs(self, limit: int | None = None) -> list[Job]:
-        """Find CIF files using gemmi.CifWalk.
+    def run(
+        self, limit: int | None = None, logger: logging.Logger | None = None
+    ) -> list[LoaderResult]:
+        """Run the pipeline with streaming job submission.
 
-        CifWalk is C++ native and faster than rglob for large directories.
-        Automatically handles both .cif and .cif.gz files.
-        Also pairs with plus data (mmJSON) if configured.
+        Jobs are submitted to workers immediately as CifWalk discovers files,
+        allowing scanning and processing to happen in parallel.
         """
-        data_dir = Path(self.config.data)
-        plus_dir = Path(self.config.data_plus) if self.config.data_plus else None
+        if logger is None:
+            logger = _default_logger
 
+        console.print(f"  Data dir: {self.config.data}")
+
+        data_dir = Path(self.config.data)
         if not data_dir.exists():
             console.print(f"  [red]Data directory not found: {data_dir}[/red]")
             return []
 
-        jobs = []
+        # Use streaming loader - jobs submitted as discovered
+        results = run_loader_streaming(
+            settings=self.settings,
+            schema_def=self.schema_def,
+            jobs_iter=self._iter_jobs(),
+            process_func=self.process_job,
+            max_workers=self.settings.rdb.get_workers(),
+            limit=limit,
+            logger=logger,
+        )
+
+        return results
+
+    def _iter_jobs(self):
+        """Yield jobs as CifWalk discovers files.
+
+        This is a generator that yields Job objects immediately,
+        allowing the streaming loader to submit them to workers.
+        """
+        data_dir = Path(self.config.data)
+        plus_dir = Path(self.config.data_plus) if self.config.data_plus else None
+
         for filepath_str in gemmi.CifWalk(str(data_dir)):
             filepath = Path(filepath_str)
             entry_id = self.extract_entry_id(filepath)
 
-            # Look for plus file: {entry_id}-plus.json.gz
             plus_path = None
-            if plus_dir and plus_dir.exists():
-                candidate = plus_dir.joinpath(f"{entry_id}-plus.json.gz")
-                # Validate path is within plus_dir to prevent path traversal
-                try:
-                    resolved = candidate.resolve()
-                    if (
-                        resolved.is_relative_to(plus_dir.resolve())
-                        and resolved.exists()
-                    ):
-                        plus_path = candidate
-                except (ValueError, OSError):
-                    # is_relative_to raises ValueError if not relative
-                    pass
+            if plus_dir:
+                candidate = plus_dir / f"{entry_id}-plus.json.gz"
+                if candidate.exists():
+                    plus_path = candidate
 
-            jobs.append(
-                Job(
-                    entry_id=entry_id,
-                    filepath=filepath,
-                    extra={"plus_path": plus_path},
-                )
+            yield Job(
+                entry_id=entry_id,
+                filepath=filepath,
+                extra={"plus_path": plus_path},
             )
 
-            if limit and len(jobs) >= limit:
-                break
-
-        return jobs
+    def find_jobs(self, limit: int | None = None) -> list[Job]:
+        """Find jobs (not used - streaming via run() instead)."""
+        return []
 
     def process_job(
         self,
@@ -330,11 +343,13 @@ class PdbjCifPipeline(BasePipeline):
             # Apply entry-specific patches
             apply_patches(job.entry_id, data)
 
-            # Add _hash_asym_id_list to pdbx_struct_assembly_gen
+            # Add hash columns to pdbx_struct_assembly_gen (avoid B-tree index limit)
             if "pdbx_struct_assembly_gen" in data:
                 for row in data["pdbx_struct_assembly_gen"]:
-                    asym_id_list = row.get("asym_id_list", "")
-                    row["_hash_asym_id_list"] = hex_sha256(asym_id_list)
+                    row["_hash_asym_id_list"] = hex_sha256(row.get("asym_id_list", ""))
+                    row["_hash_oper_expression"] = hex_sha256(
+                        row.get("oper_expression", "")
+                    )
 
             # Transform and load
             rows_inserted = 0
@@ -483,10 +498,13 @@ def run(
     config: PipelineConfig,
     schema_def: SchemaDef,
     limit: int | None = None,
+    logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the pdbj pipeline (mmJSON version)."""
+    if logger is None:
+        logger = _default_logger
     pipeline = PdbjPipeline(settings, config, schema_def)
-    return pipeline.run(limit)
+    return pipeline.run(limit, logger=logger)
 
 
 def run_cif(
@@ -494,7 +512,10 @@ def run_cif(
     config: PipelineConfig,
     schema_def: SchemaDef,
     limit: int | None = None,
+    logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the pdbj-cif pipeline (CIF version)."""
+    if logger is None:
+        logger = _default_logger
     pipeline = PdbjCifPipeline(settings, config, schema_def)
-    return pipeline.run(limit)
+    return pipeline.run(limit, logger=logger)
