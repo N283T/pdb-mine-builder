@@ -1,14 +1,17 @@
 """Contacts pipeline - protein-protein contact data.
 
-Contact files have a custom JSON format (not mmJSON):
-[
-  [pdbid, asym_id_1, asym_id_2, seq_id_1, seq_id_2, comp_id_1, comp_id_2, distance, ...],
-  ...
-]
+Contact files have a custom JSON format (not mmJSON). Two formats exist:
+
+1. Array format (legacy):
+   [[pdbid, asym_id_1, asym_id_2, seq_id_1, seq_id_2, comp_id_1, comp_id_2, distance, ...], ...]
+
+2. Column-oriented format (new):
+   {"label_asym_id_1": [...], "label_asym_id_2": [...], ...}
 """
 
 import gzip
 import json
+import logging
 import traceback
 from pathlib import Path
 from typing import Any
@@ -25,10 +28,13 @@ console = Console()
 class ContactsPipeline(BasePipeline):
     """Pipeline for loading protein contact data.
 
-    Contact files are JSON arrays of contact records, not mmJSON format.
-    Each contact record is an array:
-    [pdbid, label_asym_id_1, label_asym_id_2, label_seq_id_1, label_seq_id_2,
-     label_comp_id_1, label_comp_id_2, distance, ...]
+    Contact files use a custom JSON format (not mmJSON). Two formats are supported:
+
+    1. Array format (legacy): List of arrays
+       [[pdbid, label_asym_id_1, ...], ...]
+
+    2. Column-oriented format: Dict of column arrays
+       {"label_asym_id_1": [...], "label_asym_id_2": [...], ...}
     """
 
     name = "contacts"
@@ -100,8 +106,15 @@ class ContactsPipeline(BasePipeline):
                 error=error_msg,
             )
 
-    def _load_contacts_file(self, filepath: Path) -> list[list[Any]]:
-        """Load contacts JSON file (array of arrays)."""
+    def _load_contacts_file(
+        self, filepath: Path
+    ) -> list[list[Any]] | dict[str, list[Any]]:
+        """Load contacts JSON file.
+
+        Returns either:
+        - list[list]: Array format (legacy)
+        - dict[str, list]: Column-oriented format (new)
+        """
         if str(filepath).endswith(".json.gz"):
             with gzip.open(filepath, "rt", encoding="utf-8") as f:
                 return json.load(f)
@@ -109,37 +122,86 @@ class ContactsPipeline(BasePipeline):
             with open(filepath, encoding="utf-8") as f:
                 return json.load(f)
 
-    def _transform_contacts(self, data: list[list[Any]], pdbid: str) -> list[dict]:
+    # Required columns for column-oriented format
+    _REQUIRED_COLUMNS = (
+        "label_asym_id_1",
+        "label_asym_id_2",
+        "label_seq_id_1",
+        "label_seq_id_2",
+        "label_comp_id_1",
+        "label_comp_id_2",
+        "distance",
+    )
+
+    def _transform_contacts(
+        self, data: list[list[Any]] | dict[str, list[Any]], pdbid: str
+    ) -> list[dict]:
         """Transform contact records to database rows.
 
-        Contact record format (array):
-        [0] pdbid (ignored, we use the extracted one)
-        [1] label_asym_id_1
-        [2] label_asym_id_2
-        [3] label_seq_id_1
-        [4] label_seq_id_2
-        [5] label_comp_id_1
-        [6] label_comp_id_2
-        [7] distance
-        [8+] atom details (ignored for this table)
+        Supports two formats:
+
+        1. Array format (legacy):
+           [[pdbid, asym_id_1, asym_id_2, seq_id_1, seq_id_2, comp_id_1, comp_id_2, distance, ...], ...]
+
+        2. Column-oriented format (new):
+           {
+             "label_asym_id_1": [...],
+             "label_asym_id_2": [...],
+             "label_seq_id_1": [...],
+             "label_seq_id_2": [...],
+             "label_comp_id_1": [...],
+             "label_comp_id_2": [...],
+             "distance": [...]
+           }
         """
         result = []
-        for record in data:
-            if len(record) < 8:
-                continue
 
-            result.append(
-                {
-                    "pdbid": pdbid,
-                    "label_asym_id_1": record[1],
-                    "label_asym_id_2": record[2],
-                    "label_seq_id_1": record[3],
-                    "label_seq_id_2": record[4],
-                    "label_comp_id_1": record[5],
-                    "label_comp_id_2": record[6],
-                    "distance": record[7],
-                }
-            )
+        if isinstance(data, dict):
+            # Column-oriented format - validate required columns
+            missing = set(self._REQUIRED_COLUMNS) - data.keys()
+            if missing:
+                raise ValueError(f"Missing required columns: {missing}")
+
+            # Validate all columns have equal length
+            lengths = {
+                k: len(v) for k, v in data.items() if k in self._REQUIRED_COLUMNS
+            }
+            unique_lengths = set(lengths.values())
+            if len(unique_lengths) > 1:
+                raise ValueError(f"Column length mismatch: {lengths}")
+
+            n = lengths.get("label_asym_id_1", 0)
+            for i in range(n):
+                result.append(
+                    {
+                        "pdbid": pdbid,
+                        "label_asym_id_1": data["label_asym_id_1"][i],
+                        "label_asym_id_2": data["label_asym_id_2"][i],
+                        "label_seq_id_1": data["label_seq_id_1"][i],
+                        "label_seq_id_2": data["label_seq_id_2"][i],
+                        "label_comp_id_1": data["label_comp_id_1"][i],
+                        "label_comp_id_2": data["label_comp_id_2"][i],
+                        "distance": data["distance"][i],
+                    }
+                )
+        else:
+            # Array format (legacy)
+            for record in data:
+                if len(record) < 8:
+                    continue
+
+                result.append(
+                    {
+                        "pdbid": pdbid,
+                        "label_asym_id_1": record[1],
+                        "label_asym_id_2": record[2],
+                        "label_seq_id_1": record[3],
+                        "label_seq_id_2": record[4],
+                        "label_comp_id_1": record[5],
+                        "label_comp_id_2": record[6],
+                        "distance": record[7],
+                    }
+                )
 
         return result
 
@@ -149,7 +211,8 @@ def run(
     config: PipelineConfig,
     schema_def: SchemaDef,
     limit: int | None = None,
+    logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the contacts pipeline."""
     pipeline = ContactsPipeline(settings, config, schema_def)
-    return pipeline.run(limit)
+    return pipeline.run(limit, logger=logger)
