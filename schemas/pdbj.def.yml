@@ -6600,7 +6600,7 @@ tables:
     primary_key:
       - pdbid
       - assembly_id
-      - asym_id_list
+      - _hash_asym_id_list
       - oper_expression
     foreign_keys:
       - - - pdbid
