@@ -11,8 +11,8 @@ __pycache__/
 .env
 
 node_modules
-dictionaries
 data
+logs/
 postgres_data_5433
 package-lock.json
 setup-db.sh
