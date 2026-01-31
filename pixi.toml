@@ -12,16 +12,29 @@ format = "ruff format src/mine2"
 typecheck = "ty check src/mine2"
 check = { depends-on = ["lint", "format-check", "typecheck"] }
 format-check = "ruff format --check src/mine2"
-test = "PYTHONPATH=src pytest tests -v"
+test = "pytest tests -v"
 
-# Run
-mine2 = "PYTHONPATH=src python -m mine2"
+# Run (also available as 'mine2' command in pixi shell)
+mine2 = "python -m mine2"
 
-# Database
+# Database (local development)
 db-init = "initdb -D $PGDATA"
 db-start = "pg_ctl -D $PGDATA -l $PGDATA/logfile start"
 db-stop = "pg_ctl -D $PGDATA stop"
 db-status = "pg_ctl -D $PGDATA status"
+
+# Database performance modes (for bulk loading)
+db-bulkload-mode = { cmd = "cat scripts/postgresql_bulkload.conf >> $PGDATA/postgresql.auto.conf && pg_ctl reload -D $PGDATA", description = "Enable bulk load mode (DANGEROUS - no crash safety)" }
+db-safe-mode = { cmd = "echo '' > $PGDATA/postgresql.auto.conf && pg_ctl reload -D $PGDATA", description = "Restore safe settings after bulk load" }
+
+# Test Database (Docker)
+test-db-up = "docker compose -f docker/docker-compose.test.yml up -d --wait"
+test-db-down = "docker compose -f docker/docker-compose.test.yml down -v"
+test-db-status = "docker compose -f docker/docker-compose.test.yml ps"
+
+# Testing
+test-unit = "pytest tests -v -m 'not integration'"
+test-integration = { cmd = "pytest tests -v -m integration", depends-on = ["test-db-up"] }
 
 [dependencies]
 postgresql = ">=17.0.0,<19"
@@ -29,6 +42,7 @@ python = ">=3.12"
 rdkit-postgresql = ">=2024.09.0"
 
 [pypi-dependencies]
+mine2 = { path = ".", editable = true }
 ccd2rdmol = ">=0.2.0"
 defusedxml = ">=0.7.0"
 gemmi = ">=0.7.0"
@@ -38,7 +52,6 @@ pydantic = ">=2.0.0"
 pydantic-settings = ">=2.0.0"
 psycopg = { version = ">=3.2.0", extras = ["binary", "pool"] }
 pyyaml = ">=6.0.0"
-tqdm = ">=4.66.0"
 ruff = ">=0.9.0"
 ty = "*"
 pytest = ">=8.0.0"

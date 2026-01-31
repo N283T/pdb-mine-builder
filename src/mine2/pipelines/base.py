@@ -1,5 +1,6 @@
 """Base pipeline functionality."""
 
+import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from math import floor, log10
@@ -12,6 +13,7 @@ from mine2.config import PipelineConfig, Settings
 from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, run_loader
 
 console = Console()
+_default_logger = logging.getLogger("mine2.pipelines.base")
 
 
 # =============================================================================
@@ -298,10 +300,10 @@ def transform_category(
     if not rows:
         return []
 
-    # Get column names and types from schema
+    # Use cached column info from TableDef (avoids recreating dict each call)
     schema_columns = [col_name for col_name, _ in table.columns]
-    column_types = {col_name: col_type for col_name, col_type in table.columns}
-    valid_columns = set(schema_columns)
+    column_types = table.column_types  # Cached property
+    valid_columns = table.column_names  # Cached property
 
     # First pass: collect all columns that appear in any row
     used_columns = {pk_col}
@@ -360,15 +362,21 @@ class BasePipeline(ABC):
         self.config = config
         self.schema_def = schema_def
 
-    def run(self, limit: int | None = None) -> list[LoaderResult]:
+    def run(
+        self, limit: int | None = None, logger: logging.Logger | None = None
+    ) -> list[LoaderResult]:
         """Run the pipeline.
 
         Args:
             limit: Optional limit on number of files to process
+            logger: Optional logger for file output
 
         Returns:
             List of results for each processed entry
         """
+        if logger is None:
+            logger = _default_logger
+
         console.print(f"  Data dir: {self.config.data}")
 
         # Find data files
@@ -386,6 +394,7 @@ class BasePipeline(ABC):
             jobs=jobs,
             process_func=self.process_job,
             max_workers=self.settings.rdb.get_workers(),
+            logger=logger,
         )
 
         return results
@@ -399,13 +408,12 @@ class BasePipeline(ABC):
             return []
 
         jobs = []
-        for filepath in sorted(data_dir.rglob(self.file_pattern)):
+        for filepath in data_dir.rglob(self.file_pattern):
             entry_id = self.extract_entry_id(filepath)
             jobs.append(Job(entry_id=entry_id, filepath=filepath))
 
             if limit and len(jobs) >= limit:
                 break
-
         return jobs
 
     def extract_entry_id(self, filepath: Path) -> str:

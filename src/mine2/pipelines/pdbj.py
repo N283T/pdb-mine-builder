@@ -28,6 +28,147 @@ console = Console()
 _default_logger = logging.getLogger("mine2.pipelines.pdbj")
 
 
+# =============================================================================
+# Shared helper functions for both mmJSON and CIF pipelines
+# =============================================================================
+
+
+def _load_pdbj_data(
+    data: dict[str, Any],
+    entry_id: str,
+    schema_def: SchemaDef,
+    conninfo: str,
+    normalize_fn: Any | None = None,
+) -> int:
+    """Load PDB data into database tables.
+
+    Shared by both PdbjPipeline (mmJSON) and PdbjCifPipeline (CIF).
+
+    Args:
+        data: Parsed data dictionary
+        entry_id: PDB entry ID
+        schema_def: Schema definition with cached table lookups
+        conninfo: Database connection string
+        normalize_fn: Column name normalizer (for mmJSON) or None (for CIF)
+
+    Returns:
+        Number of rows inserted
+    """
+    rows_inserted = 0
+
+    # Use cached table lookups (O(1) instead of O(n) iteration)
+    entry_table = schema_def.get_table("entry")
+    entry_pk = entry_table.primary_key if entry_table else [schema_def.primary_key]
+
+    # Load entry table
+    entry_rows = _transform_entry(data, entry_id)
+    if entry_rows:
+        columns = list(entry_rows[0].keys())
+        inserted, _ = bulk_upsert(
+            conninfo,
+            schema_def.schema_name,
+            "entry",
+            columns,
+            [tuple(r[c] for c in columns) for r in entry_rows],
+            entry_pk,
+        )
+        rows_inserted += inserted
+    # Free memory after processing
+    data.pop("entry", None)
+
+    # Load brief_summary with bu_mw calculation
+    brief_table = schema_def.get_table("brief_summary")
+    if brief_table:
+        brief_rows = _transform_brief_summary(data, brief_table, entry_id, normalize_fn)
+        if brief_rows:
+            columns = list(brief_rows[0].keys())
+            inserted, _ = bulk_upsert(
+                conninfo,
+                schema_def.schema_name,
+                "brief_summary",
+                columns,
+                [tuple(r[c] for c in columns) for r in brief_rows],
+                brief_table.primary_key,
+            )
+            rows_inserted += inserted
+        # Free memory after processing
+        data.pop("brief_summary", None)
+
+    # Load other categories
+    for table in schema_def.tables:
+        if table.name in ("entry", "brief_summary"):
+            continue
+
+        rows = data.get(table.name, [])
+        if not rows:
+            continue
+
+        category_rows = transform_category(rows, table, entry_id, "pdbid", normalize_fn)
+        if category_rows:
+            columns = list(category_rows[0].keys())
+            inserted, _ = bulk_upsert(
+                conninfo,
+                schema_def.schema_name,
+                table.name,
+                columns,
+                [tuple(r[c] for c in columns) for r in category_rows],
+                table.primary_key,
+            )
+            rows_inserted += inserted
+
+        # Free memory after processing each category
+        data.pop(table.name, None)
+
+    return rows_inserted
+
+
+def _transform_entry(data: dict[str, Any], entry_id: str) -> list[dict]:
+    """Transform entry data."""
+    rows = data.get("entry", [])
+    if not rows:
+        return [{"pdbid": entry_id, "id": entry_id.upper()}]
+
+    result = []
+    for row in rows:
+        result.append(
+            {
+                "pdbid": entry_id,
+                **{k: v for k, v in row.items() if v is not None},
+            }
+        )
+    return result
+
+
+def _transform_brief_summary(
+    data: dict[str, Any],
+    table: TableDef,
+    entry_id: str,
+    normalize_fn: Any | None = None,
+) -> list[dict]:
+    """Transform brief_summary with bu_mw calculation.
+
+    Adds bu_mw (biological unit molecular weight) to plus_fields.
+    """
+    rows = data.get("brief_summary", [])
+    result = transform_category(rows, table, entry_id, "pdbid", normalize_fn)
+
+    # Calculate bu_mw and add to plus_fields
+    bu_mw = calculate_mw_for_bu(data)
+    for row in result:
+        existing_plus = row.get("plus_fields")
+        if existing_plus:
+            try:
+                plus_data = json.loads(existing_plus)
+            except (json.JSONDecodeError, TypeError):
+                plus_data = {}
+        else:
+            plus_data = {}
+        plus_data["bu_mw"] = bu_mw
+        row["plus_fields"] = json.dumps(plus_data)
+
+    return result
+
+
 class PdbjPipeline(BasePipeline):
     """Pipeline for loading PDB structure data."""
 
@@ -108,70 +249,14 @@ class PdbjPipeline(BasePipeline):
                         row.get("oper_expression", "")
                     )
 
-            # Transform and load
-            rows_inserted = 0
-
-            # Get entry table definition for its primary key
-            entry_table = next(
-                (t for t in schema_def.tables if t.name == "entry"), None
+            # Transform and load using cached table lookups
+            rows_inserted = _load_pdbj_data(
+                data=data,
+                entry_id=job.entry_id,
+                schema_def=schema_def,
+                conninfo=conninfo,
+                normalize_fn=normalize_column_name,
             )
-            entry_pk = (
-                entry_table.primary_key if entry_table else [schema_def.primary_key]
-            )
-
-            # Load entry table
-            entry_rows = self._transform_entry(data, job.entry_id)
-            if entry_rows:
-                # Explicitly order columns to avoid dict ordering assumptions
-                columns = list(entry_rows[0].keys())
-                inserted, _ = bulk_upsert(
-                    conninfo,
-                    schema_def.schema_name,
-                    "entry",
-                    columns,
-                    [tuple(r[c] for c in columns) for r in entry_rows],
-                    entry_pk,
-                )
-                rows_inserted += inserted
-
-            # Load brief_summary with bu_mw calculation
-            brief_table = next(
-                (t for t in schema_def.tables if t.name == "brief_summary"), None
-            )
-            if brief_table:
-                brief_rows = self._transform_brief_summary(
-                    data, brief_table, job.entry_id
-                )
-                if brief_rows:
-                    columns = list(brief_rows[0].keys())
-                    inserted, _ = bulk_upsert(
-                        conninfo,
-                        schema_def.schema_name,
-                        "brief_summary",
-                        columns,
-                        [tuple(r[c] for c in columns) for r in brief_rows],
-                        brief_table.primary_key,
-                    )
-                    rows_inserted += inserted
-
-            # Load other categories
-            for table in schema_def.tables:
-                if table.name in ("entry", "brief_summary"):
-                    continue
-
-                category_rows = self._transform_category(data, table, job.entry_id)
-                if category_rows:
-                    # Explicitly order columns to avoid dict ordering assumptions
-                    columns = list(category_rows[0].keys())
-                    inserted, _ = bulk_upsert(
-                        conninfo,
-                        schema_def.schema_name,
-                        table.name,
-                        columns,
-                        [tuple(r[c] for c in columns) for r in category_rows],
-                        table.primary_key,
-                    )
-                    rows_inserted += inserted
 
             return LoaderResult(
                 entry_id=job.entry_id,
@@ -187,65 +272,6 @@ class PdbjPipeline(BasePipeline):
                 success=False,
                 error=error_msg,
             )
-
-    def _transform_entry(self, data: dict[str, Any], entry_id: str) -> list[dict]:
-        """Transform entry data."""
-        rows = data.get("entry", [])
-        if not rows:
-            # Fallback: create minimal entry with both PK columns
-            return [{"pdbid": entry_id, "id": entry_id.upper()}]
-
-        result = []
-        for row in rows:
-            result.append(
-                {
-                    "pdbid": entry_id,
-                    **{k: v for k, v in row.items() if v is not None},
-                }
-            )
-        return result
-
-    def _transform_brief_summary(
-        self,
-        data: dict[str, Any],
-        table: TableDef,
-        entry_id: str,
-    ) -> list[dict]:
-        """Transform brief_summary with bu_mw calculation.
-
-        Adds bu_mw (biological unit molecular weight) to plus_fields.
-        """
-        rows = data.get("brief_summary", [])
-        result = transform_category(
-            rows, table, entry_id, "pdbid", normalize_column_name
-        )
-
-        # Calculate bu_mw and add to plus_fields
-        bu_mw = calculate_mw_for_bu(data)
-        for row in result:
-            # Merge bu_mw into existing plus_fields or create new
-            existing_plus = row.get("plus_fields")
-            if existing_plus:
-                try:
-                    plus_data = json.loads(existing_plus)
-                except (json.JSONDecodeError, TypeError):
-                    plus_data = {}
-            else:
-                plus_data = {}
-            plus_data["bu_mw"] = bu_mw
-            row["plus_fields"] = json.dumps(plus_data)
-
-        return result
-
-    def _transform_category(
-        self,
-        data: dict[str, Any],
-        table: TableDef,
-        entry_id: str,
-    ) -> list[dict]:
-        """Transform a category's data."""
-        rows = data.get(table.name, [])
-        return transform_category(rows, table, entry_id, "pdbid", normalize_column_name)
 
 
 class PdbjCifPipeline(BasePipeline):
@@ -351,68 +377,15 @@ class PdbjCifPipeline(BasePipeline):
                         row.get("oper_expression", "")
                     )
 
-            # Transform and load
-            rows_inserted = 0
-
-            # Get entry table definition for its primary key
-            entry_table = next(
-                (t for t in schema_def.tables if t.name == "entry"), None
+            # Transform and load using shared function
+            # CIF: no column name normalization (pass None)
+            rows_inserted = _load_pdbj_data(
+                data=data,
+                entry_id=job.entry_id,
+                schema_def=schema_def,
+                conninfo=conninfo,
+                normalize_fn=None,
             )
-            entry_pk = (
-                entry_table.primary_key if entry_table else [schema_def.primary_key]
-            )
-
-            # Load entry table
-            entry_rows = self._transform_entry(data, job.entry_id)
-            if entry_rows:
-                columns = list(entry_rows[0].keys())
-                inserted, _ = bulk_upsert(
-                    conninfo,
-                    schema_def.schema_name,
-                    "entry",
-                    columns,
-                    [tuple(r[c] for c in columns) for r in entry_rows],
-                    entry_pk,
-                )
-                rows_inserted += inserted
-
-            # Load brief_summary with bu_mw calculation
-            brief_table = next(
-                (t for t in schema_def.tables if t.name == "brief_summary"), None
-            )
-            if brief_table:
-                brief_rows = self._transform_brief_summary(
-                    data, brief_table, job.entry_id
-                )
-                if brief_rows:
-                    columns = list(brief_rows[0].keys())
-                    inserted, _ = bulk_upsert(
-                        conninfo,
-                        schema_def.schema_name,
-                        "brief_summary",
-                        columns,
-                        [tuple(r[c] for c in columns) for r in brief_rows],
-                        brief_table.primary_key,
-                    )
-                    rows_inserted += inserted
-
-            # Load other categories
-            for table in schema_def.tables:
-                if table.name in ("entry", "brief_summary"):
-                    continue
-
-                category_rows = self._transform_category(data, table, job.entry_id)
-                if category_rows:
-                    columns = list(category_rows[0].keys())
-                    inserted, _ = bulk_upsert(
-                        conninfo,
-                        schema_def.schema_name,
-                        table.name,
-                        columns,
-                        [tuple(r[c] for c in columns) for r in category_rows],
-                        table.primary_key,
-                    )
-                    rows_inserted += inserted
 
             return LoaderResult(
                 entry_id=job.entry_id,
@@ -427,70 +400,6 @@ class PdbjCifPipeline(BasePipeline):
                 success=False,
                 error=error_msg,
             )
-
-    def _transform_entry(self, data: dict[str, Any], entry_id: str) -> list[dict]:
-        """Transform entry data."""
-        rows = data.get("entry", [])
-        if not rows:
-            # Fallback: create minimal entry with both PK columns
-            return [{"pdbid": entry_id, "id": entry_id.upper()}]
-
-        result = []
-        for row in rows:
-            result.append(
-                {
-                    "pdbid": entry_id,
-                    **{k: v for k, v in row.items() if v is not None},
-                }
-            )
-        return result
-
-    def _transform_brief_summary(
-        self,
-        data: dict[str, Any],
-        table: TableDef,
-        entry_id: str,
-    ) -> list[dict]:
-        """Transform brief_summary with bu_mw calculation.
-
-        Adds bu_mw (biological unit molecular weight) to plus_fields.
-        CIF version - no column name normalization.
-        """
-        rows = data.get("brief_summary", [])
-        # No normalization for CIF
-        result = transform_category(rows, table, entry_id, "pdbid", None)
-
-        # Calculate bu_mw and add to plus_fields
-        bu_mw = calculate_mw_for_bu(data)
-        for row in result:
-            # Merge bu_mw into existing plus_fields or create new
-            existing_plus = row.get("plus_fields")
-            if existing_plus:
-                try:
-                    plus_data = json.loads(existing_plus)
-                except (json.JSONDecodeError, TypeError):
-                    plus_data = {}
-            else:
-                plus_data = {}
-            plus_data["bu_mw"] = bu_mw
-            row["plus_fields"] = json.dumps(plus_data)
-
-        return result
-
-    def _transform_category(
-        self,
-        data: dict[str, Any],
-        table: TableDef,
-        entry_id: str,
-    ) -> list[dict]:
-        """Transform a category's data.
-
-        CIF files use plain column names (no bracket notation),
-        so we don't normalize column names.
-        """
-        rows = data.get(table.name, [])
-        # No normalization for CIF - pass None instead of normalize_column_name
-        return transform_category(rows, table, entry_id, "pdbid", None)
 
 
 def run(

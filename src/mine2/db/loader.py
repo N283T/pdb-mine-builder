@@ -1,5 +1,7 @@
 """Core data loader with parallel processing support."""
 
+import logging
+from collections.abc import Iterator
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -13,13 +15,15 @@ from rich.progress import (
     TaskProgressColumn,
     TextColumn,
     TimeElapsedColumn,
+    track,
 )
-from tqdm import tqdm
 
 from mine2.config import Settings
 from mine2.db.connection import get_connection, init_pool
 
 console = Console()
+# Default logger (no-op if not configured)
+_default_logger = logging.getLogger("mine2.loader")
 
 
 @dataclass
@@ -32,6 +36,24 @@ class TableDef:
     foreign_keys: list[tuple[list[str], str, list[str]]] = field(default_factory=list)
     unique_keys: list[list[str]] = field(default_factory=list)
     indexes: list[str | list[str]] = field(default_factory=list)
+    # Cached properties (always computed from columns, not user-provided)
+    _column_types: dict[str, str] = field(init=False, default_factory=dict, repr=False)
+    _column_names: set[str] = field(init=False, default_factory=set, repr=False)
+
+    def __post_init__(self) -> None:
+        """Initialize cached properties from columns."""
+        self._column_types = {name: ctype for name, ctype in self.columns}
+        self._column_names = set(self._column_types.keys())
+
+    @property
+    def column_types(self) -> dict[str, str]:
+        """Get column name to type mapping (cached)."""
+        return self._column_types
+
+    @property
+    def column_names(self) -> set[str]:
+        """Get set of valid column names (cached)."""
+        return self._column_names
 
 
 @dataclass
@@ -41,6 +63,18 @@ class SchemaDef:
     schema_name: str
     primary_key: str
     tables: list[TableDef]
+    # Cached table lookup (always computed from tables, not user-provided)
+    _table_cache: dict[str, TableDef] = field(
+        init=False, default_factory=dict, repr=False
+    )
+
+    def __post_init__(self) -> None:
+        """Initialize cached properties from tables."""
+        self._table_cache = {t.name: t for t in self.tables}
+
+    def get_table(self, name: str) -> TableDef | None:
+        """Get table definition by name (O(1) cached lookup)."""
+        return self._table_cache.get(name)
 
 
 def load_schema_def(deffile: Path) -> SchemaDef:
@@ -185,6 +219,7 @@ def run_loader(
     jobs: list[Job],
     process_func: Callable[[Job, SchemaDef, str], LoaderResult],
     max_workers: int | None = None,
+    logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run loader with parallel processing.
 
@@ -194,10 +229,14 @@ def run_loader(
         jobs: List of jobs to process
         process_func: Function to process each job
         max_workers: Max worker processes (default from settings)
+        logger: Optional logger for file output
 
     Returns:
         List of results for each job
     """
+    if logger is None:
+        logger = _default_logger
+
     if max_workers is None:
         max_workers = settings.rdb.get_workers()
 
@@ -210,7 +249,7 @@ def run_loader(
 
     # For small job counts, run sequentially
     if len(jobs) <= 2 or max_workers == 1:
-        for job in tqdm(jobs, desc="Processing"):
+        for job in track(jobs, description="Processing...", console=console):
             result = process_func(job, schema_def, conninfo)
             results.append(result)
     else:
@@ -249,13 +288,134 @@ def run_loader(
     success_count = sum(1 for r in results if r.success)
     fail_count = len(results) - success_count
 
+    logger.info(f"Completed: {success_count} succeeded, {fail_count} failed")
+
     console.print(f"\n[green]✓ {success_count} succeeded[/green]", end="")
     if fail_count > 0:
         console.print(f", [red]✗ {fail_count} failed[/red]")
-        # Show first few errors
-        for r in results[:5]:
+        # Show first 5 in console
+        shown = 0
+        for r in results:
             if not r.success and r.error:
-                console.print(f"  [dim]{r.entry_id}: {r.error}[/dim]")
+                if shown < 5:
+                    error_line = r.error.split("\n")[0][:100]
+                    console.print(f"  [dim]{r.entry_id}: {error_line}[/dim]")
+                    shown += 1
+                # Log ALL failures with full error to file
+                logger.error(f"FAILED {r.entry_id}:\n{r.error}")
+        if fail_count > 5:
+            console.print(f"  [dim]... and {fail_count - 5} more (see log file)[/dim]")
+    else:
+        console.print()
+
+    return results
+
+
+def run_loader_streaming(
+    settings: Settings,
+    schema_def: SchemaDef,
+    jobs_iter: Iterator[Job],
+    process_func: Callable[[Job, SchemaDef, str], LoaderResult],
+    max_workers: int | None = None,
+    limit: int | None = None,
+    logger: logging.Logger | None = None,
+) -> list[LoaderResult]:
+    """Run loader with streaming job submission.
+
+    Jobs are submitted immediately as they are discovered, allowing
+    scanning and processing to happen in parallel.
+
+    Args:
+        settings: Application settings
+        schema_def: Schema definition
+        jobs_iter: Iterator yielding jobs (e.g., from CifWalk)
+        process_func: Function to process each job
+        max_workers: Max worker processes (default from settings)
+        limit: Optional limit on jobs to process
+        logger: Optional logger for file output
+
+    Returns:
+        List of results for each job
+    """
+    if logger is None:
+        logger = _default_logger
+    if max_workers is None:
+        max_workers = settings.rdb.get_workers()
+
+    conninfo = settings.rdb.constring
+    results: list[LoaderResult] = []
+    futures_to_job: dict[Any, Job] = {}
+
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        # Submit jobs as they come in
+        submitted = 0
+
+        if limit:
+            # With limit: no progress display, just submit
+            for job in jobs_iter:
+                future = executor.submit(process_func, job, schema_def, conninfo)
+                futures_to_job[future] = job
+                submitted += 1
+                if submitted >= limit:
+                    break
+        else:
+            # Full scan: submit all jobs (no total known)
+            with console.status("[bold]Scanning files..."):
+                for job in jobs_iter:
+                    future = executor.submit(process_func, job, schema_def, conninfo)
+                    futures_to_job[future] = job
+                    submitted += 1
+
+        console.print(
+            f"[bold]Processing {submitted} entries with {max_workers} workers...[/bold]"
+        )
+
+        # Wait for completion with Rich Progress
+        with Progress(
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeElapsedColumn(),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Processing", total=submitted)
+            for future in as_completed(futures_to_job):
+                job = futures_to_job[future]
+                try:
+                    result = future.result()
+                    results.append(result)
+                except Exception as e:
+                    results.append(
+                        LoaderResult(
+                            entry_id=job.entry_id,
+                            success=False,
+                            error=str(e),
+                        )
+                    )
+                progress.advance(task)
+
+    # Summary
+    success_count = sum(1 for r in results if r.success)
+    fail_count = len(results) - success_count
+
+    logger.info(f"Completed: {success_count} succeeded, {fail_count} failed")
+
+    console.print(f"\n[green]✓ {success_count} succeeded[/green]", end="")
+    if fail_count > 0:
+        console.print(f", [red]✗ {fail_count} failed[/red]")
+        # Show first 5 in console
+        shown = 0
+        for r in results:
+            if not r.success and r.error:
+                if shown < 5:
+                    # Show truncated error in console
+                    error_line = r.error.split("\n")[0][:100]
+                    console.print(f"  [dim]{r.entry_id}: {error_line}[/dim]")
+                    shown += 1
+                # Log ALL failures with full error to file
+                logger.error(f"FAILED {r.entry_id}:\n{r.error}")
+        if fail_count > 5:
+            console.print(f"  [dim]... and {fail_count - 5} more (see log file)[/dim]")
     else:
         console.print()
 

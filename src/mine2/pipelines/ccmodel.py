@@ -1,5 +1,6 @@
 """Chemical Component Model pipeline."""
 
+import logging
 import traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
@@ -13,8 +14,8 @@ from rich.progress import (
     TaskProgressColumn,
     TextColumn,
     TimeElapsedColumn,
+    track,
 )
-from tqdm import tqdm
 
 from mine2.config import PipelineConfig, Settings
 from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
@@ -242,7 +243,9 @@ class CcmodelCifPipeline:
         self.config = config
         self.schema_def = schema_def
 
-    def run(self, limit: int | None = None) -> list[LoaderResult]:
+    def run(
+        self, limit: int | None = None, logger: logging.Logger | None = None
+    ) -> list[LoaderResult]:
         """Run the pipeline."""
         cif_path = self._find_cif_file()
         if not cif_path:
@@ -268,7 +271,7 @@ class CcmodelCifPipeline:
         else:
             results = self._run_parallel(blocks, max_workers, conninfo)
 
-        self._print_summary(results)
+        self._print_summary(results, logger)
         return results
 
     def _run_sequential(
@@ -278,7 +281,7 @@ class CcmodelCifPipeline:
     ) -> list[LoaderResult]:
         """Run sequentially."""
         results: list[LoaderResult] = []
-        for block in tqdm(blocks, desc="Processing"):
+        for block in track(blocks, description="Processing...", console=console):
             result = _process_ccmodel_cif_block(block, self.schema_def, conninfo)
             results.append(result)
         return results
@@ -364,17 +367,32 @@ class CcmodelCifPipeline:
         console.print(f"  [red]CIF file not found in: {data_dir}[/red]")
         return None
 
-    def _print_summary(self, results: list[LoaderResult]) -> None:
+    def _print_summary(
+        self, results: list[LoaderResult], logger: logging.Logger | None = None
+    ) -> None:
         """Print processing summary."""
         success_count = sum(1 for r in results if r.success)
         fail_count = len(results) - success_count
 
+        if logger:
+            logger.info(f"Completed: {success_count} succeeded, {fail_count} failed")
+
         console.print(f"\n[green]✓ {success_count} succeeded[/green]", end="")
         if fail_count > 0:
             console.print(f", [red]✗ {fail_count} failed[/red]")
-            for r in results[:5]:
+            shown = 0
+            for r in results:
                 if not r.success and r.error:
-                    console.print(f"  [dim]{r.entry_id}: {r.error}[/dim]")
+                    if shown < 5:
+                        error_line = r.error.split("\n")[0][:100]
+                        console.print(f"  [dim]{r.entry_id}: {error_line}[/dim]")
+                        shown += 1
+                    if logger:
+                        logger.error(f"FAILED {r.entry_id}:\n{r.error}")
+            if fail_count > 5:
+                console.print(
+                    f"  [dim]... and {fail_count - 5} more (see log file)[/dim]"
+                )
         else:
             console.print()
 
@@ -384,10 +402,11 @@ def run(
     config: PipelineConfig,
     schema_def: SchemaDef,
     limit: int | None = None,
+    logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the ccmodel pipeline (mmJSON version)."""
     pipeline = CcmodelPipeline(settings, config, schema_def)
-    return pipeline.run(limit)
+    return pipeline.run(limit, logger=logger)
 
 
 def run_cif(
@@ -395,7 +414,8 @@ def run_cif(
     config: PipelineConfig,
     schema_def: SchemaDef,
     limit: int | None = None,
+    logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the ccmodel-cif pipeline (single CIF version)."""
     pipeline = CcmodelCifPipeline(settings, config, schema_def)
-    return pipeline.run(limit)
+    return pipeline.run(limit, logger=logger)
