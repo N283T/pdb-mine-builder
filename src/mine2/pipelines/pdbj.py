@@ -73,6 +73,8 @@ def _load_pdbj_data(
             entry_pk,
         )
         rows_inserted += inserted
+    # Free memory after processing
+    data.pop("entry", None)
 
     # Load brief_summary with bu_mw calculation
     brief_table = schema_def.get_table("brief_summary")

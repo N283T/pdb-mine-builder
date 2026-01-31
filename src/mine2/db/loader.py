@@ -36,16 +36,14 @@ class TableDef:
     foreign_keys: list[tuple[list[str], str, list[str]]] = field(default_factory=list)
     unique_keys: list[list[str]] = field(default_factory=list)
     indexes: list[str | list[str]] = field(default_factory=list)
-    # Cached properties (initialized in __post_init__)
-    _column_types: dict[str, str] = field(default_factory=dict, repr=False)
-    _column_names: set[str] = field(default_factory=set, repr=False)
+    # Cached properties (always computed from columns, not user-provided)
+    _column_types: dict[str, str] = field(init=False, default_factory=dict, repr=False)
+    _column_names: set[str] = field(init=False, default_factory=set, repr=False)
 
     def __post_init__(self) -> None:
-        """Initialize cached properties."""
-        if not self._column_types:
-            self._column_types = {name: ctype for name, ctype in self.columns}
-        if not self._column_names:
-            self._column_names = set(self._column_types.keys())
+        """Initialize cached properties from columns."""
+        self._column_types = {name: ctype for name, ctype in self.columns}
+        self._column_names = set(self._column_types.keys())
 
     @property
     def column_types(self) -> dict[str, str]:
@@ -65,13 +63,14 @@ class SchemaDef:
     schema_name: str
     primary_key: str
     tables: list[TableDef]
-    # Cached table lookup (initialized in __post_init__)
-    _table_cache: dict[str, TableDef] = field(default_factory=dict, repr=False)
+    # Cached table lookup (always computed from tables, not user-provided)
+    _table_cache: dict[str, TableDef] = field(
+        init=False, default_factory=dict, repr=False
+    )
 
     def __post_init__(self) -> None:
-        """Initialize cached properties."""
-        if not self._table_cache:
-            self._table_cache = {t.name: t for t in self.tables}
+        """Initialize cached properties from tables."""
+        self._table_cache = {t.name: t for t in self.tables}
 
     def get_table(self, name: str) -> TableDef | None:
         """Get table definition by name (O(1) cached lookup)."""
