@@ -1,6 +1,5 @@
 """PDBj pipeline - main PDB structure data loader."""
 
-import json
 import logging
 import traceback
 from pathlib import Path
@@ -13,17 +12,16 @@ from mine2.config import PipelineConfig, Settings
 from mine2.db.loader import (
     Job,
     LoaderResult,
-    ParsedEntry,
     SchemaDef,
     TableDef,
     bulk_upsert,
-    run_loader_chunked,
     run_loader_streaming,
 )
 from mine2.parsers.cif import parse_cif_file, parse_mmjson_file
 from mine2.parsers.mmjson import merge_data, normalize_column_name
 from mine2.pipelines.base import BasePipeline, transform_category
 from mine2.utils.assembly import calculate_mw_for_bu, hex_sha256
+from mine2.utils.brief_summary import generate_brief_summary
 from mine2.utils.patches import apply_patches
 
 console = Console()
@@ -81,7 +79,7 @@ def _load_pdbj_data(
     # Load brief_summary with bu_mw calculation
     brief_table = schema_def.get_table("brief_summary")
     if brief_table:
-        brief_rows = _transform_brief_summary(data, brief_table, entry_id, normalize_fn)
+        brief_rows = _transform_brief_summary(data, brief_table, entry_id)
         if brief_rows:
             columns = list(brief_rows[0].keys())
             inserted, _ = bulk_upsert(
@@ -124,59 +122,6 @@ def _load_pdbj_data(
     return rows_inserted
 
 
-def _prepare_pdbj_data(
-    data: dict[str, Any],
-    entry_id: str,
-    schema_def: SchemaDef,
-    normalize_fn: Any | None = None,
-) -> dict[str, list[dict]]:
-    """Prepare PDB data for batch insert (no DB operations).
-
-    Same logic as _load_pdbj_data but returns table_rows dict.
-
-    Args:
-        data: Parsed data dictionary
-        entry_id: PDB entry ID
-        schema_def: Schema definition with cached table lookups
-        normalize_fn: Column name normalizer (for mmJSON) or None (for CIF)
-
-    Returns:
-        Dict of table_name -> list of row dicts
-    """
-    table_rows: dict[str, list[dict]] = {}
-
-    # Prepare entry table
-    entry_rows = _transform_entry(data, entry_id)
-    if entry_rows:
-        table_rows["entry"] = entry_rows
-    data.pop("entry", None)
-
-    # Prepare brief_summary with bu_mw calculation
-    brief_table = schema_def.get_table("brief_summary")
-    if brief_table:
-        brief_rows = _transform_brief_summary(data, brief_table, entry_id, normalize_fn)
-        if brief_rows:
-            table_rows["brief_summary"] = brief_rows
-        data.pop("brief_summary", None)
-
-    # Prepare other categories
-    for table in schema_def.tables:
-        if table.name in ("entry", "brief_summary"):
-            continue
-
-        rows = data.get(table.name, [])
-        if not rows:
-            continue
-
-        category_rows = transform_category(rows, table, entry_id, "pdbid", normalize_fn)
-        if category_rows:
-            table_rows[table.name] = category_rows
-
-        data.pop(table.name, None)
-
-    return table_rows
-
-
 def _transform_entry(data: dict[str, Any], entry_id: str) -> list[dict]:
     """Transform entry data."""
     rows = data.get("entry", [])
@@ -198,30 +143,24 @@ def _transform_brief_summary(
     data: dict[str, Any],
     table: TableDef,
     entry_id: str,
-    normalize_fn: Any | None = None,
 ) -> list[dict]:
-    """Transform brief_summary with bu_mw calculation.
+    """Generate brief_summary from other categories.
 
-    Adds bu_mw (biological unit molecular weight) to plus_fields.
+    Generates all brief_summary fields from pdbx_database_status,
+    pdbx_audit_revision_history, citation, entity_poly, and other categories.
+    Also calculates bu_mw (biological unit molecular weight) and adds to plus_fields.
     """
-    rows = data.get("brief_summary", [])
-    result = transform_category(rows, table, entry_id, "pdbid", normalize_fn)
-
-    # Calculate bu_mw and add to plus_fields
+    # Calculate bu_mw
     bu_mw = calculate_mw_for_bu(data)
-    for row in result:
-        existing_plus = row.get("plus_fields")
-        if existing_plus:
-            try:
-                plus_data = json.loads(existing_plus)
-            except (json.JSONDecodeError, TypeError):
-                plus_data = {}
-        else:
-            plus_data = {}
-        plus_data["bu_mw"] = bu_mw
-        row["plus_fields"] = json.dumps(plus_data)
 
-    return result
+    # Generate brief_summary from other categories
+    row = generate_brief_summary(data, entry_id, bu_mw)
+
+    # Filter to only columns defined in schema
+    schema_columns = table.column_names
+    filtered_row = {k: v for k, v in row.items() if k in schema_columns}
+
+    return [filtered_row]
 
 
 class PdbjPipeline(BasePipeline):
@@ -327,55 +266,6 @@ class PdbjPipeline(BasePipeline):
                 success=False,
                 error=error_msg,
             )
-
-
-def _parse_pdbj_cif_entry(job: Job, schema_def: SchemaDef) -> ParsedEntry:
-    """Parse a single PDB CIF entry for chunked processing.
-
-    This function is called by workers in run_loader_chunked.
-    Returns parsed data without DB operations.
-    """
-    try:
-        # Parse CIF file
-        data = parse_cif_file(job.filepath)
-
-        # Merge with plus data if available
-        plus_path = job.extra.get("plus_path") if job.extra else None
-        if plus_path:
-            plus_data = parse_mmjson_file(plus_path)
-            data = merge_data(data, plus_data)
-
-        # Apply entry-specific patches
-        apply_patches(job.entry_id, data)
-
-        # Add hash columns to pdbx_struct_assembly_gen
-        if "pdbx_struct_assembly_gen" in data:
-            for row in data["pdbx_struct_assembly_gen"]:
-                row["_hash_asym_id_list"] = hex_sha256(row.get("asym_id_list", ""))
-                row["_hash_oper_expression"] = hex_sha256(
-                    row.get("oper_expression", "")
-                )
-
-        # Prepare data without DB insert
-        table_rows = _prepare_pdbj_data(
-            data=data,
-            entry_id=job.entry_id,
-            schema_def=schema_def,
-            normalize_fn=None,  # CIF: no normalization
-        )
-
-        return ParsedEntry(
-            entry_id=job.entry_id,
-            table_rows=table_rows,
-        )
-
-    except Exception as e:
-        error_msg = f"{e}\n{traceback.format_exc()}"
-        return ParsedEntry(
-            entry_id=job.entry_id,
-            table_rows={},
-            error=error_msg,
-        )
 
 
 class PdbjCifPipeline(BasePipeline):
@@ -525,56 +415,10 @@ def run_cif(
     config: PipelineConfig,
     schema_def: SchemaDef,
     limit: int | None = None,
-    chunk_size: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
-    """Run the pdbj-cif pipeline (CIF version).
-
-    Args:
-        settings: Application settings
-        config: Pipeline configuration
-        schema_def: Schema definition
-        limit: Optional limit on entries to process
-        chunk_size: If provided, use chunked batch insert mode
-        logger: Optional logger
-    """
+    """Run the pdbj-cif pipeline (CIF version)."""
     if logger is None:
         logger = _default_logger
-
     pipeline = PdbjCifPipeline(settings, config, schema_def)
-
-    if chunk_size:
-        # Chunked mode: collect jobs first, then process in chunks
-        console.print(f"  Data dir: {config.data}")
-        console.print(
-            f"  [dim]Using chunked batch insert (chunk_size={chunk_size})[/dim]"
-        )
-
-        data_dir = Path(config.data)
-        if not data_dir.exists():
-            console.print(f"  [red]Data directory not found: {data_dir}[/red]")
-            return []
-
-        # Collect jobs from iterator
-        jobs = []
-        for job in pipeline._iter_jobs():
-            jobs.append(job)
-            if limit and len(jobs) >= limit:
-                break
-
-        if not jobs:
-            console.print("  [yellow]No files found[/yellow]")
-            return []
-
-        return run_loader_chunked(
-            settings=settings,
-            schema_def=schema_def,
-            jobs=jobs,
-            parse_func=_parse_pdbj_cif_entry,
-            chunk_size=chunk_size,
-            max_workers=settings.rdb.get_workers(),
-            logger=logger,
-        )
-    else:
-        # Streaming mode (default)
-        return pipeline.run(limit, logger=logger)
+    return pipeline.run(limit, logger=logger)

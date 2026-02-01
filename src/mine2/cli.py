@@ -139,15 +139,6 @@ def update(
         bool,
         typer.Option("--verbose", "-v", help="Enable verbose (DEBUG) logging"),
     ] = False,
-    chunk_size: Annotated[
-        Optional[int],
-        typer.Option(
-            "--chunk-size",
-            min=1,
-            help="Batch insert chunk size for file-based pipelines (pdbj, contacts, vrpt). "
-            "Default: per-entry insert. Recommended: 1000-5000",
-        ),
-    ] = None,
 ) -> None:
     """Run database update pipelines."""
     from mine2.commands.update import run_update
@@ -172,14 +163,7 @@ def update(
         settings.rdb.nworkers = workers
 
     logger.info(f"Starting update: pipelines={pipelines or 'all'}, limit={limit}")
-    run_update(
-        settings,
-        pipelines or [],
-        limit=limit,
-        tables=tables,
-        chunk_size=chunk_size,
-        logger=logger,
-    )
+    run_update(settings, pipelines or [], limit=limit, tables=tables)
     logger.info("Update completed")
 
 
@@ -292,6 +276,24 @@ def reset(
 
     settings = load_config(config)
     run_reset(settings, schemas or [], force=force)
+
+
+@app.command()
+def stats(
+    config: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Config file path"),
+    ] = Path("config.yml"),
+) -> None:
+    """Show database statistics.
+
+    Displays table counts, row counts, and last update timestamps
+    for each schema in the database.
+    """
+    from mine2.commands.stats import run_stats
+
+    settings = load_config(config)
+    run_stats(settings)
 
 
 if __name__ == "__main__":
