@@ -8,6 +8,7 @@ from mine2.commands.utils import resolve_legacy_aliases
 from mine2.config import Settings
 from mine2.db.connection import close_pool, init_pool
 from mine2.db.loader import ensure_schema, load_schema_def
+from mine2.db.metadata import ensure_metadata_table, update_pipeline_metadata
 
 console = Console()
 
@@ -70,6 +71,9 @@ def run_update(
     # Initialize connection pool
     init_pool(settings.rdb.constring, max_size=settings.rdb.get_workers() + 2)
 
+    # Ensure metadata table exists
+    ensure_metadata_table(settings.rdb.constring)
+
     try:
         for pipeline_name in pipelines:
             console.print(f"\n[bold blue]Pipeline: {pipeline_name}[/bold blue]")
@@ -99,7 +103,7 @@ def run_update(
                 runner = getattr(pipeline_module, run_func)
                 # SIFTS pipeline accepts tables parameter
                 if pipeline_name == "sifts" and tables:
-                    runner(
+                    results = runner(
                         settings,
                         pipeline_config,
                         schema_def,
@@ -107,7 +111,17 @@ def run_update(
                         tables=tables,
                     )
                 else:
-                    runner(settings, pipeline_config, schema_def, limit=limit)
+                    results = runner(settings, pipeline_config, schema_def, limit=limit)
+
+                # Update pipeline metadata with timestamp
+                success_count = (
+                    len([r for r in results if r.success]) if results else None
+                )
+                update_pipeline_metadata(
+                    settings.rdb.constring,
+                    schema_def.schema_name,
+                    entries_count=success_count,
+                )
             except ImportError as e:
                 console.print(f"  [red]Pipeline not implemented: {e}[/red]")
             except Exception as e:
