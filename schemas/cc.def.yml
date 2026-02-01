@@ -472,21 +472,3 @@ tables:
     keywords:
       - first_instance_model_db_code
     pkout: true
-  - name: link_entry_pdbjplus
-    columns:
-      - - comp_id
-        - text
-      - - db_name
-        - text
-      - - db_accession
-        - text[]
-    primary_key:
-      - comp_id
-      - db_name
-    foreign_keys:
-      - - - comp_id
-        - brief_summary
-        - - comp_id
-    unique_keys: []
-    keywords:
-      - db_name

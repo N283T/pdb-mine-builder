@@ -10,6 +10,7 @@ Data format: RDF Turtle (.ttl.gz) files with simple triples.
 """
 
 import gzip
+import logging
 import re
 import traceback
 from pathlib import Path
@@ -33,7 +34,7 @@ TTL_FILES = {
     },
     "pdb_chain_interpro.ttl.gz": {
         "table": "pdb_interpro",
-        "pattern": r"<https://rdf\.wwpdb\.org/pdb/(\w+)/entity/(\d+)> rdfs:seeAlso <http://identifiers\.org/interpro/(IPR\d+)>",
+        "pattern": r"<https://rdf\.wwpdb\.org/pdb/(\w+)/entity/(\d+)> rdfs:seeAlso ipr:(IPR\d+)",
         "columns": ["pdbid", "entity_id", "interpro_id"],
         "pk": ["pdbid", "entity_id", "interpro_id"],
     },
@@ -77,13 +78,13 @@ TTL_FILES = {
     },
     "pdb_chain_cath_uniprot.ttl.gz": {
         "table": "pdb_cath",
-        "pattern": r"<https://rdf\.wwpdb\.org/pdb/(\w+)/entity/(\d+)> rdfs:seeAlso <http://identifiers\.org/cath/([\d\.]+)>",
+        "pattern": r"<https://rdf\.wwpdb\.org/pdb/(\w+)/entity/(\d+)> rdfs:seeAlso cath:(\w+)",
         "columns": ["pdbid", "entity_id", "cath_id"],
         "pk": ["pdbid", "entity_id", "cath_id"],
     },
     "pdb_chain_scop_uniprot.ttl.gz": {
         "table": "pdb_scop",
-        "pattern": r"<https://rdf\.wwpdb\.org/pdb/(\w+)/entity/(\d+)> rdfs:seeAlso <http://identifiers\.org/scop/(\d+)>",
+        "pattern": r"<https://rdf\.wwpdb\.org/pdb/(\w+)/entity/(\d+)> rdfs:seeAlso scop:(\d+)",
         "columns": ["pdbid", "entity_id", "scop_id"],
         "pk": ["pdbid", "entity_id", "scop_id"],
     },
@@ -190,6 +191,7 @@ def run(
     schema_def: SchemaDef,
     limit: int | None = None,
     tables: list[str] | None = None,
+    logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the SIFTS pipeline.
 
@@ -201,10 +203,12 @@ def run(
         schema_def: Database schema definition
         limit: Not used (SIFTS processes all data)
         tables: Optional list of table names to process (default: all)
+        logger: Optional logger for file output
 
     Returns:
         List of LoaderResult for each TTL file processed
     """
+    # SIFTS has its own processing loop, logger is accepted but not heavily used
     results: list[LoaderResult] = []
     data_dir = Path(config.data)
 
