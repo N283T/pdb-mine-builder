@@ -1,6 +1,6 @@
 rdb:
   # nworkers: auto-detected (use --workers to override)
-  constring: "dbname='mine2_test' user='pdbj' port=5433"
+  constring: "host='127.0.0.1' dbname='mine2_test' user='pdbj' password='test_password' port=15433"
 
 pipelines:
   # pdbj: test data uses mmJSON fixtures
@@ -34,7 +34,6 @@ pipelines:
     deffile: ${CWD}schemas/vrpt.def.yml
     data: ${CWD}data/vrpt-json/*
     data-cif: ${CWD}data/vrpt/*_validation.cif.gz
-    dic: ${CWD}dictionaries/mmcif_pdbx_vrpt.dic.gz
   contacts:
     deffile: ${CWD}schemas/contacts.def.yml
     data: ${CWD}data/contacts/

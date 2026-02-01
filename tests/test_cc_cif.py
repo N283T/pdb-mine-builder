@@ -355,8 +355,8 @@ class TestEnsureRdkitSetup:
             _ensure_rdkit_setup("test_conninfo")
 
         # Multiple calls should work (idempotent)
-        # Each invocation: extension + mol + 8 descriptors + functions = 11 calls
-        assert mock_cursor.execute.call_count == 22
+        # Each invocation: extension + mol + descriptor setup (12) + functions = 15 calls
+        assert mock_cursor.execute.call_count == 30
 
     def test_loads_rdkit_functions_sql(self) -> None:
         """Loads RDKit SQL functions from scripts/rdkit_functions.sql."""
@@ -371,8 +371,8 @@ class TestEnsureRdkitSetup:
             _ensure_rdkit_setup("test_conninfo")
 
         # Last call should be the functions SQL file
-        # Calls: extension + mol + 8 descriptors + functions = 11 total
-        assert mock_cursor.execute.call_count == 11
+        # Calls: extension + mol + descriptor setup (12) + functions = 15 total
+        assert mock_cursor.execute.call_count == 15
         last_call_sql = mock_cursor.execute.call_args_list[-1][0][0]
         # Verify it contains the function definitions
         assert "cc.similar_compounds" in last_call_sql
@@ -421,8 +421,10 @@ class TestAddRdkitDescriptorColumns:
 
         _add_rdkit_descriptor_columns(mock_cursor)
 
-        # Should execute 8 DDL statements (one per descriptor)
-        assert mock_cursor.execute.call_count == 8
+        # Should execute:
+        # 1 (check mol column) + 8 (check each descriptor) +
+        # 1 (trigger function) + 1 (trigger) + 1 (update) = 12
+        assert mock_cursor.execute.call_count == 12
 
         # Collect all SQL statements
         all_sql = " ".join(
@@ -467,8 +469,8 @@ class TestAddRdkitDescriptorColumns:
         for func in expected_functions:
             assert func in all_sql, f"Function {func} not found in SQL"
 
-    def test_uses_generated_always_as(self) -> None:
-        """Uses GENERATED ALWAYS AS for computed columns."""
+    def test_uses_trigger_for_descriptors(self) -> None:
+        """Uses trigger function to compute descriptor columns."""
         mock_cursor = MagicMock()
 
         _add_rdkit_descriptor_columns(mock_cursor)
@@ -477,8 +479,10 @@ class TestAddRdkitDescriptorColumns:
             str(call[0][0]) for call in mock_cursor.execute.call_args_list
         )
 
-        assert "GENERATED ALWAYS AS" in all_sql
-        assert "STORED" in all_sql
+        # Verify trigger function is created
+        assert "compute_rdkit_descriptors" in all_sql
+        assert "CREATE OR REPLACE FUNCTION" in all_sql
+        assert "TRIGGER" in all_sql
 
 
 SCRIPTS_DIR = Path(__file__).parent.parent / "scripts"
