@@ -1,6 +1,5 @@
 """PDBj pipeline - main PDB structure data loader."""
 
-import json
 import logging
 import traceback
 from pathlib import Path
@@ -22,6 +21,7 @@ from mine2.parsers.cif import parse_cif_file, parse_mmjson_file
 from mine2.parsers.mmjson import merge_data, normalize_column_name
 from mine2.pipelines.base import BasePipeline, transform_category
 from mine2.utils.assembly import calculate_mw_for_bu, hex_sha256
+from mine2.utils.brief_summary import generate_brief_summary
 from mine2.utils.patches import apply_patches
 
 console = Console()
@@ -79,7 +79,7 @@ def _load_pdbj_data(
     # Load brief_summary with bu_mw calculation
     brief_table = schema_def.get_table("brief_summary")
     if brief_table:
-        brief_rows = _transform_brief_summary(data, brief_table, entry_id, normalize_fn)
+        brief_rows = _transform_brief_summary(data, brief_table, entry_id)
         if brief_rows:
             columns = list(brief_rows[0].keys())
             inserted, _ = bulk_upsert(
@@ -143,30 +143,24 @@ def _transform_brief_summary(
     data: dict[str, Any],
     table: TableDef,
     entry_id: str,
-    normalize_fn: Any | None = None,
 ) -> list[dict]:
-    """Transform brief_summary with bu_mw calculation.
+    """Generate brief_summary from other categories.
 
-    Adds bu_mw (biological unit molecular weight) to plus_fields.
+    Generates all brief_summary fields from pdbx_database_status,
+    pdbx_audit_revision_history, citation, entity_poly, and other categories.
+    Also calculates bu_mw (biological unit molecular weight) and adds to plus_fields.
     """
-    rows = data.get("brief_summary", [])
-    result = transform_category(rows, table, entry_id, "pdbid", normalize_fn)
-
-    # Calculate bu_mw and add to plus_fields
+    # Calculate bu_mw
     bu_mw = calculate_mw_for_bu(data)
-    for row in result:
-        existing_plus = row.get("plus_fields")
-        if existing_plus:
-            try:
-                plus_data = json.loads(existing_plus)
-            except (json.JSONDecodeError, TypeError):
-                plus_data = {}
-        else:
-            plus_data = {}
-        plus_data["bu_mw"] = bu_mw
-        row["plus_fields"] = json.dumps(plus_data)
 
-    return result
+    # Generate brief_summary from other categories
+    row = generate_brief_summary(data, entry_id, bu_mw)
+
+    # Filter to only columns defined in schema
+    schema_columns = table.column_names
+    filtered_row = {k: v for k, v in row.items() if k in schema_columns}
+
+    return [filtered_row]
 
 
 class PdbjPipeline(BasePipeline):

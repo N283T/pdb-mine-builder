@@ -278,5 +278,23 @@ def reset(
     run_reset(settings, schemas or [], force=force)
 
 
+@app.command()
+def stats(
+    config: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Config file path"),
+    ] = Path("config.yml"),
+) -> None:
+    """Show database statistics.
+
+    Displays table counts, row counts, and last update timestamps
+    for each schema in the database.
+    """
+    from mine2.commands.stats import run_stats
+
+    settings = load_config(config)
+    run_stats(settings)
+
+
 if __name__ == "__main__":
     app()
