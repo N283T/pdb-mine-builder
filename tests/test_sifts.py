@@ -151,9 +151,10 @@ pdbr:101D dcterms:references pubmed:7711020 .
     def test_parse_interpro(self, tmp_path: Path) -> None:
         """Parse InterPro TTL content."""
         ttl_content = b"""@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix ipr: <http://identifiers.org/interpro/> .
 
-<https://rdf.wwpdb.org/pdb/101M/entity/1> rdfs:seeAlso <http://identifiers.org/interpro/IPR000971> .
-<https://rdf.wwpdb.org/pdb/102L/entity/1> rdfs:seeAlso <http://identifiers.org/interpro/IPR002196> .
+<https://rdf.wwpdb.org/pdb/101M/entity/1> rdfs:seeAlso ipr:IPR000971 .
+<https://rdf.wwpdb.org/pdb/102L/entity/1> rdfs:seeAlso ipr:IPR002196 .
 """
         filepath = tmp_path / "test.ttl.gz"
         with gzip.open(filepath, "wb") as f:
@@ -165,6 +166,44 @@ pdbr:101D dcterms:references pubmed:7711020 .
         assert len(results) == 2
         assert results[0] == ("101M", "1", "IPR000971")
         assert results[1] == ("102L", "1", "IPR002196")
+
+    def test_parse_cath(self, tmp_path: Path) -> None:
+        """Parse CATH TTL content."""
+        ttl_content = b"""@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix cath: <http://identifiers.org/cath.domain/> .
+
+<https://rdf.wwpdb.org/pdb/101M/entity/1> rdfs:seeAlso cath:101mA00 .
+<https://rdf.wwpdb.org/pdb/10GS/entity/1> rdfs:seeAlso cath:10gsA01 .
+"""
+        filepath = tmp_path / "test.ttl.gz"
+        with gzip.open(filepath, "wb") as f:
+            f.write(ttl_content)
+
+        pattern = TTL_FILES["pdb_chain_cath_uniprot.ttl.gz"]["pattern"]
+        results = list(parse_ttl_file(filepath, pattern))
+
+        assert len(results) == 2
+        assert results[0] == ("101M", "1", "101mA00")
+        assert results[1] == ("10GS", "1", "10gsA01")
+
+    def test_parse_scop(self, tmp_path: Path) -> None:
+        """Parse SCOP TTL content."""
+        ttl_content = b"""@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix scop: <http://identifiers.org/scop/> .
+
+<https://rdf.wwpdb.org/pdb/2O74/entity/1> rdfs:seeAlso scop:148659 .
+<https://rdf.wwpdb.org/pdb/1H36/entity/1> rdfs:seeAlso scop:90559 .
+"""
+        filepath = tmp_path / "test.ttl.gz"
+        with gzip.open(filepath, "wb") as f:
+            f.write(ttl_content)
+
+        pattern = TTL_FILES["pdb_chain_scop_uniprot.ttl.gz"]["pattern"]
+        results = list(parse_ttl_file(filepath, pattern))
+
+        assert len(results) == 2
+        assert results[0] == ("2O74", "1", "148659")
+        assert results[1] == ("1H36", "1", "90559")
 
     def test_parse_skips_non_matching_lines(self, tmp_path: Path) -> None:
         """Non-matching lines are skipped."""
