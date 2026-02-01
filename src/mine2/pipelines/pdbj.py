@@ -321,6 +321,9 @@ class PdbjCifPipeline(BasePipeline):
         allowing the streaming loader to submit them to workers.
         """
         data_dir = Path(self.config.data)
+        if not data_dir.exists():
+            return
+
         plus_dir = Path(self.config.data_plus) if self.config.data_plus else None
 
         for filepath_str in gemmi.CifWalk(str(data_dir)):
@@ -340,8 +343,17 @@ class PdbjCifPipeline(BasePipeline):
             )
 
     def find_jobs(self, limit: int | None = None) -> list[Job]:
-        """Find jobs (not used - streaming via run() instead)."""
-        return []
+        """Find CIF files using gemmi.CifWalk.
+
+        Note: run() uses streaming via _iter_jobs() for better performance,
+        but this method is provided for testing and compatibility.
+        """
+        jobs = []
+        for job in self._iter_jobs():
+            jobs.append(job)
+            if limit and len(jobs) >= limit:
+                break
+        return jobs
 
     def process_job(
         self,

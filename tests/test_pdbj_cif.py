@@ -416,33 +416,25 @@ class TestPdbjCifPipelineRun:
 
 
 class TestTransformEntry:
-    """Tests for PdbjCifPipeline._transform_entry()."""
+    """Tests for _transform_entry() function."""
 
-    def test_with_entry_data(self, tmp_path: Path) -> None:
+    def test_with_entry_data(self) -> None:
         """Transform entry with data."""
-        settings = create_test_settings(tmp_path)
-        config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
-
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        from mine2.pipelines.pdbj import _transform_entry
 
         data = {"entry": [{"id": "100D"}]}
-        result = pipeline._transform_entry(data, "100d")
+        result = _transform_entry(data, "100d")
 
         assert len(result) == 1
         assert result[0]["pdbid"] == "100d"
         assert result[0]["id"] == "100D"
 
-    def test_without_entry_data(self, tmp_path: Path) -> None:
+    def test_without_entry_data(self) -> None:
         """Transform entry creates fallback when no data."""
-        settings = create_test_settings(tmp_path)
-        config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
-
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        from mine2.pipelines.pdbj import _transform_entry
 
         data = {}
-        result = pipeline._transform_entry(data, "100d")
+        result = _transform_entry(data, "100d")
 
         assert len(result) == 1
         assert result[0]["pdbid"] == "100d"
