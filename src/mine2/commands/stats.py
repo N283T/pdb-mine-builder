@@ -1,14 +1,14 @@
 """Stats command - show database statistics."""
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import datetime
 
 import psycopg
-from psycopg import sql
 from rich.console import Console
 from rich.table import Table
 
 from mine2.config import Settings
+from mine2.db.metadata import get_pipeline_metadata
 
 console = Console()
 
@@ -67,56 +67,9 @@ def _get_row_count(cur: psycopg.Cursor, schema: str) -> int:
 
 
 def _get_last_updated(cur: psycopg.Cursor, schema: str) -> datetime | None:
-    """Get the last update timestamp from brief_summary table if it exists."""
-    # Check if brief_summary table exists
-    cur.execute(
-        """
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.tables
-            WHERE table_schema = %s AND table_name = 'brief_summary'
-        )
-        """,
-        (schema,),
-    )
-    result = cur.fetchone()
-    if not result or not result[0]:
-        return None
-
-    # Check if modification_date column exists
-    cur.execute(
-        """
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = %s AND table_name = 'brief_summary' AND column_name = 'modification_date'
-        )
-        """,
-        (schema,),
-    )
-    result = cur.fetchone()
-    if not result or not result[0]:
-        return None
-
-    # Get max modification_date
-    cur.execute(
-        sql.SQL("SELECT MAX(modification_date) FROM {}.{}").format(
-            sql.Identifier(schema), sql.Identifier("brief_summary")
-        )
-    )
-    result = cur.fetchone()
-    if result and result[0]:
-        val = result[0]
-        if isinstance(val, datetime):
-            return val
-        # Handle date type (convert to datetime)
-        if isinstance(val, date):
-            return datetime.combine(val, datetime.min.time())
-        # Handle date string
-        if isinstance(val, str):
-            try:
-                return datetime.fromisoformat(val)
-            except ValueError:
-                return None
-    return None
+    """Get the last update timestamp from pipeline_metadata table."""
+    last_updated, _ = get_pipeline_metadata(cur, schema)
+    return last_updated
 
 
 def run_stats(settings: Settings) -> None:
