@@ -482,3 +482,56 @@ def run_cif(
     """Run the prd-cif pipeline (CIF version)."""
     pipeline = PrdCifPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)
+
+
+def run_cif_load(
+    settings: Settings,
+    config: PipelineConfig,
+    meta: MetaData,
+    limit: int | None = None,
+    logger: logging.Logger | None = None,
+) -> list[LoaderResult]:
+    """Run prd pipeline in load mode (COPY, no delta sync)."""
+    pipeline = PrdCifPipeline(settings, config, meta)
+
+    prd_path, prdcc_path = pipeline._find_cif_files()
+    if not prd_path:
+        return []
+    console.print(f"  PRD CIF: {prd_path}")
+    if prdcc_path:
+        console.print(f"  PRDCC CIF: {prdcc_path}")
+    else:
+        console.print("  [yellow]PRDCC CIF not found, skipping PRDCC tables[/yellow]")
+
+    console.print("  Loading CIF files...")
+    prd_doc = gemmi.cif.read(str(prd_path))
+    console.print(f"  Found {len(prd_doc)} PRD entries")
+
+    prdcc_lookup: dict[str, gemmi.cif.Block] = {}
+    if prdcc_path:
+        prdcc_doc = gemmi.cif.read(str(prdcc_path))
+        for block in prdcc_doc:
+            prdcc_lookup[block.name] = block
+        console.print(f"  Found {len(prdcc_lookup)} PRDCC entries")
+
+    block_pairs: list[tuple[gemmi.cif.Block, gemmi.cif.Block | None]] = []
+    for prd_block in prd_doc:
+        prdcc_id = prd_block.name.replace("PRD_", "PRDCC_")
+        prdcc_block = prdcc_lookup.get(prdcc_id)
+        block_pairs.append((prd_block, prdcc_block))
+
+    if limit:
+        block_pairs = block_pairs[:limit]
+        console.print(f"  Processing {len(block_pairs)} (limited)")
+
+    max_workers = settings.rdb.get_workers()
+    conninfo = settings.rdb.constring
+
+    console.print("[bold]Phase 1: Parsing blocks...[/bold]")
+    parsed_results = pipeline._parse_all_blocks(block_pairs, max_workers)
+
+    console.print("[bold]Phase 2: COPY inserting...[/bold]")
+    results = pipeline._batch_copy_insert(parsed_results, conninfo)
+
+    pipeline._print_summary(results, logger)
+    return results

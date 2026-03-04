@@ -38,6 +38,7 @@ from mine2.db.delta import (
 from mine2.db.loader import (
     Job,
     LoaderResult,
+    bulk_insert,
     bulk_upsert,
     delete_missing_entries,
     get_all_tables,
@@ -666,3 +667,73 @@ class BaseCifBatchPipeline:
             keep_entry_ids=[r.entry_id for r in results],
         )
         console.print(f"  [dim]Pruned stale rows: {deleted}[/dim]")
+
+    def _batch_copy_insert(
+        self,
+        parsed_results: list[tuple[str, dict[str, list[dict]], str | None]],
+        conninfo: str,
+    ) -> list[LoaderResult]:
+        """Accumulate rows from parsed blocks and bulk COPY insert per table.
+
+        Unlike _batch_insert (upsert), this uses COPY protocol for faster
+        insertion into already-truncated tables. No conflict handling needed.
+        """
+        table_rows: dict[str, list[dict]] = {}
+        results: list[LoaderResult] = []
+
+        for entry_id, rows_by_table, error in parsed_results:
+            if error:
+                results.append(
+                    LoaderResult(entry_id=entry_id, success=False, error=error)
+                )
+                continue
+
+            for table_name, rows in rows_by_table.items():
+                if table_name not in table_rows:
+                    table_rows[table_name] = []
+                table_rows[table_name].extend(rows)
+
+            results.append(
+                LoaderResult(entry_id=entry_id, success=True, rows_inserted=0)
+            )
+
+        current_table_name = "<unknown>"
+        try:
+            for sa_table in track(
+                get_all_tables(self.meta),
+                description="COPY inserting...",
+                console=console,
+            ):
+                current_table_name = sa_table.name
+                rows = table_rows.get(sa_table.name, [])
+                if not rows:
+                    continue
+
+                all_columns: set[str] = set()
+                for row in rows:
+                    all_columns.update(row.keys())
+
+                pk_col = get_entry_pk(self.meta)
+                columns = [pk_col] + sorted(c for c in all_columns if c != pk_col)
+                row_tuples = [tuple(r.get(c) for c in columns) for r in rows]
+
+                bulk_insert(
+                    conninfo,
+                    self.meta.schema,
+                    sa_table.name,
+                    columns,
+                    row_tuples,
+                )
+                console.print(f"  [dim]{sa_table.name}: {len(rows)} rows[/dim]")
+        except Exception as e:
+            error_msg = (
+                f"Bulk COPY insert failed on table {current_table_name}: "
+                f"{e}\n{traceback.format_exc()}"
+            )
+            _default_logger.error(error_msg)
+            results = [
+                LoaderResult(entry_id=r.entry_id, success=False, error=error_msg)
+                for r in results
+            ]
+
+        return results
