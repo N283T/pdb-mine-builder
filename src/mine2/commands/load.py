@@ -14,9 +14,10 @@ from mine2.models import get_metadata
 
 console = Console()
 
-# Pipelines supported by load command (CIF only).
+# Pipelines supported by load command.
+# Each pipeline module must expose a run_cif_load() function.
 # For these pipelines, schema name matches pipeline name.
-LOAD_PIPELINES = ["pdbj", "cc", "ccmodel", "prd"]
+LOAD_PIPELINES = ["pdbj", "cc", "ccmodel", "prd", "vrpt", "contacts", "sifts"]
 
 
 def run_load(

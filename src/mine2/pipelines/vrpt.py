@@ -1,5 +1,6 @@
 """Validation Report pipeline - using gemmi to parse CIF directly."""
 
+import logging
 import traceback
 from pathlib import Path
 from typing import Any
@@ -12,8 +13,10 @@ from mine2.config import PipelineConfig, Settings
 from mine2.db.loader import (
     Job,
     LoaderResult,
+    bulk_copy_entry,
     get_all_tables,
     get_entry_pk,
+    run_loader_streaming,
 )
 from mine2.parsers.cif import parse_cif_file
 from mine2.pipelines.base import BasePipeline, sync_entry_tables, transform_category
@@ -162,3 +165,107 @@ def run(
     """Run the vrpt pipeline."""
     pipeline = VrptPipeline(settings, config, meta)
     return pipeline.run(limit)
+
+
+# =============================================================================
+# Load mode (COPY protocol, no delta sync)
+# =============================================================================
+
+_default_logger = logging.getLogger("mine2.pipelines.vrpt")
+
+
+def _build_vrpt_table_rows(
+    job: Job,
+    meta: MetaData,
+) -> dict[str, list[dict[str, Any]]]:
+    """Parse CIF and build table_rows dict for a vrpt entry."""
+    entry_pk = get_entry_pk(meta)
+    data = parse_cif_file(job.filepath)
+    table_rows: dict[str, list[dict[str, Any]]] = {}
+
+    # brief_summary
+    table_rows["brief_summary"] = [{"pdbid": job.entry_id}]
+
+    # All other tables
+    for table in get_all_tables(meta):
+        if table.name == "brief_summary":
+            continue
+        rows = data.get(table.name, [])
+        category_rows = transform_category(rows, table, job.entry_id, entry_pk)
+        if category_rows:
+            table_rows[table.name] = category_rows
+
+    return table_rows
+
+
+def _process_vrpt_load(
+    job: Job,
+    schema_name: str,
+    conninfo: str,
+) -> LoaderResult:
+    """Worker: parse CIF -> build table_rows -> bulk_copy_entry."""
+    try:
+        from mine2.models import get_metadata
+
+        meta = get_metadata(schema_name)
+        table_rows = _build_vrpt_table_rows(job, meta)
+
+        inserted = bulk_copy_entry(
+            conninfo=conninfo,
+            schema=meta.schema,
+            entry_id=job.entry_id,
+            pk_column=get_entry_pk(meta),
+            table_rows=table_rows,
+        )
+
+        return LoaderResult(
+            entry_id=job.entry_id,
+            success=True,
+            rows_inserted=inserted,
+        )
+
+    except Exception as e:
+        error_msg = f"{e}\n{traceback.format_exc()}"
+        return LoaderResult(
+            entry_id=job.entry_id,
+            success=False,
+            error=error_msg,
+        )
+
+
+def run_cif_load(
+    settings: Settings,
+    config: PipelineConfig,
+    meta: MetaData,
+    limit: int | None = None,
+    logger: logging.Logger | None = None,
+) -> list[LoaderResult]:
+    """Run vrpt pipeline in load mode (COPY, no delta sync)."""
+    if logger is None:
+        logger = _default_logger
+
+    console.print(f"  Data dir: {config.data}")
+
+    pipeline = VrptPipeline(settings, config, meta)
+
+    data_dir = Path(config.data)
+    if not data_dir.exists():
+        console.print(f"  [red]Data directory not found: {data_dir}[/red]")
+        return []
+
+    def _iter_jobs():
+        for filepath in gemmi.CifWalk(str(data_dir)):
+            if not pipeline._is_validation_file(filepath):
+                continue
+            entry_id = pipeline.extract_entry_id(filepath)
+            yield Job(entry_id=entry_id, filepath=Path(filepath))
+
+    return run_loader_streaming(
+        settings=settings,
+        schema_name=meta.schema,
+        jobs_iter=_iter_jobs(),
+        process_func=_process_vrpt_load,
+        max_workers=settings.rdb.get_workers(),
+        limit=limit,
+        logger=logger,
+    )

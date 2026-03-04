@@ -21,7 +21,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from sqlalchemy import MetaData
 
 from mine2.config import PipelineConfig, Settings
-from mine2.db.loader import LoaderResult, bulk_upsert
+from mine2.db.loader import LoaderResult, bulk_insert, bulk_upsert
 
 console = Console()
 
@@ -98,6 +98,19 @@ TTL_FILES = {
 }
 
 
+_INT_COLUMNS = frozenset(
+    {
+        "entity_id",
+        "taxonomy_id",
+        "pubmed_id",
+        "pdb_start",
+        "pdb_end",
+        "uniprot_start",
+        "uniprot_end",
+    }
+)
+
+
 def parse_ttl_file(filepath: Path, pattern: str) -> Iterator[tuple]:
     """Parse TTL file and yield matching tuples.
 
@@ -115,6 +128,41 @@ def parse_ttl_file(filepath: Path, pattern: str) -> Iterator[tuple]:
             match = regex.search(line)
             if match:
                 yield match.groups()
+
+
+def _convert_ttl_rows(
+    filepath: Path,
+    config: dict,
+    batch_size: int = 10000,
+) -> Iterator[list[tuple]]:
+    """Parse TTL file and yield batches of type-converted rows.
+
+    Shared by load_ttl_file (upsert) and load_ttl_file_copy (insert).
+
+    Yields:
+        Lists of converted row tuples, each up to batch_size rows.
+    """
+    pattern = config["pattern"]
+    columns = config["columns"]
+
+    batch: list[tuple] = []
+    for row in parse_ttl_file(filepath, pattern):
+        converted = []
+        for col, val in zip(columns, row):
+            if col in _INT_COLUMNS:
+                converted.append(int(val))
+            elif col == "pdbid":
+                converted.append(val.lower())
+            else:
+                converted.append(val)
+        batch.append(tuple(converted))
+
+        if len(batch) >= batch_size:
+            yield batch
+            batch = []
+
+    if batch:
+        yield batch
 
 
 def load_ttl_file(
@@ -137,46 +185,13 @@ def load_ttl_file(
         Tuple of (rows_inserted, rows_updated)
     """
     table = config["table"]
-    pattern = config["pattern"]
     columns = config["columns"]
     pk = config["pk"]
 
     total_inserted = 0
     total_updated = 0
-    batch: list[tuple] = []
 
-    # Columns that should be converted to int
-    int_columns = {
-        "entity_id",
-        "taxonomy_id",
-        "pubmed_id",
-        "pdb_start",
-        "pdb_end",
-        "uniprot_start",
-        "uniprot_end",
-    }
-
-    for row in parse_ttl_file(filepath, pattern):
-        converted = []
-        for col, val in zip(columns, row):
-            if col in int_columns:
-                converted.append(int(val))
-            elif col == "pdbid":
-                converted.append(val.lower())
-            else:
-                converted.append(val)
-        batch.append(tuple(converted))
-
-        if len(batch) >= batch_size:
-            inserted, updated = bulk_upsert(
-                conninfo, schema_name, table, columns, batch, pk
-            )
-            total_inserted += inserted
-            total_updated += updated
-            batch = []
-
-    # Insert remaining rows
-    if batch:
+    for batch in _convert_ttl_rows(filepath, config, batch_size):
         inserted, updated = bulk_upsert(
             conninfo, schema_name, table, columns, batch, pk
         )
@@ -275,6 +290,134 @@ def run(
                         entry_id=filename,
                         success=True,
                         rows_inserted=inserted + updated,
+                    )
+                )
+            except Exception as e:
+                error_msg = f"{e}\n{traceback.format_exc()}"
+                progress.update(task, description=f"  [red]✗[/red] {table}: {e}")
+                results.append(
+                    LoaderResult(
+                        entry_id=filename,
+                        success=False,
+                        error=error_msg,
+                    )
+                )
+
+    # Summary
+    success_count = sum(1 for r in results if r.success)
+    total_rows = sum(r.rows_inserted for r in results if r.success)
+    console.print(
+        f"\n  [bold]Summary:[/bold] {success_count}/{len(results)} files, {total_rows:,} total rows"
+    )
+
+    return results
+
+
+# =============================================================================
+# Load mode (COPY protocol via bulk_insert, no upsert)
+# =============================================================================
+
+
+def load_ttl_file_copy(
+    filepath: Path,
+    config: dict,
+    schema_name: str,
+    conninfo: str,
+    batch_size: int = 10000,
+) -> int:
+    """Load a TTL file using bulk_insert (COPY) instead of bulk_upsert.
+
+    Same parsing as load_ttl_file but uses COPY for initial load performance.
+
+    Args:
+        filepath: Path to .ttl.gz file
+        config: TTL file configuration (table, pattern, columns)
+        schema_name: Database schema name
+        conninfo: Database connection string
+        batch_size: Number of rows per batch insert
+
+    Returns:
+        Total rows inserted
+    """
+    table = config["table"]
+    columns = config["columns"]
+
+    total_inserted = 0
+    for batch in _convert_ttl_rows(filepath, config, batch_size):
+        total_inserted += bulk_insert(conninfo, schema_name, table, columns, batch)
+
+    return total_inserted
+
+
+def run_cif_load(
+    settings: Settings,
+    config: PipelineConfig,
+    meta: MetaData,
+    limit: int | None = None,
+    logger: logging.Logger | None = None,
+) -> list[LoaderResult]:
+    """Run SIFTS pipeline in load mode (COPY, no upsert).
+
+    Args:
+        settings: Application settings
+        config: Pipeline configuration
+        meta: SQLAlchemy MetaData instance
+        limit: Not used (SIFTS processes all data)
+        logger: Optional logger for file output
+
+    Returns:
+        List of LoaderResult for each TTL file processed
+    """
+    results: list[LoaderResult] = []
+    data_dir = Path(config.data)
+
+    if not data_dir.exists():
+        console.print(f"  [red]Data directory not found: {data_dir}[/red]")
+        return results
+
+    console.print(f"  Data directory: {data_dir}")
+    console.print(f"  Processing {len(TTL_FILES)} TTL files (load mode)...")
+
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        for filename, ttl_config in TTL_FILES.items():
+            filepath = data_dir / filename
+            table = ttl_config["table"]
+
+            task = progress.add_task(f"  Loading {table}...", total=None)
+
+            if not filepath.exists():
+                progress.update(
+                    task, description=f"  [yellow]⚠[/yellow] {table} (file not found)"
+                )
+                results.append(
+                    LoaderResult(
+                        entry_id=filename,
+                        success=False,
+                        error=f"File not found: {filepath}",
+                    )
+                )
+                continue
+
+            try:
+                inserted = load_ttl_file_copy(
+                    filepath,
+                    ttl_config,
+                    meta.schema,
+                    settings.rdb.constring,
+                )
+                progress.update(
+                    task,
+                    description=f"  [green]✓[/green] {table}: {inserted:,} inserted",
+                )
+                results.append(
+                    LoaderResult(
+                        entry_id=filename,
+                        success=True,
+                        rows_inserted=inserted,
                     )
                 )
             except Exception as e:
