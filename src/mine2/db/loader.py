@@ -1,6 +1,7 @@
 """Core data loader with parallel processing support."""
 
 import logging
+import re
 from collections.abc import Iterator
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -182,22 +183,8 @@ def create_table(cur: Any, schema: str, table: TableDef) -> None:
     )
     cur.execute(create_sql)
 
-    # Create indexes
-    for idx in table.indexes:
-        if isinstance(idx, list):
-            idx_name = f"idx_{table_name_lower}_{'_'.join(idx)}"
-            idx_cols = sql.SQL(", ").join(sql.Identifier(c) for c in idx)
-        else:
-            idx_name = f"idx_{table_name_lower}_{idx}"
-            idx_cols = sql.Identifier(idx)
-
-        cur.execute(
-            sql.SQL("CREATE INDEX IF NOT EXISTS {} ON {} ({})").format(
-                sql.Identifier(idx_name),
-                sql.Identifier(schema, table_name_lower),
-                idx_cols,
-            )
-        )
+    # Create indexes (reuse shared helper)
+    _ensure_indexes(cur, schema, table_name_lower, table.indexes)
 
     console.print(f"  Created table: {schema}.{table_name_lower}")
 
@@ -237,6 +224,9 @@ def migrate_table_schema(cur: Any, schema: str, table: TableDef) -> None:
     for col_name in current_columns:
         if col_name in expected_columns:
             continue
+        console.print(
+            f"  [yellow]DROP COLUMN {schema}.{table_name_lower}.{col_name}[/yellow]"
+        )
         cur.execute(
             sql.SQL("ALTER TABLE {} DROP COLUMN {}").format(
                 full_table, sql.Identifier(col_name)
@@ -247,6 +237,9 @@ def migrate_table_schema(cur: Any, schema: str, table: TableDef) -> None:
     for col_name, col_type in expected_columns.items():
         if col_name in current_columns:
             continue
+        console.print(
+            f"  [dim]ADD COLUMN {schema}.{table_name_lower}.{col_name} {col_type}[/dim]"
+        )
         cur.execute(
             sql.SQL("ALTER TABLE {} ADD COLUMN {} {}").format(
                 full_table,
@@ -260,16 +253,19 @@ def migrate_table_schema(cur: Any, schema: str, table: TableDef) -> None:
         current_type = current_columns.get(col_name)
         if current_type is None or current_type == col_type:
             continue
-        # Match original updater behavior: incompatible casts become NULL.
-        cur.execute(
-            sql.SQL(
-                "ALTER TABLE {} ALTER COLUMN {} DROP DEFAULT"
-            ).format(full_table, sql.Identifier(col_name))
+        # USING NULL discards all existing values by setting them to NULL
+        # before changing the column type.
+        console.print(
+            f"  [yellow]ALTER COLUMN {schema}.{table_name_lower}.{col_name} "
+            f"TYPE {current_type} → {col_type} (USING NULL: existing values discarded)[/yellow]"
         )
         cur.execute(
-            sql.SQL(
-                "ALTER TABLE {} ALTER COLUMN {} TYPE {} USING NULL"
-            ).format(
+            sql.SQL("ALTER TABLE {} ALTER COLUMN {} DROP DEFAULT").format(
+                full_table, sql.Identifier(col_name)
+            )
+        )
+        cur.execute(
+            sql.SQL("ALTER TABLE {} ALTER COLUMN {} TYPE {} USING NULL").format(
                 full_table,
                 sql.Identifier(col_name),
                 sql.SQL(col_type),
@@ -282,15 +278,30 @@ def migrate_table_schema(cur: Any, schema: str, table: TableDef) -> None:
 
 
 def _normalize_type_name(type_name: str) -> str:
-    """Normalize PostgreSQL type names for comparison."""
+    """Normalize PostgreSQL type aliases to canonical names for comparison.
+
+    pg_catalog.format_type() returns verbose names (e.g. 'character varying')
+    while schema YAMLs use short names (e.g. 'text'). This mapping ensures
+    both sides compare equal.
+    """
     t = type_name.strip().lower()
-    return {
-        "character": "char",
+
+    # Static alias map (pg_catalog verbose → schema canonical)
+    static_map = {
         "character varying": "text",
-        "boolean[]": "boolean[]",
-        "integer[]": "integer[]",
-        "text[]": "text[]",
-    }.get(t, t)
+        "character": "char",
+        "serial": "integer",
+        "bigserial": "bigint",
+    }
+    if t in static_map:
+        return static_map[t]
+
+    # Handle character(N) → char(N) pattern
+    m = re.match(r"^character\((\d+)\)$", t)
+    if m:
+        return f"char({m.group(1)})"
+
+    return t
 
 
 def _reconcile_primary_key(
@@ -751,6 +762,13 @@ def delete_missing_entries(
     total_deleted = 0
     keep_ids = list(dict.fromkeys(keep_entry_ids))
 
+    if not keep_ids:
+        _default_logger.warning(
+            "delete_missing_entries called with empty keep_entry_ids; "
+            "this would delete ALL rows from %s tables",
+            len(tables),
+        )
+
     with psycopg.connect(conninfo) as conn:
         with conn.cursor() as cur:
             for table in tables:
@@ -759,12 +777,17 @@ def delete_missing_entries(
                 pk_col = sql.Identifier(pk_column)
 
                 if keep_ids:
+                    # Use a temp table for efficient NOT IN filtering
+                    cur.execute("CREATE TEMP TABLE _keep_ids (id text) ON COMMIT DROP")
+                    with cur.copy("COPY _keep_ids (id) FROM STDIN") as copy:
+                        for kid in keep_ids:
+                            copy.write_row((kid,))
                     cur.execute(
-                        sql.SQL("DELETE FROM {} WHERE {} <> ALL(%s)").format(
-                            full_table, pk_col
-                        ),
-                        (keep_ids,),
+                        sql.SQL(
+                            "DELETE FROM {} WHERE {} NOT IN (SELECT id FROM _keep_ids)"
+                        ).format(full_table, pk_col)
                     )
+                    cur.execute("DROP TABLE _keep_ids")
                 else:
                     cur.execute(sql.SQL("DELETE FROM {}").format(full_table))
                 total_deleted += cur.rowcount

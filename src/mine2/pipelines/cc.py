@@ -27,11 +27,15 @@ from mine2.db.loader import (
     SchemaDef,
     TableDef,
     bulk_upsert,
-    delete_missing_entries,
 )
 from mine2.parsers.cif import parse_block
 from mine2.parsers.mmjson import normalize_column_name
-from mine2.pipelines.base import BasePipeline, sync_entry_tables, transform_category
+from mine2.pipelines.base import (
+    BaseCifBatchPipeline,
+    BasePipeline,
+    sync_entry_tables,
+    transform_category,
+)
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -275,7 +279,7 @@ class CcPipeline(BasePipeline):
         return transform_category(rows, table, comp_id, pk_col, normalize_column_name)
 
 
-class CcCifPipeline:
+class CcCifPipeline(BaseCifBatchPipeline):
     """Pipeline for loading Chemical Components from single CIF file.
 
     Uses components.cif.gz which contains all components in one file.
@@ -287,16 +291,6 @@ class CcCifPipeline:
     """
 
     name = "cc-cif"
-
-    def __init__(
-        self,
-        settings: Settings,
-        config: PipelineConfig,
-        schema_def: SchemaDef,
-    ):
-        self.settings = settings
-        self.config = config
-        self.schema_def = schema_def
 
     def run(
         self, limit: int | None = None, logger: logging.Logger | None = None
@@ -324,24 +318,12 @@ class CcCifPipeline:
         console.print("[bold]Phase 1: Parsing blocks...[/bold]")
         parsed_results = self._parse_all_blocks(blocks, max_workers)
 
-        # Phase 2: Batch insert all rows per table
-        console.print("[bold]Phase 2: Batch inserting...[/bold]")
+        # Phase 2: Batch upsert all rows per table
+        console.print("[bold]Phase 2: Batch upserting...[/bold]")
         results = self._batch_insert(parsed_results, conninfo)
 
-        # Phase 3: Prune stale rows (only for full successful reloads)
-        if limit is None and all(r.success for r in results):
-            deleted = delete_missing_entries(
-                conninfo=conninfo,
-                schema=self.schema_def.schema_name,
-                pk_column=self.schema_def.primary_key,
-                tables=[t.name for t in self.schema_def.tables],
-                keep_entry_ids=[r.entry_id for r in results],
-            )
-            console.print(f"  [dim]Pruned stale rows: {deleted}[/dim]")
-        elif limit is not None:
-            console.print("  [dim]Skipping prune (limited run)[/dim]")
-        else:
-            console.print("  [yellow]Skipping prune due to failed entries[/yellow]")
+        # Phase 3: Prune stale rows
+        self._prune_stale_rows(results, conninfo, limit)
 
         self._print_summary(results, logger)
         return results
@@ -388,104 +370,6 @@ class CcCifPipeline:
                     progress.advance(task)
 
         return results
-
-    def _batch_insert(
-        self,
-        parsed_results: list[tuple[str, dict[str, list[dict]], str | None]],
-        conninfo: str,
-    ) -> list[LoaderResult]:
-        """Batch insert all rows per table."""
-        # Accumulate all rows per table
-        table_rows: dict[str, list[dict]] = {}
-        results: list[LoaderResult] = []
-
-        for comp_id, rows_by_table, error in parsed_results:
-            if error:
-                results.append(
-                    LoaderResult(entry_id=comp_id, success=False, error=error)
-                )
-                continue
-
-            # Accumulate rows
-            for table_name, rows in rows_by_table.items():
-                if table_name not in table_rows:
-                    table_rows[table_name] = []
-                table_rows[table_name].extend(rows)
-
-            # Track success (rows will be counted after insert)
-            results.append(
-                LoaderResult(entry_id=comp_id, success=True, rows_inserted=0)
-            )
-
-        # Bulk insert per table (with error handling for test compatibility)
-        try:
-            for table in track(
-                self.schema_def.tables, description="Inserting...", console=console
-            ):
-                rows = table_rows.get(table.name, [])
-                if not rows:
-                    continue
-
-                # Collect all unique columns across all rows
-                # (different components may have different columns)
-                all_columns: set[str] = set()
-                for row in rows:
-                    all_columns.update(row.keys())
-
-                # Sort columns for consistent ordering (PK column first)
-                pk_col = self.schema_def.primary_key
-                columns = [pk_col] + sorted(c for c in all_columns if c != pk_col)
-
-                # Build tuples with None for missing columns
-                row_tuples = [tuple(r.get(c) for c in columns) for r in rows]
-
-                bulk_upsert(
-                    conninfo,
-                    self.schema_def.schema_name,
-                    table.name,
-                    columns,
-                    row_tuples,
-                    table.primary_key,
-                )
-                console.print(f"  [dim]{table.name}: {len(rows)} rows[/dim]")
-        except Exception as e:
-            # Mark all results as failed if bulk insert fails
-            error_msg = str(e)
-            results = [
-                LoaderResult(entry_id=r.entry_id, success=False, error=error_msg)
-                for r in results
-            ]
-
-        return results
-
-    def _print_summary(
-        self, results: list[LoaderResult], logger: logging.Logger | None = None
-    ) -> None:
-        """Print processing summary."""
-        success_count = sum(1 for r in results if r.success)
-        fail_count = len(results) - success_count
-
-        if logger:
-            logger.info(f"Completed: {success_count} succeeded, {fail_count} failed")
-
-        console.print(f"\n[green]✓ {success_count} succeeded[/green]", end="")
-        if fail_count > 0:
-            console.print(f", [red]✗ {fail_count} failed[/red]")
-            shown = 0
-            for r in results:
-                if not r.success and r.error:
-                    if shown < 5:
-                        error_line = r.error.split("\n")[0][:100]
-                        console.print(f"  [dim]{r.entry_id}: {error_line}[/dim]")
-                        shown += 1
-                    if logger:
-                        logger.error(f"FAILED {r.entry_id}:\n{r.error}")
-            if fail_count > 5:
-                console.print(
-                    f"  [dim]... and {fail_count - 5} more (see log file)[/dim]"
-                )
-        else:
-            console.print()
 
     def _find_cif_file(self) -> Path | None:
         """Find components.cif.gz file in data directory."""
