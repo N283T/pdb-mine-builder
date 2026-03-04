@@ -17,9 +17,10 @@ from pathlib import Path
 from typing import Any
 
 from rich.console import Console
+from sqlalchemy import MetaData
 
 from mine2.config import PipelineConfig, Settings
-from mine2.db.loader import Job, LoaderResult, SchemaDef
+from mine2.db.loader import Job, LoaderResult
 from mine2.pipelines.base import BasePipeline, sync_entry_tables
 
 console = Console()
@@ -50,11 +51,15 @@ class ContactsPipeline(BasePipeline):
     def process_job(
         self,
         job: Job,
-        schema_def: SchemaDef,
+        schema_name: str,
         conninfo: str,
     ) -> LoaderResult:
         """Process contact data for a single entry."""
         try:
+            from mine2.models import get_metadata
+
+            meta = get_metadata(schema_name)
+
             # Load JSON file (not mmJSON format)
             data = self._load_contacts_file(job.filepath)
             table_rows: dict[str, list[dict[str, Any]]] = {}
@@ -70,7 +75,7 @@ class ContactsPipeline(BasePipeline):
 
             inserted, updated, _deleted = sync_entry_tables(
                 conninfo=conninfo,
-                schema_def=schema_def,
+                meta=meta,
                 entry_id=job.entry_id,
                 table_rows=table_rows,
             )
@@ -193,10 +198,10 @@ class ContactsPipeline(BasePipeline):
 def run(
     settings: Settings,
     config: PipelineConfig,
-    schema_def: SchemaDef,
+    meta: MetaData,
     limit: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the contacts pipeline."""
-    pipeline = ContactsPipeline(settings, config, schema_def)
+    pipeline = ContactsPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)

@@ -11,9 +11,19 @@ from pathlib import Path
 from unittest.mock import patch
 
 import gemmi
+from sqlalchemy import (
+    BigInteger,
+    Column,
+    Double,
+    MetaData,
+    PrimaryKeyConstraint,
+    Table,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
 
 from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import Job, SchemaDef, TableDef
+from mine2.db.loader import Job
 from mine2.pipelines.pdbj import PdbjCifPipeline, PdbjPipeline
 from mine2.utils.assembly import hex_sha256
 
@@ -24,73 +34,66 @@ def create_test_settings(data_dir: Path) -> Settings:
         rdb=RdbConfig(nworkers=2, constring="test"),
         pipelines={
             "pdbj": PipelineConfig(
-                deffile="schemas/pdbj.def.yml",
                 data=str(data_dir),
             )
         },
     )
 
 
-def create_test_schema_def() -> SchemaDef:
-    """Create test schema definition with assembly tables."""
-    return SchemaDef(
-        schema_name="pdbj",
-        primary_key="pdbid",
-        tables=[
-            TableDef(
-                name="entry",
-                columns=[("pdbid", "text"), ("id", "text")],
-                primary_key=["pdbid", "id"],
-            ),
-            TableDef(
-                name="pdbx_struct_assembly_gen",
-                columns=[
-                    ("pdbid", "text"),
-                    ("asym_id_list", "text"),
-                    ("_hash_asym_id_list", "text"),
-                    ("assembly_id", "text"),
-                    ("oper_expression", "text"),
-                ],
-                primary_key=["pdbid", "assembly_id"],
-            ),
-            TableDef(
-                name="brief_summary",
-                columns=[
-                    ("pdbid", "text"),
-                    ("docid", "bigint"),
-                    ("plus_fields", "jsonb"),
-                ],
-                primary_key=["pdbid"],
-            ),
-            TableDef(
-                name="entity",
-                columns=[
-                    ("pdbid", "text"),
-                    ("id", "text"),
-                    ("formula_weight", "double precision"),
-                ],
-                primary_key=["pdbid", "id"],
-            ),
-            TableDef(
-                name="struct_asym",
-                columns=[
-                    ("pdbid", "text"),
-                    ("id", "text"),
-                    ("entity_id", "text"),
-                ],
-                primary_key=["pdbid", "id"],
-            ),
-            TableDef(
-                name="pdbx_struct_assembly",
-                columns=[
-                    ("pdbid", "text"),
-                    ("id", "text"),
-                    ("details", "text"),
-                ],
-                primary_key=["pdbid", "id"],
-            ),
-        ],
+def create_test_meta() -> MetaData:
+    """Create test MetaData with assembly tables."""
+    meta = MetaData(schema="pdbj")
+    meta.info = {"entry_pk": "pdbid"}
+    Table(
+        "entry",
+        meta,
+        Column("pdbid", Text),
+        Column("id", Text),
+        PrimaryKeyConstraint("pdbid", "id"),
     )
+    Table(
+        "pdbx_struct_assembly_gen",
+        meta,
+        Column("pdbid", Text),
+        Column("asym_id_list", Text),
+        Column("_hash_asym_id_list", Text),
+        Column("assembly_id", Text),
+        Column("oper_expression", Text),
+        PrimaryKeyConstraint("pdbid", "assembly_id"),
+    )
+    Table(
+        "brief_summary",
+        meta,
+        Column("pdbid", Text),
+        Column("docid", BigInteger),
+        Column("plus_fields", JSONB),
+        PrimaryKeyConstraint("pdbid"),
+    )
+    Table(
+        "entity",
+        meta,
+        Column("pdbid", Text),
+        Column("id", Text),
+        Column("formula_weight", Double),
+        PrimaryKeyConstraint("pdbid", "id"),
+    )
+    Table(
+        "struct_asym",
+        meta,
+        Column("pdbid", Text),
+        Column("id", Text),
+        Column("entity_id", Text),
+        PrimaryKeyConstraint("pdbid", "id"),
+    )
+    Table(
+        "pdbx_struct_assembly",
+        meta,
+        Column("pdbid", Text),
+        Column("id", Text),
+        Column("details", Text),
+        PrimaryKeyConstraint("pdbid", "id"),
+    )
+    return meta
 
 
 def create_mmjson_file(path: Path, entry_id: str, data: dict[str, list[dict]]) -> None:
@@ -215,16 +218,16 @@ class TestHashAsymIdListParity:
         cif_path = cif_dir / f"{entry_id}.cif.gz"
         create_cif_file(cif_path, entry_id, test_data)
 
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
         mock_sync_entry_tables.return_value = (1, 0, 0)
 
         # Process mmJSON
         mmjson_settings = create_test_settings(mmjson_dir)
         mmjson_pipeline = PdbjPipeline(
-            mmjson_settings, mmjson_settings.pipelines["pdbj"], schema_def
+            mmjson_settings, mmjson_settings.pipelines["pdbj"], meta
         )
         mmjson_job = Job(entry_id=entry_id, filepath=mmjson_path, extra={})
-        mmjson_pipeline.process_job(mmjson_job, schema_def, "test_conninfo")
+        mmjson_pipeline.process_job(mmjson_job, "pdbj", "test_conninfo")
 
         mmjson_call = mock_sync_entry_tables.call_args
         mock_sync_entry_tables.reset_mock()
@@ -232,10 +235,10 @@ class TestHashAsymIdListParity:
         # Process CIF
         cif_settings = create_test_settings(cif_dir)
         cif_pipeline = PdbjCifPipeline(
-            cif_settings, cif_settings.pipelines["pdbj"], schema_def
+            cif_settings, cif_settings.pipelines["pdbj"], meta
         )
         cif_job = Job(entry_id=entry_id, filepath=cif_path, extra={})
-        cif_pipeline.process_job(cif_job, schema_def, "test_conninfo")
+        cif_pipeline.process_job(cif_job, "pdbj", "test_conninfo")
 
         cif_call = mock_sync_entry_tables.call_args
         mmjson_rows = mmjson_call.kwargs["table_rows"]["pdbx_struct_assembly_gen"]
@@ -286,16 +289,16 @@ class TestBuMwParity:
         cif_path = cif_dir / f"{entry_id}.cif.gz"
         create_cif_file(cif_path, entry_id, test_data)
 
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
         mock_sync_entry_tables.return_value = (1, 0, 0)
 
         # Process mmJSON
         mmjson_settings = create_test_settings(mmjson_dir)
         mmjson_pipeline = PdbjPipeline(
-            mmjson_settings, mmjson_settings.pipelines["pdbj"], schema_def
+            mmjson_settings, mmjson_settings.pipelines["pdbj"], meta
         )
         mmjson_job = Job(entry_id=entry_id, filepath=mmjson_path, extra={})
-        mmjson_pipeline.process_job(mmjson_job, schema_def, "test_conninfo")
+        mmjson_pipeline.process_job(mmjson_job, "pdbj", "test_conninfo")
 
         mmjson_call = mock_sync_entry_tables.call_args
         mock_sync_entry_tables.reset_mock()
@@ -303,16 +306,18 @@ class TestBuMwParity:
         # Process CIF
         cif_settings = create_test_settings(cif_dir)
         cif_pipeline = PdbjCifPipeline(
-            cif_settings, cif_settings.pipelines["pdbj"], schema_def
+            cif_settings, cif_settings.pipelines["pdbj"], meta
         )
         cif_job = Job(entry_id=entry_id, filepath=cif_path, extra={})
-        cif_pipeline.process_job(cif_job, schema_def, "test_conninfo")
+        cif_pipeline.process_job(cif_job, "pdbj", "test_conninfo")
 
         cif_call = mock_sync_entry_tables.call_args
         mmjson_plus_fields = mmjson_call.kwargs["table_rows"]["brief_summary"][0][
             "plus_fields"
         ]
-        cif_plus_fields = cif_call.kwargs["table_rows"]["brief_summary"][0]["plus_fields"]
+        cif_plus_fields = cif_call.kwargs["table_rows"]["brief_summary"][0][
+            "plus_fields"
+        ]
         if isinstance(mmjson_plus_fields, str):
             mmjson_plus_fields = json.loads(mmjson_plus_fields)
         if isinstance(cif_plus_fields, str):

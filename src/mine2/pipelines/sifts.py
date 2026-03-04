@@ -18,9 +18,10 @@ from typing import Iterator
 
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
+from sqlalchemy import MetaData
 
 from mine2.config import PipelineConfig, Settings
-from mine2.db.loader import LoaderResult, SchemaDef, bulk_upsert
+from mine2.db.loader import LoaderResult, bulk_upsert
 
 console = Console()
 
@@ -188,7 +189,7 @@ def load_ttl_file(
 def run(
     settings: Settings,
     config: PipelineConfig,
-    schema_def: SchemaDef,
+    meta: MetaData,
     limit: int | None = None,
     tables: list[str] | None = None,
     logger: logging.Logger | None = None,
@@ -200,7 +201,7 @@ def run(
     Args:
         settings: Application settings
         config: Pipeline configuration
-        schema_def: Database schema definition
+        meta: SQLAlchemy MetaData instance
         limit: Not used (SIFTS processes all data)
         tables: Optional list of table names to process (default: all)
         logger: Optional logger for file output
@@ -262,7 +263,7 @@ def run(
                 inserted, updated = load_ttl_file(
                     filepath,
                     ttl_config,
-                    schema_def.schema_name,
+                    meta.schema,
                     settings.rdb.constring,
                 )
                 progress.update(

@@ -2,9 +2,14 @@
 
 import warnings
 
-import pytest
 
-from mine2.commands.update import AVAILABLE_PIPELINES, LEGACY_ALIASES
+from mine2.commands.update import (
+    AVAILABLE_PIPELINES,
+    LEGACY_ALIASES,
+    PIPELINE_SCHEMA_MAP,
+    _get_pipeline_runner,
+)
+from mine2.models import ALL_METADATA
 from mine2.commands.sync import LEGACY_SYNC_ALIASES, SYNC_TARGETS
 from mine2.commands.utils import resolve_legacy_aliases
 
@@ -123,8 +128,81 @@ class TestPipelineNamingConsistency:
         """Available pipelines should not have -cif suffix (use legacy aliases)."""
         for name in AVAILABLE_PIPELINES:
             assert not name.endswith("-cif"), (
-                f"Pipeline '{name}' should not use -cif suffix; "
-                "CIF is now the default"
+                f"Pipeline '{name}' should not use -cif suffix; CIF is now the default"
+            )
+
+
+class TestPipelineSchemaMap:
+    """Tests for PIPELINE_SCHEMA_MAP consistency."""
+
+    def test_all_pipelines_have_schema_mapping(self) -> None:
+        """Every available pipeline must have a schema mapping."""
+        for p in AVAILABLE_PIPELINES:
+            assert p in PIPELINE_SCHEMA_MAP, (
+                f"Pipeline {p!r} missing from PIPELINE_SCHEMA_MAP"
+            )
+
+    def test_all_schema_values_are_valid(self) -> None:
+        """All schema names in the map must exist in ALL_METADATA."""
+        for pipeline, schema in PIPELINE_SCHEMA_MAP.items():
+            assert schema in ALL_METADATA, (
+                f"Pipeline {pipeline!r} maps to unknown schema {schema!r}"
+            )
+
+    def test_json_pipelines_share_schema_with_base(self) -> None:
+        """JSON pipelines should map to the same schema as their base."""
+        for name in AVAILABLE_PIPELINES:
+            if name.endswith("-json"):
+                base = name[:-5]
+                assert PIPELINE_SCHEMA_MAP[name] == PIPELINE_SCHEMA_MAP[base], (
+                    f"{name} and {base} should share the same schema"
+                )
+
+
+class TestGetPipelineRunner:
+    """Tests for _get_pipeline_runner dispatch logic."""
+
+    def test_json_pipelines_dispatch_to_run(self) -> None:
+        """JSON pipelines should dispatch to base module's run()."""
+        json_cases = {
+            "pdbj-json": ("pdbj", "run"),
+            "cc-json": ("cc", "run"),
+            "ccmodel-json": ("ccmodel", "run"),
+            "prd-json": ("prd", "run"),
+        }
+        for pipeline_name, expected in json_cases.items():
+            result = _get_pipeline_runner(pipeline_name)
+            assert result == expected, (
+                f"{pipeline_name} should dispatch to {expected}, got {result}"
+            )
+
+    def test_cif_defaults_dispatch_to_run_cif(self) -> None:
+        """CIF default pipelines should dispatch to run_cif()."""
+        cif_cases = {"pdbj", "cc", "ccmodel", "prd"}
+        for pipeline_name in cif_cases:
+            module_name, func_name = _get_pipeline_runner(pipeline_name)
+            assert module_name == pipeline_name
+            assert func_name == "run_cif", (
+                f"{pipeline_name} should dispatch to run_cif, got {func_name}"
+            )
+
+    def test_other_pipelines_dispatch_to_run(self) -> None:
+        """Other pipelines (vrpt, contacts, sifts, etc.) dispatch to run()."""
+        other_cases = {"vrpt", "contacts", "sifts", "emdb", "ihm"}
+        for pipeline_name in other_cases:
+            module_name, func_name = _get_pipeline_runner(pipeline_name)
+            assert module_name == pipeline_name
+            assert func_name == "run", (
+                f"{pipeline_name} should dispatch to run, got {func_name}"
+            )
+
+    def test_all_available_pipelines_have_runner(self) -> None:
+        """Every available pipeline should have a valid runner dispatch."""
+        for pipeline_name in AVAILABLE_PIPELINES:
+            module_name, func_name = _get_pipeline_runner(pipeline_name)
+            assert module_name, f"{pipeline_name} returned empty module name"
+            assert func_name in ("run", "run_cif"), (
+                f"{pipeline_name} returned unexpected func {func_name}"
             )
 
 

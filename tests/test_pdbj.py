@@ -5,10 +5,19 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
+from sqlalchemy import (
+    BigInteger,
+    Column,
+    Double,
+    MetaData,
+    PrimaryKeyConstraint,
+    Table,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
 
 from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import Job, SchemaDef, TableDef
+from mine2.db.loader import Job
 from mine2.pipelines.pdbj import PdbjPipeline
 from mine2.utils.assembly import hex_sha256
 
@@ -46,7 +55,6 @@ def create_test_mmjson_file(
 def create_test_settings(data_dir: Path, plus_dir: Path | None = None) -> Settings:
     """Create test settings."""
     config = PipelineConfig(
-        deffile="schemas/pdbj.def.yml",
         data=str(data_dir),
     )
     if plus_dir:
@@ -58,66 +66,60 @@ def create_test_settings(data_dir: Path, plus_dir: Path | None = None) -> Settin
     )
 
 
-def create_test_schema_def() -> SchemaDef:
-    """Create minimal test schema definition for pdbj."""
-    return SchemaDef(
-        schema_name="pdbj",
-        primary_key="pdbid",
-        tables=[
-            TableDef(
-                name="entry",
-                columns=[("pdbid", "text"), ("id", "text")],
-                primary_key=["pdbid", "id"],
-            ),
-            TableDef(
-                name="pdbx_struct_assembly_gen",
-                columns=[
-                    ("pdbid", "text"),
-                    ("asym_id_list", "text"),
-                    ("_hash_asym_id_list", "text"),
-                    ("assembly_id", "text"),
-                    ("oper_expression", "text"),
-                ],
-                primary_key=["pdbid", "assembly_id"],
-            ),
-            TableDef(
-                name="brief_summary",
-                columns=[
-                    ("pdbid", "text"),
-                    ("docid", "bigint"),
-                    ("plus_fields", "jsonb"),
-                ],
-                primary_key=["pdbid"],
-            ),
-            TableDef(
-                name="entity",
-                columns=[
-                    ("pdbid", "text"),
-                    ("id", "text"),
-                    ("formula_weight", "double precision"),
-                ],
-                primary_key=["pdbid", "id"],
-            ),
-            TableDef(
-                name="struct_asym",
-                columns=[
-                    ("pdbid", "text"),
-                    ("id", "text"),
-                    ("entity_id", "text"),
-                ],
-                primary_key=["pdbid", "id"],
-            ),
-            TableDef(
-                name="pdbx_struct_assembly",
-                columns=[
-                    ("pdbid", "text"),
-                    ("id", "text"),
-                    ("details", "text"),
-                ],
-                primary_key=["pdbid", "id"],
-            ),
-        ],
+def create_test_meta() -> MetaData:
+    """Create minimal test MetaData for pdbj."""
+    meta = MetaData(schema="pdbj")
+    meta.info = {"entry_pk": "pdbid"}
+    Table(
+        "entry",
+        meta,
+        Column("pdbid", Text),
+        Column("id", Text),
+        PrimaryKeyConstraint("pdbid", "id"),
     )
+    Table(
+        "pdbx_struct_assembly_gen",
+        meta,
+        Column("pdbid", Text),
+        Column("asym_id_list", Text),
+        Column("_hash_asym_id_list", Text),
+        Column("assembly_id", Text),
+        Column("oper_expression", Text),
+        PrimaryKeyConstraint("pdbid", "assembly_id"),
+    )
+    Table(
+        "brief_summary",
+        meta,
+        Column("pdbid", Text),
+        Column("docid", BigInteger),
+        Column("plus_fields", JSONB),
+        PrimaryKeyConstraint("pdbid"),
+    )
+    Table(
+        "entity",
+        meta,
+        Column("pdbid", Text),
+        Column("id", Text),
+        Column("formula_weight", Double),
+        PrimaryKeyConstraint("pdbid", "id"),
+    )
+    Table(
+        "struct_asym",
+        meta,
+        Column("pdbid", Text),
+        Column("id", Text),
+        Column("entity_id", Text),
+        PrimaryKeyConstraint("pdbid", "id"),
+    )
+    Table(
+        "pdbx_struct_assembly",
+        meta,
+        Column("pdbid", Text),
+        Column("id", Text),
+        Column("details", Text),
+        PrimaryKeyConstraint("pdbid", "id"),
+    )
+    return meta
 
 
 class TestHashAsymIdList:
@@ -148,13 +150,13 @@ class TestHashAsymIdList:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjPipeline(settings, config, schema_def)
+        pipeline = PdbjPipeline(settings, config, meta)
         mock_sync_entry_tables.return_value = (1, 0, 0)
 
         job = Job(entry_id="100d", filepath=mmjson_file, extra={})
-        result = pipeline.process_job(job, schema_def, "test_conninfo")
+        result = pipeline.process_job(job, "pdbj", "test_conninfo")
 
         assert result.success
 
@@ -190,13 +192,13 @@ class TestHashAsymIdList:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjPipeline(settings, config, schema_def)
+        pipeline = PdbjPipeline(settings, config, meta)
         mock_sync_entry_tables.return_value = (1, 0, 0)
 
         job = Job(entry_id="100d", filepath=mmjson_file, extra={})
-        pipeline.process_job(job, schema_def, "test_conninfo")
+        pipeline.process_job(job, "pdbj", "test_conninfo")
 
         table_rows = mock_sync_entry_tables.call_args.kwargs["table_rows"]
         rows = table_rows["pdbx_struct_assembly_gen"]
@@ -237,13 +239,13 @@ class TestBuMwCalculation:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjPipeline(settings, config, schema_def)
+        pipeline = PdbjPipeline(settings, config, meta)
         mock_sync_entry_tables.return_value = (1, 0, 0)
 
         job = Job(entry_id="100d", filepath=mmjson_file, extra={})
-        result = pipeline.process_job(job, schema_def, "test_conninfo")
+        result = pipeline.process_job(job, "pdbj", "test_conninfo")
 
         assert result.success
 
@@ -275,13 +277,13 @@ class TestBuMwCalculation:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjPipeline(settings, config, schema_def)
+        pipeline = PdbjPipeline(settings, config, meta)
         mock_sync_entry_tables.return_value = (1, 0, 0)
 
         job = Job(entry_id="100d", filepath=mmjson_file, extra={})
-        result = pipeline.process_job(job, schema_def, "test_conninfo")
+        result = pipeline.process_job(job, "pdbj", "test_conninfo")
 
         assert result.success
 
@@ -302,9 +304,9 @@ class TestExtractEntryId:
         """Extract entry ID from -noatom.json.gz filename."""
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjPipeline(settings, config, schema_def)
+        pipeline = PdbjPipeline(settings, config, meta)
         entry_id = pipeline.extract_entry_id(Path("/path/to/100d-noatom.json.gz"))
 
         assert entry_id == "100d"
@@ -313,9 +315,9 @@ class TestExtractEntryId:
         """Extract alphanumeric entry ID."""
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjPipeline(settings, config, schema_def)
+        pipeline = PdbjPipeline(settings, config, meta)
         entry_id = pipeline.extract_entry_id(Path("/path/to/1a2b-noatom.json.gz"))
 
         assert entry_id == "1a2b"
@@ -335,9 +337,9 @@ class TestFindJobs:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjPipeline(settings, config, schema_def)
+        pipeline = PdbjPipeline(settings, config, meta)
         jobs = pipeline.find_jobs()
 
         assert len(jobs) == 1
@@ -350,9 +352,9 @@ class TestFindJobs:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjPipeline(settings, config, schema_def)
+        pipeline = PdbjPipeline(settings, config, meta)
         jobs = pipeline.find_jobs()
 
         assert jobs == []

@@ -5,8 +5,20 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+from sqlalchemy import (
+    ARRAY,
+    BigInteger,
+    Column,
+    Date,
+    Integer,
+    MetaData,
+    PrimaryKeyConstraint,
+    Table,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+
 from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import SchemaDef, TableDef
 from mine2.pipelines.ihm import (
     CHAIN_TYPE_MAPPING,
     EXPTL_METHOD_MAPPING,
@@ -123,7 +135,6 @@ def create_test_ihm_mmjson_file(path: Path, entry_id: str) -> None:
 def create_test_settings(data_dir: Path, plus_dir: Path | None = None) -> Settings:
     """Create test settings."""
     config = PipelineConfig(
-        deffile="schemas/ihm.def.yml",
         data=str(data_dir),
     )
     if plus_dir:
@@ -135,45 +146,42 @@ def create_test_settings(data_dir: Path, plus_dir: Path | None = None) -> Settin
     )
 
 
-def create_test_schema_def() -> SchemaDef:
-    """Create minimal test schema definition for IHM."""
-    return SchemaDef(
-        schema_name="ihm",
-        primary_key="pdbid",
-        tables=[
-            TableDef(
-                name="entry",
-                columns=[("pdbid", "text"), ("id", "text")],
-                primary_key=["pdbid", "id"],
-            ),
-            TableDef(
-                name="brief_summary",
-                columns=[
-                    ("pdbid", "text"),
-                    ("docid", "bigint"),
-                    ("deposition_date", "date"),
-                    ("release_date", "date"),
-                    ("modification_date", "date"),
-                    ("exptl_method", "text[]"),
-                    ("exptl_method_ids", "integer[]"),
-                    ("struct_title", "text"),
-                    ("plus_fields", "jsonb"),
-                    ("keywords", "text[]"),
-                ],
-                primary_key=["pdbid"],
-            ),
-            TableDef(
-                name="pdbx_struct_assembly_gen",
-                columns=[
-                    ("pdbid", "text"),
-                    ("assembly_id", "text"),
-                    ("asym_id_list", "text"),
-                    ("_hash_asym_id_list", "text"),
-                ],
-                primary_key=["pdbid", "assembly_id"],
-            ),
-        ],
+def create_test_meta() -> MetaData:
+    """Create minimal test MetaData for IHM."""
+    meta = MetaData(schema="ihm")
+    meta.info = {"entry_pk": "pdbid"}
+    Table(
+        "entry",
+        meta,
+        Column("pdbid", Text),
+        Column("id", Text),
+        PrimaryKeyConstraint("pdbid", "id"),
     )
+    Table(
+        "brief_summary",
+        meta,
+        Column("pdbid", Text),
+        Column("docid", BigInteger),
+        Column("deposition_date", Date),
+        Column("release_date", Date),
+        Column("modification_date", Date),
+        Column("exptl_method", ARRAY(Text)),
+        Column("exptl_method_ids", ARRAY(Integer)),
+        Column("struct_title", Text),
+        Column("plus_fields", JSONB),
+        Column("keywords", ARRAY(Text)),
+        PrimaryKeyConstraint("pdbid"),
+    )
+    Table(
+        "pdbx_struct_assembly_gen",
+        meta,
+        Column("pdbid", Text),
+        Column("assembly_id", Text),
+        Column("asym_id_list", Text),
+        Column("_hash_asym_id_list", Text),
+        PrimaryKeyConstraint("pdbid", "assembly_id"),
+    )
+    return meta
 
 
 class TestHexSha256:
@@ -282,8 +290,8 @@ class TestExtractEntryId:
         """Test standard filename: entry-noatom.json.gz."""
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["ihm"]
-        schema_def = create_test_schema_def()
-        pipeline = IhmPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = IhmPipeline(settings, config, meta)
 
         filepath = Path("pdbdev_00000001-noatom.json.gz")
         assert pipeline.extract_entry_id(filepath) == "pdbdev_00000001"
@@ -292,8 +300,8 @@ class TestExtractEntryId:
         """Test filename without -noatom suffix."""
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["ihm"]
-        schema_def = create_test_schema_def()
-        pipeline = IhmPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = IhmPipeline(settings, config, meta)
 
         # Should still work but not strip suffix
         filepath = Path("pdbdev_00000001.json.gz")
@@ -318,8 +326,8 @@ class TestFindJobs:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["ihm"]
-        schema_def = create_test_schema_def()
-        pipeline = IhmPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = IhmPipeline(settings, config, meta)
 
         jobs = pipeline.find_jobs()
 
@@ -346,8 +354,8 @@ class TestFindJobs:
 
         settings = create_test_settings(data_dir, plus_dir)
         config = settings.pipelines["ihm"]
-        schema_def = create_test_schema_def()
-        pipeline = IhmPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = IhmPipeline(settings, config, meta)
 
         jobs = pipeline.find_jobs()
 
@@ -367,8 +375,8 @@ class TestFindJobs:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["ihm"]
-        schema_def = create_test_schema_def()
-        pipeline = IhmPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = IhmPipeline(settings, config, meta)
 
         jobs = pipeline.find_jobs(limit=2)
 
@@ -385,8 +393,8 @@ class TestTransformBriefSummary:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["ihm"]
-        schema_def = create_test_schema_def()
-        pipeline = IhmPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = IhmPipeline(settings, config, meta)
 
         data = create_test_ihm_raw_data("pdbdev_00000001")
         result = pipeline._transform_brief_summary(data, "pdbdev_00000001")
@@ -402,8 +410,8 @@ class TestTransformBriefSummary:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["ihm"]
-        schema_def = create_test_schema_def()
-        pipeline = IhmPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = IhmPipeline(settings, config, meta)
 
         data = create_test_ihm_raw_data("pdbdev_00000001")
         result = pipeline._transform_brief_summary(data, "pdbdev_00000001")
@@ -418,8 +426,8 @@ class TestTransformBriefSummary:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["ihm"]
-        schema_def = create_test_schema_def()
-        pipeline = IhmPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = IhmPipeline(settings, config, meta)
 
         data = create_test_ihm_raw_data("pdbdev_00000001")
         result = pipeline._transform_brief_summary(data, "test")
@@ -443,8 +451,8 @@ class TestHashAsymIdList:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["ihm"]
-        schema_def = create_test_schema_def()
-        pipeline = IhmPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = IhmPipeline(settings, config, meta)
 
         # Mock bulk_upsert
         mock_bulk_upsert.return_value = (1, 0, 0)
@@ -457,7 +465,7 @@ class TestHashAsymIdList:
             extra={},
         )
 
-        result = pipeline.process_job(job, schema_def, "test_conninfo")
+        result = pipeline.process_job(job, "ihm", "test_conninfo")
 
         # Verify bulk_upsert was called (success means processing worked)
         assert result.success is True
@@ -504,8 +512,8 @@ class TestProcessJob:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["ihm"]
-        schema_def = create_test_schema_def()
-        pipeline = IhmPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = IhmPipeline(settings, config, meta)
 
         # Mock bulk_upsert to return success
         mock_bulk_upsert.return_value = (1, 0, 0)
@@ -518,7 +526,7 @@ class TestProcessJob:
             extra={},
         )
 
-        result = pipeline.process_job(job, schema_def, "test_conninfo")
+        result = pipeline.process_job(job, "ihm", "test_conninfo")
 
         assert result.success is True
         assert result.entry_id == "pdbdev_00000001"
@@ -530,8 +538,8 @@ class TestProcessJob:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["ihm"]
-        schema_def = create_test_schema_def()
-        pipeline = IhmPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = IhmPipeline(settings, config, meta)
 
         from mine2.db.loader import Job
 
@@ -541,6 +549,6 @@ class TestProcessJob:
             extra={},
         )
 
-        result = pipeline.process_job(job, schema_def, "test_conninfo")
+        result = pipeline.process_job(job, "ihm", "test_conninfo")
 
         assert result.success is False

@@ -3,8 +3,20 @@
 from pathlib import Path
 from unittest.mock import patch
 
+from sqlalchemy import (
+    ARRAY,
+    BigInteger,
+    Column,
+    Date,
+    DateTime,
+    MetaData,
+    PrimaryKeyConstraint,
+    Table,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+
 from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import SchemaDef, TableDef
 from mine2.pipelines.emdb import (
     EmdbPipeline,
     _ensure_list,
@@ -70,44 +82,38 @@ def create_test_settings(data_dir: Path) -> Settings:
         rdb=RdbConfig(nworkers=2, constring="test"),
         pipelines={
             "emdb": PipelineConfig(
-                deffile="schemas/emdb.def.yml",
                 data=str(data_dir),
             )
         },
     )
 
 
-def create_test_schema_def() -> SchemaDef:
-    """Create minimal test schema definition for EMDB."""
-    return SchemaDef(
-        schema_name="emdb",
-        primary_key="emdb_id",
-        tables=[
-            TableDef(
-                name="brief_summary",
-                columns=[
-                    ("emdb_id", "text"),
-                    ("docid", "bigint"),
-                    ("deposition_date", "date"),
-                    ("header_release_date", "date"),
-                    ("map_release_date", "date"),
-                    ("modification_date", "date"),
-                    ("update_date", "timestamp"),
-                    ("content", "jsonb"),
-                    ("keywords", "text[]"),
-                ],
-                primary_key=["emdb_id"],
-            ),
-            TableDef(
-                name="em_admin",
-                columns=[
-                    ("emdb_id", "text"),
-                    ("title", "text"),
-                ],
-                primary_key=["emdb_id"],
-            ),
-        ],
+def create_test_meta() -> MetaData:
+    """Create minimal test MetaData for EMDB."""
+    meta = MetaData(schema="emdb")
+    meta.info = {"entry_pk": "emdb_id"}
+    Table(
+        "brief_summary",
+        meta,
+        Column("emdb_id", Text),
+        Column("docid", BigInteger),
+        Column("deposition_date", Date),
+        Column("header_release_date", Date),
+        Column("map_release_date", Date),
+        Column("modification_date", Date),
+        Column("update_date", DateTime),
+        Column("content", JSONB),
+        Column("keywords", ARRAY(Text)),
+        PrimaryKeyConstraint("emdb_id"),
     )
+    Table(
+        "em_admin",
+        meta,
+        Column("emdb_id", Text),
+        Column("title", Text),
+        PrimaryKeyConstraint("emdb_id"),
+    )
+    return meta
 
 
 class TestExtractEntryId:
@@ -117,8 +123,8 @@ class TestExtractEntryId:
         """Test standard EMDB filename: emd-1234-v1.0.xml."""
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["emdb"]
-        schema_def = create_test_schema_def()
-        pipeline = EmdbPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = EmdbPipeline(settings, config, meta)
 
         filepath = Path("emd-1234-v1.0.xml")
         assert pipeline.extract_entry_id(filepath) == "EMD-1234"
@@ -127,8 +133,8 @@ class TestExtractEntryId:
         """Test different version formats."""
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["emdb"]
-        schema_def = create_test_schema_def()
-        pipeline = EmdbPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = EmdbPipeline(settings, config, meta)
 
         assert pipeline.extract_entry_id(Path("emd-5678-v2.1.xml")) == "EMD-5678"
         assert pipeline.extract_entry_id(Path("emd-9999-v1.0.xml")) == "EMD-9999"
@@ -137,8 +143,8 @@ class TestExtractEntryId:
         """Test that entry ID is uppercase."""
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["emdb"]
-        schema_def = create_test_schema_def()
-        pipeline = EmdbPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = EmdbPipeline(settings, config, meta)
 
         filepath = Path("emd-1234-v1.0.xml")
         result = pipeline.extract_entry_id(filepath)
@@ -159,8 +165,8 @@ class TestFindJobs:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["emdb"]
-        schema_def = create_test_schema_def()
-        pipeline = EmdbPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = EmdbPipeline(settings, config, meta)
 
         jobs = pipeline.find_jobs()
 
@@ -181,8 +187,8 @@ class TestFindJobs:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["emdb"]
-        schema_def = create_test_schema_def()
-        pipeline = EmdbPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = EmdbPipeline(settings, config, meta)
 
         jobs = pipeline.find_jobs(limit=2)
 
@@ -195,8 +201,8 @@ class TestFindJobs:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["emdb"]
-        schema_def = create_test_schema_def()
-        pipeline = EmdbPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = EmdbPipeline(settings, config, meta)
 
         jobs = pipeline.find_jobs()
 
@@ -244,8 +250,8 @@ class TestTransformBriefSummary:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["emdb"]
-        schema_def = create_test_schema_def()
-        pipeline = EmdbPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = EmdbPipeline(settings, config, meta)
 
         xml_data = {
             "admin": {
@@ -259,9 +265,7 @@ class TestTransformBriefSummary:
         }
         row_data = {}
 
-        result = pipeline._transform_brief_summary(
-            xml_data, row_data, "EMD-1234", schema_def
-        )
+        result = pipeline._transform_brief_summary(xml_data, row_data, "EMD-1234", meta)
 
         assert len(result) == 1
         assert result[0]["emdb_id"] == "EMD-1234"
@@ -274,8 +278,8 @@ class TestTransformBriefSummary:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["emdb"]
-        schema_def = create_test_schema_def()
-        pipeline = EmdbPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = EmdbPipeline(settings, config, meta)
 
         xml_data = {
             "admin": {
@@ -289,9 +293,7 @@ class TestTransformBriefSummary:
         }
         row_data = {}
 
-        result = pipeline._transform_brief_summary(
-            xml_data, row_data, "EMD-1234", schema_def
-        )
+        result = pipeline._transform_brief_summary(xml_data, row_data, "EMD-1234", meta)
 
         assert result[0]["deposition_date"] == "2020-01-15"
         assert result[0]["header_release_date"] == "2020-03-01"
@@ -305,15 +307,13 @@ class TestTransformBriefSummary:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["emdb"]
-        schema_def = create_test_schema_def()
-        pipeline = EmdbPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = EmdbPipeline(settings, config, meta)
 
         xml_data = {"admin": {"key_dates": {}}}
         row_data = {"em_admin": [{"title": "Test"}]}
 
-        result = pipeline._transform_brief_summary(
-            xml_data, row_data, "EMD-1234", schema_def
-        )
+        result = pipeline._transform_brief_summary(xml_data, row_data, "EMD-1234", meta)
 
         import json
 
@@ -328,15 +328,13 @@ class TestTransformBriefSummary:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["emdb"]
-        schema_def = create_test_schema_def()
-        pipeline = EmdbPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = EmdbPipeline(settings, config, meta)
 
         xml_data = {"admin": {"key_dates": {}}}
         row_data = {}
 
-        result = pipeline._transform_brief_summary(
-            xml_data, row_data, "EMD-1234", schema_def
-        )
+        result = pipeline._transform_brief_summary(xml_data, row_data, "EMD-1234", meta)
 
         assert result[0]["keywords"] == []
 
@@ -356,8 +354,8 @@ class TestProcessJob:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["emdb"]
-        schema_def = create_test_schema_def()
-        pipeline = EmdbPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = EmdbPipeline(settings, config, meta)
 
         # Mock bulk_upsert to return success
         mock_bulk_upsert.return_value = (1, 0, 0)
@@ -366,7 +364,7 @@ class TestProcessJob:
 
         job = Job(entry_id="EMD-1234", filepath=xml_file, extra={})
 
-        result = pipeline.process_job(job, schema_def, "test_conninfo")
+        result = pipeline.process_job(job, "emdb", "test_conninfo")
 
         assert result.success is True
         assert result.entry_id == "EMD-1234"
@@ -378,8 +376,8 @@ class TestProcessJob:
 
         settings = create_test_settings(data_dir)
         config = settings.pipelines["emdb"]
-        schema_def = create_test_schema_def()
-        pipeline = EmdbPipeline(settings, config, schema_def)
+        meta = create_test_meta()
+        pipeline = EmdbPipeline(settings, config, meta)
 
         from mine2.db.loader import Job
 
@@ -389,7 +387,7 @@ class TestProcessJob:
             extra={},
         )
 
-        result = pipeline.process_job(job, schema_def, "test_conninfo")
+        result = pipeline.process_job(job, "emdb", "test_conninfo")
 
         assert result.success is False
         assert "EMD-9999" in result.entry_id

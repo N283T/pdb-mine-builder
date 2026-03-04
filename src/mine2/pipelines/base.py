@@ -10,16 +10,32 @@ from typing import Any
 
 from rich.console import Console
 from rich.progress import track
+from sqlalchemy import (
+    ARRAY,
+    BigInteger,
+    Boolean,
+    Date,
+    DateTime,
+    Double,
+    Float,
+    Integer,
+    MetaData,
+    String,
+    Table,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.types import TypeEngine
 
 from mine2.config import PipelineConfig, Settings
 from mine2.db.delta import apply_delta, compute_delta, fetch_entry_data
 from mine2.db.loader import (
     Job,
     LoaderResult,
-    SchemaDef,
-    TableDef,
     bulk_upsert,
     delete_missing_entries,
+    get_all_tables,
+    get_entry_pk,
     run_loader,
 )
 
@@ -36,9 +52,9 @@ _default_logger = logging.getLogger("mine2.pipelines.base")
 def _coerce_string(value: Any, is_pk: bool = False) -> Any:
     """Coerce value to string.
 
-    - None → None (or "" if PK)
-    - Array → join with '-'
-    - Other → str()
+    - None -> None (or "" if PK)
+    - Array -> join with '-'
+    - Other -> str()
     """
     if value is None:
         return "" if is_pk else None
@@ -47,20 +63,11 @@ def _coerce_string(value: Any, is_pk: bool = False) -> Any:
     return str(value)
 
 
-def _coerce_string_lc(value: Any) -> Any:
-    """Coerce value to lowercase string (for citext columns)."""
-    if value is None:
-        return None
-    if isinstance(value, list):
-        return "-".join(str(v) for v in value if v is not None).lower()
-    return str(value).lower()
-
-
 def _coerce_integer(value: Any, is_pk: bool = False) -> Any:
     """Coerce value to integer.
 
-    - None → None (or 0 if PK)
-    - Invalid → None
+    - None -> None (or 0 if PK)
+    - Invalid -> None
     """
     if value is None:
         return 0 if is_pk else None
@@ -97,9 +104,9 @@ def _coerce_float(value: Any, is_pk: bool = False) -> Any:
 def _coerce_boolean(value: Any) -> Any:
     """Coerce value to boolean.
 
-    - true/1/"true" → True
-    - false/0/"false" → False
-    - Other → None
+    - true/1/"true" -> True
+    - false/0/"false" -> False
+    - Other -> None
     """
     if value is True or value == 1:
         return True
@@ -118,8 +125,8 @@ def _coerce_date(value: Any) -> Any:
     """Coerce value to date string (YYYY-MM-DD format).
 
     Handles 2-digit years:
-    - < 50 → 20XX (e.g., 01 → 2001)
-    - >= 50 → 19XX (e.g., 99 → 1999)
+    - < 50 -> 20XX (e.g., 01 -> 2001)
+    - >= 50 -> 19XX (e.g., 99 -> 1999)
 
     Zero-pads month and day if needed.
     """
@@ -161,135 +168,79 @@ def _coerce_timestamp(value: Any) -> Any:
     return value
 
 
-def _coerce_string_array(value: Any) -> Any:
-    """Coerce value to text array.
+def _coerce_array_by_type(value: Any, item_type: TypeEngine) -> Any:
+    """Coerce value to an array of the given item type.
 
-    - Wrap non-list values in a list
-    - Convert elements to strings
+    Args:
+        value: The value to coerce.
+        item_type: SQLAlchemy type of array elements.
+
+    Returns:
+        A list of coerced values, or None.
     """
     if value is None:
         return None
     if not isinstance(value, list):
         value = [value]
-    return [str(v) if v is not None else None for v in value]
+    return [coerce_value(v, item_type) if v is not None else None for v in value]
 
 
-def _coerce_integer_array(value: Any) -> Any:
-    """Coerce value to integer array."""
-    if value is None:
-        return None
-    if not isinstance(value, list):
-        value = [value]
-    result = []
-    for v in value:
-        if v is None:
-            result.append(None)
-        else:
-            try:
-                result.append(int(v))
-            except (ValueError, TypeError):
-                result.append(None)
-    return result
-
-
-def _coerce_boolean_array(value: Any) -> Any:
-    """Coerce value to boolean array."""
-    if value is None:
-        return None
-    if not isinstance(value, list):
-        value = [value]
-    return [_coerce_boolean(v) for v in value]
-
-
-def _coerce_float_array(value: Any) -> Any:
-    """Coerce value to float array."""
-    if value is None:
-        return None
-    if not isinstance(value, list):
-        value = [value]
-    return [_coerce_float(v) for v in value]
-
-
-def coerce_value(value: Any, col_type: str, is_pk: bool = False) -> Any:
-    """Coerce a value to the appropriate type based on column type.
+def coerce_value(value: Any, sa_type: TypeEngine, is_pk: bool = False) -> Any:
+    """Coerce a value to the appropriate type based on SQLAlchemy type.
 
     Matches original mine2updater type coercion behavior.
 
+    The isinstance check order matters for subclass relationships:
+    - Text before String (Text extends String)
+    - BigInteger before Integer (BigInteger extends Integer)
+    - Double before Float (Double extends Float)
+
     Args:
-        value: The value to coerce
-        col_type: The column type from schema (e.g., 'text', 'integer', 'date')
-        is_pk: Whether this column is part of the primary key
+        value: The value to coerce.
+        sa_type: The SQLAlchemy type instance.
+        is_pk: Whether this column is part of the primary key.
 
     Returns:
-        Coerced value
+        Coerced value.
     """
-    # Handle array types
-    if col_type.endswith("[]"):
-        base_type = col_type[:-2]
-        if base_type == "text":
-            return _coerce_string_array(value)
-        elif base_type == "integer":
-            return _coerce_integer_array(value)
-        elif base_type == "boolean":
-            return _coerce_boolean_array(value)
-        elif base_type in ("double precision", "real"):
-            return _coerce_float_array(value)
-        else:
-            # Default to string array for unknown types
-            return _coerce_string_array(value)
+    # Array types
+    if isinstance(sa_type, ARRAY):
+        return _coerce_array_by_type(value, sa_type.item_type)
 
-    # Handle scalar types
-    if col_type in ("text", "char(4)"):
+    # Text before String (Text is a subclass of String)
+    if isinstance(sa_type, Text):
         return _coerce_string(value, is_pk)
-    elif col_type == "citext":
-        return _coerce_string_lc(value)
-    elif col_type == "integer":
-        return _coerce_integer(value, is_pk)
-    elif col_type in ("bigint", "serial", "bigserial"):
+    if isinstance(sa_type, String):
+        return _coerce_string(value, is_pk)
+
+    # BigInteger before Integer
+    if isinstance(sa_type, BigInteger):
         return _coerce_bigint(value, is_pk)
-    elif col_type in ("double precision", "real"):
+    if isinstance(sa_type, Integer):
+        return _coerce_integer(value, is_pk)
+
+    # Double before Float
+    if isinstance(sa_type, Double):
         return _coerce_float(value, is_pk)
-    elif col_type == "boolean":
+    if isinstance(sa_type, Float):
+        return _coerce_float(value, is_pk)
+
+    if isinstance(sa_type, Boolean):
         return _coerce_boolean(value)
-    elif col_type == "date":
+    if isinstance(sa_type, Date):
         return _coerce_date(value)
-    elif col_type in ("timestamp without time zone", "timestamp with time zone"):
+    if isinstance(sa_type, DateTime):
         return _coerce_timestamp(value)
-    else:
-        # Default: return as-is
+    if isinstance(sa_type, JSONB):
         return value
 
-
-def _coerce_array_value(value: Any, col_type: str) -> Any:
-    """Coerce a value to array type if the column expects an array.
-
-    Matches original mine2updater behavior (enforceStringArray):
-    - If the column type ends with '[]' and the value is not a list, wrap it in a list
-    - Convert elements to appropriate types
-
-    Args:
-        value: The value to coerce
-        col_type: The column type from schema (e.g., 'text[]', 'integer[]')
-
-    Returns:
-        Coerced value (as list if array column, original otherwise)
-
-    Note:
-        This function is kept for backward compatibility.
-        New code should use coerce_value() instead.
-    """
-    if value is None:
-        return None
-
-    if not col_type.endswith("[]"):
-        return value
-
-    return coerce_value(value, col_type)
+    # Default: treat as string
+    return _coerce_string(value, is_pk)
 
 
 def transform_category(
     rows: list[dict[str, Any]],
-    table: TableDef,
+    table: Table,
     pk_value: str,
     pk_col: str,
     normalize_fn: Callable[[str], str] | None = None,
@@ -299,25 +250,26 @@ def transform_category(
     This is a shared transformation function used by multiple pipelines.
 
     Args:
-        rows: List of row dicts from the source data
-        table: Table definition from schema
-        pk_value: Value for the primary key column (e.g., pdbid, prd_id)
-        pk_col: Primary key column name
-        normalize_fn: Optional function to normalize column names (for mmJSON bracket notation)
+        rows: List of row dicts from the source data.
+        table: SQLAlchemy Table object.
+        pk_value: Value for the primary key column (e.g., pdbid, prd_id).
+        pk_col: Primary key column name.
+        normalize_fn: Optional function to normalize column names
+            (for mmJSON bracket notation).
 
     Returns:
-        List of transformed row dicts with consistent column ordering
+        List of transformed row dicts with consistent column ordering.
     """
     if not rows:
         return []
 
-    # Use cached column info from TableDef (avoids recreating dict each call)
-    schema_columns = [col_name for col_name, _ in table.columns]
-    column_types = table.column_types  # Cached property
-    valid_columns = table.column_names  # Cached property
+    # Build column info from SA Table
+    column_map = {col.name: col for col in table.columns}
+    valid_columns = set(column_map.keys())
+    schema_columns = [col.name for col in table.columns]
 
     # First pass: collect all columns that appear in any row
-    used_columns = {pk_col}
+    used_columns: set[str] = {pk_col}
     for row in rows:
         for col_name in row:
             normalized = normalize_fn(col_name) if normalize_fn else col_name
@@ -334,23 +286,25 @@ def transform_category(
     for row in rows:
         # Normalize all column names if needed
         if normalize_fn:
-            normalized_row = {}
-            for col_name, value in row.items():
-                normalized = normalize_fn(col_name)
-                if normalized in valid_columns:
-                    normalized_row[normalized] = value
+            normalized_row = {
+                normalized: v
+                for k, v in row.items()
+                if (normalized := normalize_fn(k)) in valid_columns
+            }
         else:
             normalized_row = {k: v for k, v in row.items() if k in valid_columns}
 
         # Build row with all final_columns (None for missing)
-        transformed_row = {pk_col: pk_value}
+        transformed_row: dict[str, Any] = {pk_col: pk_value}
         for col in final_columns:
             if col == pk_col:
                 continue
             value = normalized_row.get(col)
-            # Coerce value to appropriate type based on column type
-            col_type = column_types.get(col, "text")
-            transformed_row[col] = coerce_value(value, col_type)
+            col_obj = column_map.get(col)
+            if col_obj is not None:
+                transformed_row[col] = coerce_value(value, col_obj.type)
+            else:
+                transformed_row[col] = value
 
         result.append(transformed_row)
 
@@ -359,7 +313,7 @@ def transform_category(
 
 def sync_entry_tables(
     conninfo: str,
-    schema_def: SchemaDef,
+    meta: MetaData,
     entry_id: str,
     table_rows: dict[str, list[dict[str, Any]]],
 ) -> tuple[int, int, int]:
@@ -368,36 +322,42 @@ def sync_entry_tables(
     This preserves original mine2updater behavior where rows removed from
     source files are also removed from the database for the same entry.
 
+    Args:
+        conninfo: Database connection string.
+        meta: SQLAlchemy MetaData instance.
+        entry_id: The entry identifier.
+        table_rows: Dict mapping table names to lists of row dicts.
+
     Returns:
-        Tuple of (inserted_count, updated_count, deleted_count)
+        Tuple of (inserted_count, updated_count, deleted_count).
     """
-    pk_column = schema_def.primary_key
-    table_defs = {t.name: t for t in schema_def.tables}
-    all_tables = [t.name for t in schema_def.tables]
+    pk_column = get_entry_pk(meta)
+    all_tables_list = get_all_tables(meta)
+    all_table_names = [t.name for t in all_tables_list]
 
     # Ensure every schema table is present in new_data so missing categories
     # are interpreted as "delete existing rows for this entry".
-    new_data: dict[str, list[dict[str, Any]]] = {name: [] for name in all_tables}
+    new_data: dict[str, list[dict[str, Any]]] = {name: [] for name in all_table_names}
     for table_name, rows in table_rows.items():
         if table_name in new_data:
             new_data[table_name] = rows
 
     db_data = fetch_entry_data(
         conninfo=conninfo,
-        schema=schema_def.schema_name,
+        schema=meta.schema,
         entry_id=entry_id,
         pk_column=pk_column,
-        tables=all_tables,
+        tables=all_table_names,
     )
 
-    table_pk_columns = {
-        name: [c for c in tdef.primary_key if c != pk_column]
-        for name, tdef in table_defs.items()
-    }
-    table_columns = {
-        name: [col_name for col_name, _ in tdef.columns]
-        for name, tdef in table_defs.items()
-    }
+    table_pk_columns: dict[str, list[str]] = {}
+    table_columns: dict[str, list[str]] = {}
+    for sa_table in all_tables_list:
+        pk_cols = [
+            col.name for col in sa_table.primary_key.columns if col.name != pk_column
+        ]
+        table_pk_columns[sa_table.name] = pk_cols
+        table_columns[sa_table.name] = [col.name for col in sa_table.columns]
 
     delta = compute_delta(
         entry_id=entry_id,
@@ -409,7 +369,7 @@ def sync_entry_tables(
 
     return apply_delta(
         conninfo=conninfo,
-        schema=schema_def.schema_name,
+        schema=meta.schema,
         entry_id=entry_id,
         pk_column=pk_column,
         delta=delta,
@@ -429,11 +389,11 @@ class BasePipeline(ABC):
         self,
         settings: Settings,
         config: PipelineConfig,
-        schema_def: SchemaDef,
+        meta: MetaData,
     ):
         self.settings = settings
         self.config = config
-        self.schema_def = schema_def
+        self.meta = meta
 
     def run(
         self, limit: int | None = None, logger: logging.Logger | None = None
@@ -441,11 +401,11 @@ class BasePipeline(ABC):
         """Run the pipeline.
 
         Args:
-            limit: Optional limit on number of files to process
-            logger: Optional logger for file output
+            limit: Optional limit on number of files to process.
+            logger: Optional logger for file output.
 
         Returns:
-            List of results for each processed entry
+            List of results for each processed entry.
         """
         if logger is None:
             logger = _default_logger
@@ -463,7 +423,7 @@ class BasePipeline(ABC):
         # Process jobs
         results = run_loader(
             settings=self.settings,
-            schema_def=self.schema_def,
+            schema_name=self.meta.schema,
             jobs=jobs,
             process_func=self.process_job,
             max_workers=self.settings.rdb.get_workers(),
@@ -503,7 +463,7 @@ class BasePipeline(ABC):
     def process_job(
         self,
         job: Job,
-        schema_def: SchemaDef,
+        schema_name: str,
         conninfo: str,
     ) -> LoaderResult:
         """Process a single job.
@@ -511,12 +471,12 @@ class BasePipeline(ABC):
         This method runs in a worker process.
 
         Args:
-            job: The job to process
-            schema_def: Schema definition
-            conninfo: Database connection string
+            job: The job to process.
+            schema_name: Schema name for model lookup.
+            conninfo: Database connection string.
 
         Returns:
-            Result of processing
+            Result of processing.
         """
         pass
 
@@ -526,10 +486,10 @@ class BasePipeline(ABC):
         Override this method for custom transformation logic.
 
         Args:
-            data: Parsed data (mmJSON or CIF format)
+            data: Parsed data (mmJSON or CIF format).
 
         Returns:
-            Dict mapping table names to lists of row dicts
+            Dict mapping table names to lists of row dicts.
         """
         return {}
 
@@ -539,7 +499,7 @@ class BaseCifBatchPipeline:
 
     Provides shared methods for batch upsert, summary output,
     and stale-row pruning. Subclasses must set ``name`` and
-    ``schema_def``, and implement ``_parse_all_blocks()`` and
+    ``meta``, and implement ``_parse_all_blocks()`` and
     ``_find_cif_file()`` / ``_find_cif_files()``.
     """
 
@@ -549,11 +509,11 @@ class BaseCifBatchPipeline:
         self,
         settings: Settings,
         config: PipelineConfig,
-        schema_def: SchemaDef,
+        meta: MetaData,
     ):
         self.settings = settings
         self.config = config
-        self.schema_def = schema_def
+        self.meta = meta
 
     def _batch_insert(
         self,
@@ -581,13 +541,15 @@ class BaseCifBatchPipeline:
             )
 
         # Bulk upsert per table
+        current_table_name = "<unknown>"
         try:
-            for table in track(
-                self.schema_def.tables,
+            for sa_table in track(
+                get_all_tables(self.meta),
                 description="Upserting...",
                 console=console,
             ):
-                rows = table_rows.get(table.name, [])
+                current_table_name = sa_table.name
+                rows = table_rows.get(sa_table.name, [])
                 if not rows:
                     continue
 
@@ -595,21 +557,26 @@ class BaseCifBatchPipeline:
                 for row in rows:
                     all_columns.update(row.keys())
 
-                pk_col = self.schema_def.primary_key
+                pk_col = get_entry_pk(self.meta)
                 columns = [pk_col] + sorted(c for c in all_columns if c != pk_col)
                 row_tuples = [tuple(r.get(c) for c in columns) for r in rows]
 
+                pk_cols_for_table = [c.name for c in sa_table.primary_key.columns]
                 bulk_upsert(
                     conninfo,
-                    self.schema_def.schema_name,
-                    table.name,
+                    self.meta.schema,
+                    sa_table.name,
                     columns,
                     row_tuples,
-                    table.primary_key,
+                    pk_cols_for_table,
                 )
-                console.print(f"  [dim]{table.name}: {len(rows)} rows[/dim]")
+                console.print(f"  [dim]{sa_table.name}: {len(rows)} rows[/dim]")
         except Exception as e:
-            error_msg = f"{e}\n{traceback.format_exc()}"
+            error_msg = (
+                f"Bulk upsert failed on table {current_table_name}: "
+                f"{e}\n{traceback.format_exc()}"
+            )
+            _default_logger.error(error_msg)
             results = [
                 LoaderResult(entry_id=r.entry_id, success=False, error=error_msg)
                 for r in results
@@ -670,9 +637,9 @@ class BaseCifBatchPipeline:
 
         deleted = delete_missing_entries(
             conninfo=conninfo,
-            schema=self.schema_def.schema_name,
-            pk_column=self.schema_def.primary_key,
-            tables=[t.name for t in self.schema_def.tables],
+            schema=self.meta.schema,
+            pk_column=get_entry_pk(self.meta),
+            tables=[t.name for t in get_all_tables(self.meta)],
             keep_entry_ids=[r.entry_id for r in results],
         )
         console.print(f"  [dim]Pruned stale rows: {deleted}[/dim]")

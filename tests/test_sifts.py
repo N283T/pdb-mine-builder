@@ -1,7 +1,6 @@
 """Tests for SIFTS pipeline."""
 
 import gzip
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 

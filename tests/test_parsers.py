@@ -1,12 +1,9 @@
 """Tests for parsers module."""
 
-import pytest
 
 from mine2.parsers.cif import (
     _normalize_cif_value,
-    parse_block,
     parse_cif,
-    parse_cif_document,
     parse_mmjson,
     parse_mmjson_blocks,
 )
@@ -47,7 +44,10 @@ class TestNormalizeColumnName:
 
     def test_double_bracket(self) -> None:
         """Double bracket notation is normalized."""
-        assert normalize_column_name("fract_transf_matrix[1][1]") == "fract_transf_matrix11"
+        assert (
+            normalize_column_name("fract_transf_matrix[1][1]")
+            == "fract_transf_matrix11"
+        )
 
     def test_no_bracket(self) -> None:
         """Column without brackets is unchanged."""
@@ -78,7 +78,9 @@ class TestMergeData:
         plus = {"entry": [{"id": "PLUS", "keywords": "extra"}]}
         result = merge_data(base, plus)
 
-        assert result["entry"] == [{"id": "PLUS", "title": "Base Title", "keywords": "extra"}]
+        assert result["entry"] == [
+            {"id": "PLUS", "title": "Base Title", "keywords": "extra"}
+        ]
 
     def test_different_row_counts(self) -> None:
         """Categories with different row counts use max rows."""
@@ -220,5 +222,7 @@ class TestParseMmjson:
 
         assert "PRD_000001" in blocks
         assert "PRDCC_000001" in blocks
-        assert blocks["PRD_000001"]["pdbx_reference_molecule"] == [{"name": "Test Molecule"}]
+        assert blocks["PRD_000001"]["pdbx_reference_molecule"] == [
+            {"name": "Test Molecule"}
+        ]
         assert blocks["PRDCC_000001"]["chem_comp"] == [{"id": "ATP"}]

@@ -6,13 +6,11 @@ from unittest.mock import MagicMock, patch
 
 import gemmi
 import psycopg
-import pytest
+from sqlalchemy import Column, MetaData, PrimaryKeyConstraint, Table, Text
 
 from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import SchemaDef, TableDef
 from mine2.pipelines.cc import (
     CcCifPipeline,
-    CcPipeline,
     _add_rdkit_descriptor_columns,
     _ensure_rdkit_setup,
     _generate_canonical_smiles,
@@ -79,26 +77,25 @@ def create_test_settings(data_dir: Path) -> Settings:
         rdb=RdbConfig(nworkers=2, constring="test"),
         pipelines={
             "cc": PipelineConfig(
-                deffile="schemas/cc.def.yml",
                 data=str(data_dir),
             )
         },
     )
 
 
-def create_test_schema_def() -> SchemaDef:
-    """Create minimal test schema definition."""
-    return SchemaDef(
-        schema_name="cc",
-        primary_key="id",
-        tables=[
-            TableDef(
-                name="chem_comp",
-                columns=[("id", "TEXT"), ("name", "TEXT"), ("type", "TEXT")],
-                primary_key=["id"],
-            ),
-        ],
+def create_test_meta() -> MetaData:
+    """Create minimal test MetaData for cc."""
+    meta = MetaData(schema="cc")
+    meta.info = {"entry_pk": "comp_id"}
+    Table(
+        "chem_comp",
+        meta,
+        Column("comp_id", Text),
+        Column("name", Text),
+        Column("type", Text),
+        PrimaryKeyConstraint("comp_id"),
     )
+    return meta
 
 
 class TestFindCifFile:
@@ -111,9 +108,9 @@ class TestFindCifFile:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["cc"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = CcCifPipeline(settings, config, schema_def)
+        pipeline = CcCifPipeline(settings, config, meta)
         found = pipeline._find_cif_file()
 
         assert found == cif_path
@@ -128,9 +125,9 @@ class TestFindCifFile:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["cc"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = CcCifPipeline(settings, config, schema_def)
+        pipeline = CcCifPipeline(settings, config, meta)
         found = pipeline._find_cif_file()
 
         assert found == cif_path
@@ -145,9 +142,9 @@ class TestFindCifFile:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["cc"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = CcCifPipeline(settings, config, schema_def)
+        pipeline = CcCifPipeline(settings, config, meta)
         found = pipeline._find_cif_file()
 
         assert found == cif_path
@@ -156,9 +153,9 @@ class TestFindCifFile:
         """Return None when CIF file not found."""
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["cc"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = CcCifPipeline(settings, config, schema_def)
+        pipeline = CcCifPipeline(settings, config, meta)
         found = pipeline._find_cif_file()
 
         assert found is None
@@ -167,9 +164,9 @@ class TestFindCifFile:
         """Return None when data directory doesn't exist."""
         settings = create_test_settings(tmp_path.joinpath("nonexistent"))
         config = settings.pipelines["cc"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = CcCifPipeline(settings, config, schema_def)
+        pipeline = CcCifPipeline(settings, config, meta)
         found = pipeline._find_cif_file()
 
         assert found is None
@@ -188,8 +185,6 @@ class TestProcessCifBlock:
             ],
         )
 
-        schema_def = create_test_schema_def()
-
         # Load the CIF and get the block
         doc = gemmi.cif.read(str(cif_path))
         block = doc[0]
@@ -197,7 +192,7 @@ class TestProcessCifBlock:
         # Mock conninfo - will fail to connect but tests the function runs
         result = _process_cif_block(
             block=block,
-            schema_def=schema_def,
+            schema_name="cc",
             conninfo="mock://test",
         )
 
@@ -216,14 +211,12 @@ class TestProcessCifBlock:
             ],
         )
 
-        schema_def = create_test_schema_def()
-
         doc = gemmi.cif.read(str(cif_path))
         block = doc[0]
 
         result = _process_cif_block(
             block=block,
-            schema_def=schema_def,
+            schema_name="cc",
             conninfo="mock://test",
         )
 
@@ -237,9 +230,9 @@ class TestCcCifPipelineRun:
         """Run returns empty list when CIF file not found."""
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["cc"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = CcCifPipeline(settings, config, schema_def)
+        pipeline = CcCifPipeline(settings, config, meta)
         results = pipeline.run()
 
         assert results == []
@@ -254,9 +247,9 @@ class TestCcCifPipelineRun:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["cc"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = CcCifPipeline(settings, config, schema_def)
+        pipeline = CcCifPipeline(settings, config, meta)
         # Limit to 5 - should use sequential (threshold is 10)
         results = pipeline.run(limit=5)
 
@@ -273,9 +266,9 @@ class TestCcCifPipelineRun:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["cc"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = CcCifPipeline(settings, config, schema_def)
+        pipeline = CcCifPipeline(settings, config, meta)
         results = pipeline.run(limit=10)
 
         assert len(results) == 10

@@ -1,6 +1,5 @@
 """Tests for brief_summary utilities."""
 
-import pytest
 
 from mine2.utils.brief_summary import (
     clean_array,

@@ -6,7 +6,8 @@ PDBj (Protein Data Bank Japan) のデータを PostgreSQL にロードする CLI
 
 - **Language**: Python 3.12+
 - **Package Manager**: Pixi (Conda/PyPI hybrid)
-- **Database**: PostgreSQL 12+ (psycopg3)
+- **Database**: PostgreSQL 17+ (psycopg3)
+- **Schema**: SQLAlchemy Core (DDL only) + Alembic (migrations)
 - **CLI**: Typer + Rich
 - **Config**: Pydantic
 - **Parser**: gemmi (CIF and mmJSON unified)
@@ -26,9 +27,22 @@ pixi run mine2 update pdbj --limit 10
 src/mine2/
 ├── cli.py              # Typer CLI commands
 ├── config.py           # Pydantic settings
+├── models/
+│   ├── __init__.py     # MetaData registry (ALL_METADATA, get_metadata())
+│   ├── cc.py           # cc schema (10 tables)
+│   ├── ccmodel.py      # ccmodel schema
+│   ├── contacts.py     # contacts schema
+│   ├── emdb.py         # emdb schema
+│   ├── ihm.py          # ihm schema
+│   ├── pdbj.py         # pdbj schema (~400 tables)
+│   ├── prd.py          # prd schema
+│   ├── prd_family.py   # prd_family schema
+│   ├── sifts.py        # sifts schema
+│   └── vrpt.py         # vrpt schema
 ├── db/
 │   ├── connection.py   # Connection pool
-│   └── loader.py       # Parallel loader (ProcessPoolExecutor)
+│   ├── loader.py       # Parallel loader (ProcessPoolExecutor)
+│   └── _type_utils.py  # SA type to PostgreSQL type converter
 ├── parsers/
 │   ├── cif.py          # Unified parser (CIF + mmJSON via gemmi)
 │   └── mmjson.py       # Utilities: normalize_column_name(), merge_data()
@@ -40,7 +54,10 @@ src/mine2/
 │   ├── prd.py          # BIRD data (dual data blocks)
 │   ├── vrpt.py         # Validation reports (CIF)
 │   └── contacts.py     # Contact data (custom JSON)
-schemas/                # YAML schema definitions
+alembic/                # Alembic migration config
+├── env.py              # Multi-schema support
+└── versions/           # Migration scripts
+scripts/                # One-shot utility scripts
 tests/                  # Unit tests (pytest)
 docs/                   # Architecture docs
 ```
@@ -96,6 +113,22 @@ data = parse_mmjson_file(filepath)
 mmJSON uses `column[1][2]` → schema uses `column12`
 ```python
 from mine2.parsers.mmjson import normalize_column_name
+```
+
+### Schema Access (SQLAlchemy Core)
+Schema definitions use SQLAlchemy Core Table objects with metadata:
+```python
+from mine2.models import get_metadata, ALL_METADATA
+from mine2.db.loader import get_table, get_all_tables, get_entry_pk
+
+meta = get_metadata("cc")                 # MetaData with schema="cc"
+table = get_table(meta, "brief_summary")   # SA Table object
+pk = get_entry_pk(meta)                    # "comp_id"
+tables = get_all_tables(meta)              # All tables in schema
+
+# Schema/table config stored in .info dicts
+meta.info["entry_pk"]                      # Schema-level primary key
+table.info["keywords"]                     # Table-level keywords list
 ```
 
 ### Category Transformation
@@ -154,6 +187,19 @@ pixi run test          # pytest
 pixi run check         # all checks (lint, format, typecheck)
 ```
 
+### Database Migrations (Alembic)
+
+```bash
+pixi run db-migrate "description"  # Generate migration
+pixi run db-upgrade                # Apply all pending migrations
+pixi run db-downgrade              # Rollback last migration
+pixi run db-history                # Show migration history
+```
+
+Alembic is configured for multi-schema support (all 10 schemas).
+Schema DDL is defined in `src/mine2/models/` as SQLAlchemy Core Table objects.
+Data operations still use psycopg3 direct connections (no SQLAlchemy Engine for data).
+
 ## Database
 
 ```bash
@@ -205,3 +251,4 @@ pixi run db-init
 
 - `ty check` warns about psycopg's `LiteralString` type (runtime OK)
 - Global connection pool is for main process only; workers use direct connections
+- Workers receive `schema_name: str` and import models inside worker function (avoids pickling SA objects)

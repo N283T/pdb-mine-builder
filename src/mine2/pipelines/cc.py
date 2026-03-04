@@ -19,14 +19,15 @@ from rich.progress import (
     TimeElapsedColumn,
     track,
 )
+from sqlalchemy import MetaData, Table
 
 from mine2.config import PipelineConfig, Settings
 from mine2.db.loader import (
     Job,
     LoaderResult,
-    SchemaDef,
-    TableDef,
     bulk_upsert,
+    get_all_tables,
+    get_entry_pk,
 )
 from mine2.parsers.cif import parse_block
 from mine2.parsers.mmjson import normalize_column_name
@@ -55,7 +56,7 @@ def _generate_canonical_smiles(block: gemmi.cif.Block) -> str | None:
         if result.mol is not None:
             return Chem.MolToSmiles(result.mol, canonical=True)
     except Exception as e:
-        logger.debug(f"SMILES generation failed for {block.name}: {e}")
+        logger.warning(f"SMILES generation failed for {block.name}: {e}")
     return None
 
 
@@ -146,13 +147,13 @@ def _generate_brief_summary(
 
 def _parse_cif_block(
     block: gemmi.cif.Block,
-    schema_def: SchemaDef,
+    schema_name: str,
 ) -> tuple[str, dict[str, list[dict]], str | None]:
     """Parse a single CIF block (worker function for parallel processing).
 
     Args:
         block: gemmi CIF block
-        schema_def: Schema definition
+        schema_name: Schema name for model lookup
 
     Returns:
         Tuple of (comp_id, table_rows_dict, error_message or None)
@@ -160,13 +161,18 @@ def _parse_cif_block(
     """
     comp_id = block.name
     try:
+        from mine2.models import get_metadata
+
+        meta = get_metadata(schema_name)
+        entry_pk = get_entry_pk(meta)
+
         data = parse_block(block)
         table_rows: dict[str, list[dict]] = {}
 
         # Generate canonical SMILES using ccd2rdmol
         canonical_smiles = _generate_canonical_smiles(block)
 
-        for table in schema_def.tables:
+        for table in get_all_tables(meta):
             # brief_summary is a derived table, generate it
             if table.name == "brief_summary":
                 brief_row = _generate_brief_summary(data, comp_id, canonical_smiles)
@@ -174,9 +180,7 @@ def _parse_cif_block(
             else:
                 rows = data.get(table.name, [])
                 # CIF uses plain column names, no normalization needed
-                category_rows = transform_category(
-                    rows, table, comp_id, schema_def.primary_key, None
-                )
+                category_rows = transform_category(rows, table, comp_id, entry_pk, None)
 
             if category_rows:
                 table_rows[table.name] = category_rows
@@ -207,11 +211,16 @@ class CcPipeline(BasePipeline):
     def process_job(
         self,
         job: Job,
-        schema_def: SchemaDef,
+        schema_name: str,
         conninfo: str,
     ) -> LoaderResult:
         """Process a single chemical component."""
         try:
+            from mine2.models import get_metadata
+
+            meta = get_metadata(schema_name)
+            entry_pk = get_entry_pk(meta)
+
             # Read mmJSON as gemmi block for ccd2rdmol SMILES generation
             block = _read_mmjson_block(job.filepath)
             if block is None:
@@ -230,7 +239,7 @@ class CcPipeline(BasePipeline):
             canonical_smiles = _generate_canonical_smiles(block)
 
             # Load all tables from schema
-            for table in schema_def.tables:
+            for table in get_all_tables(meta):
                 # brief_summary is a derived table, generate it
                 if table.name == "brief_summary":
                     brief_row = _generate_brief_summary(
@@ -239,7 +248,7 @@ class CcPipeline(BasePipeline):
                     category_rows = [brief_row]
                 else:
                     category_rows = self._transform_category(
-                        data, table, job.entry_id, schema_def.primary_key
+                        data, table, job.entry_id, entry_pk
                     )
 
                 if category_rows:
@@ -247,7 +256,7 @@ class CcPipeline(BasePipeline):
 
             inserted, updated, _deleted = sync_entry_tables(
                 conninfo=conninfo,
-                schema_def=schema_def,
+                meta=meta,
                 entry_id=job.entry_id,
                 table_rows=table_rows,
             )
@@ -270,7 +279,7 @@ class CcPipeline(BasePipeline):
     def _transform_category(
         self,
         data: dict[str, Any],
-        table: TableDef,
+        table: Table,
         comp_id: str,
         pk_col: str,
     ) -> list[dict]:
@@ -287,7 +296,7 @@ class CcCifPipeline(BaseCifBatchPipeline):
 
     Uses batch processing: all blocks are parsed first (in parallel),
     then all rows are inserted in a single bulk operation per table.
-    This is much faster than inserting per-block (40k round-trips → ~10).
+    This is much faster than inserting per-block (40k round-trips -> ~10).
     """
 
     name = "cc-cif"
@@ -334,11 +343,12 @@ class CcCifPipeline(BaseCifBatchPipeline):
         max_workers: int,
     ) -> list[tuple[str, dict[str, list[dict]], str | None]]:
         """Parse all blocks in parallel, returning parsed data."""
+        schema_name = self.meta.schema
         if len(blocks) <= 10 or max_workers == 1:
             # Sequential parsing
             results = []
             for block in track(blocks, description="Parsing...", console=console):
-                result = _parse_cif_block(block, self.schema_def)
+                result = _parse_cif_block(block, schema_name)
                 results.append(result)
             return results
 
@@ -347,7 +357,7 @@ class CcCifPipeline(BaseCifBatchPipeline):
 
         with ProcessPoolExecutor(max_workers=max_workers) as executor:
             futures = {
-                executor.submit(_parse_cif_block, block, self.schema_def): block.name
+                executor.submit(_parse_cif_block, block, schema_name): block.name
                 for block in blocks
             }
 
@@ -366,7 +376,7 @@ class CcCifPipeline(BaseCifBatchPipeline):
                         result = future.result()
                         results.append(result)
                     except Exception as e:
-                        results.append((comp_id, {}, str(e)))
+                        results.append((comp_id, {}, f"{e}\n{traceback.format_exc()}"))
                     progress.advance(task)
 
         return results
@@ -558,10 +568,12 @@ def _ensure_rdkit_setup(conninfo: str) -> None:
             try:
                 cur.execute("CREATE EXTENSION IF NOT EXISTS rdkit")
             except psycopg.errors.InsufficientPrivilege:
-                logger.warning(
+                msg = (
                     "Cannot create RDKit extension (insufficient privileges). "
                     "Run 'CREATE EXTENSION rdkit' as superuser."
                 )
+                logger.warning(msg)
+                console.print(f"  [yellow]{msg}[/yellow]")
                 return
 
             # Add mol column if table exists but column doesn't
@@ -594,8 +606,7 @@ def _ensure_rdkit_setup(conninfo: str) -> None:
                 END $$
             """)
 
-            # Add RDKit descriptor columns (molecular properties)
-            # These are generated columns derived from mol column
+            # Add RDKit descriptor columns (regular columns populated via trigger)
             _add_rdkit_descriptor_columns(cur)
 
             # Load RDKit SQL functions (CREATE OR REPLACE is idempotent)
@@ -616,7 +627,7 @@ def _ensure_rdkit_setup(conninfo: str) -> None:
 
 def _process_cif_block(
     block: gemmi.cif.Block,
-    schema_def: SchemaDef,
+    schema_name: str,
     conninfo: str,
 ) -> LoaderResult:
     """Process a single CIF block (parse and insert).
@@ -624,14 +635,19 @@ def _process_cif_block(
     This is a convenience wrapper for testing that combines parsing and inserting.
     Production code uses _parse_cif_block + batch insert.
     """
-    comp_id, table_rows, error = _parse_cif_block(block, schema_def)
+    from mine2.models import get_metadata
+
+    meta = get_metadata(schema_name)
+    entry_pk = get_entry_pk(meta)
+
+    comp_id, table_rows, error = _parse_cif_block(block, schema_name)
 
     if error:
         return LoaderResult(entry_id=comp_id, success=False, error=error)
 
     try:
         rows_inserted = 0
-        for table in schema_def.tables:
+        for table in get_all_tables(meta):
             rows = table_rows.get(table.name, [])
             if not rows:
                 continue
@@ -641,46 +657,47 @@ def _process_cif_block(
             for row in rows:
                 all_columns.update(row.keys())
 
-            pk_col = schema_def.primary_key
-            columns = [pk_col] + sorted(c for c in all_columns if c != pk_col)
+            columns = [entry_pk] + sorted(c for c in all_columns if c != entry_pk)
             row_tuples = [tuple(r.get(c) for c in columns) for r in rows]
 
+            pk_cols_for_table = [c.name for c in table.primary_key.columns]
             inserted, _ = bulk_upsert(
                 conninfo,
-                schema_def.schema_name,
+                meta.schema,
                 table.name,
                 columns,
                 row_tuples,
-                table.primary_key,
+                pk_cols_for_table,
             )
             rows_inserted += inserted
 
         return LoaderResult(entry_id=comp_id, success=True, rows_inserted=rows_inserted)
     except Exception as e:
-        return LoaderResult(entry_id=comp_id, success=False, error=str(e))
+        error_msg = f"{e}\n{traceback.format_exc()}"
+        return LoaderResult(entry_id=comp_id, success=False, error=error_msg)
 
 
 def run(
     settings: Settings,
     config: PipelineConfig,
-    schema_def: SchemaDef,
+    meta: MetaData,
     limit: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the cc pipeline (mmJSON version)."""
     _ensure_rdkit_setup(settings.rdb.constring)
-    pipeline = CcPipeline(settings, config, schema_def)
+    pipeline = CcPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)
 
 
 def run_cif(
     settings: Settings,
     config: PipelineConfig,
-    schema_def: SchemaDef,
+    meta: MetaData,
     limit: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the cc-cif pipeline (single CIF version)."""
     _ensure_rdkit_setup(settings.rdb.constring)
-    pipeline = CcCifPipeline(settings, config, schema_def)
+    pipeline = CcCifPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)

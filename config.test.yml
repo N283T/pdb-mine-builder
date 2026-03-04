@@ -5,38 +5,27 @@ rdb:
 pipelines:
   # pdbj: test data uses mmJSON fixtures
   pdbj:
-    deffile: ${CWD}schemas/pdbj.def.yml
     data: ${CWD}data/mmjson-noatom/
     data-plus: ${CWD}data/plus/
   pdbj-json:
-    deffile: ${CWD}schemas/pdbj.def.yml
     data: ${CWD}data/mmjson-noatom/
     data-plus: ${CWD}data/plus/
   cc:
-    deffile: ${CWD}schemas/cc.def.yml
     data: ${CWD}data/cc/
   cc-json:
-    deffile: ${CWD}schemas/cc.def.yml
     data: ${CWD}data/cc/
   ccmodel:
-    deffile: ${CWD}schemas/ccmodel.def.yml
     data: ${CWD}data/ccmodel/
   ccmodel-json:
-    deffile: ${CWD}schemas/ccmodel.def.yml
     data: ${CWD}data/ccmodel/
   prd:
-    deffile: ${CWD}schemas/prd.def.yml
     data: ${CWD}data/prd/
   prd-json:
-    deffile: ${CWD}schemas/prd.def.yml
     data: ${CWD}data/prd/
   vrpt:
-    deffile: ${CWD}schemas/vrpt.def.yml
     data: ${CWD}data/vrpt-json/*
     data-cif: ${CWD}data/vrpt/*_validation.cif.gz
   contacts:
-    deffile: ${CWD}schemas/contacts.def.yml
     data: ${CWD}data/contacts/
   sifts:
-    deffile: ${CWD}schemas/sifts.def.yml
     data: ${CWD}data/sifts/

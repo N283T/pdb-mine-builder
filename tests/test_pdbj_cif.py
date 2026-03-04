@@ -6,10 +6,20 @@ from pathlib import Path
 from unittest.mock import patch
 
 import gemmi
-import pytest
+from sqlalchemy import (
+    BigInteger,
+    Column,
+    Double,
+    Float,
+    MetaData,
+    PrimaryKeyConstraint,
+    Table,
+    Text,
+)
+from sqlalchemy.dialects.postgresql import JSONB
 
 from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import Job, SchemaDef, TableDef
+from mine2.db.loader import Job
 from mine2.parsers.cif import parse_cif_file
 from mine2.pipelines.pdbj import PdbjCifPipeline
 from mine2.utils.assembly import hex_sha256
@@ -134,99 +144,90 @@ def create_test_settings(data_dir: Path) -> Settings:
         rdb=RdbConfig(nworkers=2, constring="test"),
         pipelines={
             "pdbj": PipelineConfig(
-                deffile="schemas/pdbj.def.yml",
                 data=str(data_dir),
             )
         },
     )
 
 
-def create_test_schema_def() -> SchemaDef:
-    """Create minimal test schema definition for pdbj."""
-    return SchemaDef(
-        schema_name="pdbj",
-        primary_key="pdbid",
-        tables=[
-            TableDef(
-                name="entry",
-                columns=[("pdbid", "TEXT"), ("id", "TEXT")],
-                primary_key=["pdbid", "id"],
-            ),
-            TableDef(
-                name="cell",
-                columns=[
-                    ("pdbid", "TEXT"),
-                    ("entry_id", "TEXT"),
-                    ("length_a", "REAL"),
-                    ("length_b", "REAL"),
-                    ("length_c", "REAL"),
-                ],
-                primary_key=["pdbid"],
-            ),
-        ],
+def create_test_meta() -> MetaData:
+    """Create minimal test MetaData for pdbj."""
+    meta = MetaData(schema="pdbj")
+    meta.info = {"entry_pk": "pdbid"}
+    Table(
+        "entry",
+        meta,
+        Column("pdbid", Text),
+        Column("id", Text),
+        PrimaryKeyConstraint("pdbid", "id"),
     )
+    Table(
+        "cell",
+        meta,
+        Column("pdbid", Text),
+        Column("entry_id", Text),
+        Column("length_a", Float),
+        Column("length_b", Float),
+        Column("length_c", Float),
+        PrimaryKeyConstraint("pdbid"),
+    )
+    return meta
 
 
-def create_test_schema_def_with_assembly() -> SchemaDef:
-    """Create test schema definition with assembly tables for Phase 5 testing."""
-    return SchemaDef(
-        schema_name="pdbj",
-        primary_key="pdbid",
-        tables=[
-            TableDef(
-                name="entry",
-                columns=[("pdbid", "text"), ("id", "text")],
-                primary_key=["pdbid", "id"],
-            ),
-            TableDef(
-                name="pdbx_struct_assembly_gen",
-                columns=[
-                    ("pdbid", "text"),
-                    ("asym_id_list", "text"),
-                    ("_hash_asym_id_list", "text"),
-                    ("assembly_id", "text"),
-                    ("oper_expression", "text"),
-                ],
-                primary_key=["pdbid", "assembly_id"],
-            ),
-            TableDef(
-                name="brief_summary",
-                columns=[
-                    ("pdbid", "text"),
-                    ("docid", "bigint"),
-                    ("plus_fields", "jsonb"),
-                ],
-                primary_key=["pdbid"],
-            ),
-            TableDef(
-                name="entity",
-                columns=[
-                    ("pdbid", "text"),
-                    ("id", "text"),
-                    ("formula_weight", "double precision"),
-                ],
-                primary_key=["pdbid", "id"],
-            ),
-            TableDef(
-                name="struct_asym",
-                columns=[
-                    ("pdbid", "text"),
-                    ("id", "text"),
-                    ("entity_id", "text"),
-                ],
-                primary_key=["pdbid", "id"],
-            ),
-            TableDef(
-                name="pdbx_struct_assembly",
-                columns=[
-                    ("pdbid", "text"),
-                    ("id", "text"),
-                    ("details", "text"),
-                ],
-                primary_key=["pdbid", "id"],
-            ),
-        ],
+def create_test_meta_with_assembly() -> MetaData:
+    """Create test MetaData with assembly tables for Phase 5 testing."""
+    meta = MetaData(schema="pdbj")
+    meta.info = {"entry_pk": "pdbid"}
+    Table(
+        "entry",
+        meta,
+        Column("pdbid", Text),
+        Column("id", Text),
+        PrimaryKeyConstraint("pdbid", "id"),
     )
+    Table(
+        "pdbx_struct_assembly_gen",
+        meta,
+        Column("pdbid", Text),
+        Column("asym_id_list", Text),
+        Column("_hash_asym_id_list", Text),
+        Column("assembly_id", Text),
+        Column("oper_expression", Text),
+        PrimaryKeyConstraint("pdbid", "assembly_id"),
+    )
+    Table(
+        "brief_summary",
+        meta,
+        Column("pdbid", Text),
+        Column("docid", BigInteger),
+        Column("plus_fields", JSONB),
+        PrimaryKeyConstraint("pdbid"),
+    )
+    Table(
+        "entity",
+        meta,
+        Column("pdbid", Text),
+        Column("id", Text),
+        Column("formula_weight", Double),
+        PrimaryKeyConstraint("pdbid", "id"),
+    )
+    Table(
+        "struct_asym",
+        meta,
+        Column("pdbid", Text),
+        Column("id", Text),
+        Column("entity_id", Text),
+        PrimaryKeyConstraint("pdbid", "id"),
+    )
+    Table(
+        "pdbx_struct_assembly",
+        meta,
+        Column("pdbid", Text),
+        Column("id", Text),
+        Column("details", Text),
+        PrimaryKeyConstraint("pdbid", "id"),
+    )
+    return meta
 
 
 class TestExtractEntryId:
@@ -236,9 +237,9 @@ class TestExtractEntryId:
         """Extract entry ID from .cif.gz filename."""
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         entry_id = pipeline.extract_entry_id(Path("/path/to/100d.cif.gz"))
 
         assert entry_id == "100d"
@@ -247,9 +248,9 @@ class TestExtractEntryId:
         """Extract entry ID from .cif filename."""
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         # Base class handles .cif extension as well
         entry_id = pipeline.extract_entry_id(Path("/path/to/100d.cif"))
 
@@ -269,9 +270,9 @@ class TestFindJobs:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         jobs = pipeline.find_jobs()
 
         assert len(jobs) == 1
@@ -289,9 +290,9 @@ class TestFindJobs:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         jobs = pipeline.find_jobs()
 
         assert len(jobs) == 3
@@ -309,9 +310,9 @@ class TestFindJobs:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         jobs = pipeline.find_jobs(limit=3)
 
         assert len(jobs) == 3
@@ -320,9 +321,9 @@ class TestFindJobs:
         """Find jobs returns empty list for empty directory."""
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         jobs = pipeline.find_jobs()
 
         assert jobs == []
@@ -331,9 +332,9 @@ class TestFindJobs:
         """Find jobs returns empty list for nonexistent directory."""
         settings = create_test_settings(tmp_path.joinpath("nonexistent"))
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         jobs = pipeline.find_jobs()
 
         assert jobs == []
@@ -349,14 +350,12 @@ class TestProcessJob:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
-
-        from mine2.db.loader import Job
+        pipeline = PdbjCifPipeline(settings, config, meta)
 
         job = Job(entry_id="100d", filepath=cif_path, extra={})
-        result = pipeline.process_job(job, schema_def, "mock://test")
+        result = pipeline.process_job(job, "pdbj", "mock://test")
 
         # Only check entry_id (success requires real DB connection)
         assert result.entry_id == "100d"
@@ -369,9 +368,9 @@ class TestPdbjCifPipelineRun:
         """Run returns empty list when no CIF files found."""
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         results = pipeline.run()
 
         assert results == []
@@ -387,9 +386,9 @@ class TestPdbjCifPipelineRun:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         results = pipeline.run()
 
         assert len(results) == 2
@@ -407,9 +406,9 @@ class TestPdbjCifPipelineRun:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         results = pipeline.run(limit=5)
 
         assert len(results) == 5
@@ -500,7 +499,6 @@ def create_test_settings_with_plus(data_dir: Path, plus_dir: Path) -> Settings:
         rdb=RdbConfig(nworkers=2, constring="test"),
         pipelines={
             "pdbj": PipelineConfig(
-                deffile="schemas/pdbj.def.yml",
                 data=str(data_dir),
                 data_plus=str(plus_dir),
             )
@@ -538,39 +536,36 @@ def create_test_plus_file(path: Path, entry_id: str, extra_categories: dict) -> 
         f.write(content)
 
 
-def create_test_schema_def_with_plus() -> SchemaDef:
-    """Create test schema definition with plus data tables."""
-    return SchemaDef(
-        schema_name="pdbj",
-        primary_key="pdbid",
-        tables=[
-            TableDef(
-                name="entry",
-                columns=[("pdbid", "TEXT"), ("id", "TEXT")],
-                primary_key=["pdbid", "id"],
-            ),
-            TableDef(
-                name="cell",
-                columns=[
-                    ("pdbid", "TEXT"),
-                    ("entry_id", "TEXT"),
-                    ("length_a", "REAL"),
-                    ("length_b", "REAL"),
-                    ("length_c", "REAL"),
-                ],
-                primary_key=["pdbid"],
-            ),
-            TableDef(
-                name="gene_ontology_pdbmlplus",
-                columns=[
-                    ("pdbid", "TEXT"),
-                    ("goid", "TEXT"),
-                    ("name", "TEXT"),
-                ],
-                primary_key=["pdbid", "goid"],
-            ),
-        ],
+def create_test_meta_with_plus() -> MetaData:
+    """Create test MetaData with plus data tables."""
+    meta = MetaData(schema="pdbj")
+    meta.info = {"entry_pk": "pdbid"}
+    Table(
+        "entry",
+        meta,
+        Column("pdbid", Text),
+        Column("id", Text),
+        PrimaryKeyConstraint("pdbid", "id"),
     )
+    Table(
+        "cell",
+        meta,
+        Column("pdbid", Text),
+        Column("entry_id", Text),
+        Column("length_a", Float),
+        Column("length_b", Float),
+        Column("length_c", Float),
+        PrimaryKeyConstraint("pdbid"),
+    )
+    Table(
+        "gene_ontology_pdbmlplus",
+        meta,
+        Column("pdbid", Text),
+        Column("goid", Text),
+        Column("name", Text),
+        PrimaryKeyConstraint("pdbid", "goid"),
+    )
+    return meta
 
 
 class TestFindJobsWithPlusData:
@@ -596,9 +591,9 @@ class TestFindJobsWithPlusData:
 
         settings = create_test_settings_with_plus(cif_dir, plus_dir)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         jobs = pipeline.find_jobs()
 
         assert len(jobs) == 1
@@ -620,9 +615,9 @@ class TestFindJobsWithPlusData:
 
         settings = create_test_settings_with_plus(cif_dir, plus_dir)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         jobs = pipeline.find_jobs()
 
         assert len(jobs) == 1
@@ -640,9 +635,9 @@ class TestFindJobsWithPlusData:
         # No plus directory configured
         settings = create_test_settings(cif_dir)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         jobs = pipeline.find_jobs()
 
         assert len(jobs) == 1
@@ -670,9 +665,9 @@ class TestFindJobsWithPlusData:
 
         settings = create_test_settings_with_plus(cif_dir, plus_dir)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         jobs = pipeline.find_jobs()
 
         assert len(jobs) == 3
@@ -688,8 +683,6 @@ class TestProcessJobWithPlusData:
     def test_merges_plus_data_into_cif_data(self, tmp_path: Path) -> None:
         """Plus data categories are merged into CIF data."""
         from unittest.mock import patch
-
-        from mine2.db.loader import Job
 
         # Create CIF file
         cif_dir = tmp_path / "mmCIF"
@@ -709,9 +702,9 @@ class TestProcessJobWithPlusData:
 
         settings = create_test_settings_with_plus(cif_dir, plus_dir)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def_with_plus()
+        meta = create_test_meta_with_plus()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         job = Job(
             entry_id="100d",
             filepath=cif_path,
@@ -721,7 +714,7 @@ class TestProcessJobWithPlusData:
         # Mock bulk_upsert to capture what gets loaded
         with patch("mine2.pipelines.pdbj.sync_entry_tables") as mock_sync_entry_tables:
             mock_sync_entry_tables.return_value = (1, 0, 0)
-            result = pipeline.process_job(job, schema_def, "test_conninfo")
+            result = pipeline.process_job(job, "pdbj", "test_conninfo")
 
             assert result.success
             # Verify gene_ontology_pdbmlplus was loaded (from plus data)
@@ -732,8 +725,6 @@ class TestProcessJobWithPlusData:
         """Process job works when plus_path is None."""
         from unittest.mock import patch
 
-        from mine2.db.loader import Job
-
         # Create CIF file only (no plus data)
         cif_dir = tmp_path / "mmCIF"
         cif_dir.mkdir()
@@ -742,9 +733,9 @@ class TestProcessJobWithPlusData:
 
         settings = create_test_settings(cif_dir)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         job = Job(
             entry_id="100d",
             filepath=cif_path,
@@ -754,7 +745,7 @@ class TestProcessJobWithPlusData:
         # Mock bulk_upsert
         with patch("mine2.pipelines.pdbj.sync_entry_tables") as mock_sync_entry_tables:
             mock_sync_entry_tables.return_value = (1, 0, 0)
-            result = pipeline.process_job(job, schema_def, "test_conninfo")
+            result = pipeline.process_job(job, "pdbj", "test_conninfo")
 
             assert result.success
             # Should still load entry and cell tables
@@ -789,13 +780,13 @@ class TestCifHashAsymIdList:
 
         settings = create_test_settings(cif_dir)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def_with_assembly()
+        meta = create_test_meta_with_assembly()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         mock_sync_entry_tables.return_value = (1, 0, 0)
 
         job = Job(entry_id="100d", filepath=cif_path, extra={})
-        result = pipeline.process_job(job, schema_def, "test_conninfo")
+        result = pipeline.process_job(job, "pdbj", "test_conninfo")
 
         assert result.success
 
@@ -821,13 +812,13 @@ class TestCifHashAsymIdList:
 
         settings = create_test_settings(cif_dir)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def_with_assembly()
+        meta = create_test_meta_with_assembly()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         mock_sync_entry_tables.return_value = (1, 0, 0)
 
         job = Job(entry_id="100d", filepath=cif_path, extra={})
-        pipeline.process_job(job, schema_def, "test_conninfo")
+        pipeline.process_job(job, "pdbj", "test_conninfo")
 
         table_rows = mock_sync_entry_tables.call_args.kwargs["table_rows"]
         rows = table_rows["pdbx_struct_assembly_gen"]
@@ -862,13 +853,13 @@ class TestCifBuMwCalculation:
 
         settings = create_test_settings(cif_dir)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def_with_assembly()
+        meta = create_test_meta_with_assembly()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         mock_sync_entry_tables.return_value = (1, 0, 0)
 
         job = Job(entry_id="100d", filepath=cif_path, extra={})
-        result = pipeline.process_job(job, schema_def, "test_conninfo")
+        result = pipeline.process_job(job, "pdbj", "test_conninfo")
 
         assert result.success
 
@@ -909,13 +900,13 @@ _brief_summary.docid 100
 
         settings = create_test_settings(cif_dir)
         config = settings.pipelines["pdbj"]
-        schema_def = create_test_schema_def_with_assembly()
+        meta = create_test_meta_with_assembly()
 
-        pipeline = PdbjCifPipeline(settings, config, schema_def)
+        pipeline = PdbjCifPipeline(settings, config, meta)
         mock_sync_entry_tables.return_value = (1, 0, 0)
 
         job = Job(entry_id=pdb_id, filepath=cif_path, extra={})
-        result = pipeline.process_job(job, schema_def, "test_conninfo")
+        result = pipeline.process_job(job, "pdbj", "test_conninfo")
 
         assert result.success
 

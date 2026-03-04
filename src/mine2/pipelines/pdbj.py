@@ -7,13 +7,15 @@ from typing import Any
 
 import gemmi
 from rich.console import Console
+from sqlalchemy import MetaData, Table
 
 from mine2.config import PipelineConfig, Settings
 from mine2.db.loader import (
     Job,
     LoaderResult,
-    SchemaDef,
-    TableDef,
+    get_all_tables,
+    get_column_names,
+    get_table_or_none,
     run_loader_streaming,
 )
 from mine2.parsers.cif import parse_cif_file, parse_mmjson_file
@@ -35,7 +37,7 @@ _default_logger = logging.getLogger("mine2.pipelines.pdbj")
 def _load_pdbj_data(
     data: dict[str, Any],
     entry_id: str,
-    schema_def: SchemaDef,
+    meta: MetaData,
     conninfo: str,
     normalize_fn: Any | None = None,
 ) -> tuple[int, int, int]:
@@ -46,7 +48,7 @@ def _load_pdbj_data(
     Args:
         data: Parsed data dictionary
         entry_id: PDB entry ID
-        schema_def: Schema definition with cached table lookups
+        meta: SQLAlchemy MetaData instance
         conninfo: Database connection string
         normalize_fn: Column name normalizer (for mmJSON) or None (for CIF)
 
@@ -55,7 +57,6 @@ def _load_pdbj_data(
     """
     table_rows: dict[str, list[dict[str, Any]]] = {}
 
-    # Use cached table lookups (O(1) instead of O(n) iteration)
     # Load entry table
     entry_rows = _transform_entry(data, entry_id)
     if entry_rows:
@@ -64,8 +65,8 @@ def _load_pdbj_data(
     data.pop("entry", None)
 
     # Load brief_summary with bu_mw calculation
-    brief_table = schema_def.get_table("brief_summary")
-    if brief_table:
+    brief_table = get_table_or_none(meta, "brief_summary")
+    if brief_table is not None:
         brief_rows = _transform_brief_summary(data, brief_table, entry_id)
         if brief_rows:
             table_rows["brief_summary"] = brief_rows
@@ -73,7 +74,7 @@ def _load_pdbj_data(
         data.pop("brief_summary", None)
 
     # Load other categories
-    for table in schema_def.tables:
+    for table in get_all_tables(meta):
         if table.name in ("entry", "brief_summary"):
             continue
 
@@ -90,7 +91,7 @@ def _load_pdbj_data(
 
     return sync_entry_tables(
         conninfo=conninfo,
-        schema_def=schema_def,
+        meta=meta,
         entry_id=entry_id,
         table_rows=table_rows,
     )
@@ -115,7 +116,7 @@ def _transform_entry(data: dict[str, Any], entry_id: str) -> list[dict]:
 
 def _transform_brief_summary(
     data: dict[str, Any],
-    table: TableDef,
+    table: Table,
     entry_id: str,
 ) -> list[dict]:
     """Generate brief_summary from other categories.
@@ -131,7 +132,7 @@ def _transform_brief_summary(
     row = generate_brief_summary(data, entry_id, bu_mw)
 
     # Filter to only columns defined in schema
-    schema_columns = table.column_names
+    schema_columns = get_column_names(table)
     filtered_row = {k: v for k, v in row.items() if k in schema_columns}
 
     return [filtered_row]
@@ -192,11 +193,15 @@ class PdbjPipeline(BasePipeline):
     def process_job(
         self,
         job: Job,
-        schema_def: SchemaDef,
+        schema_name: str,
         conninfo: str,
     ) -> LoaderResult:
         """Process a single PDB entry."""
         try:
+            from mine2.models import get_metadata
+
+            meta = get_metadata(schema_name)
+
             # Load main data (row-oriented)
             data = parse_mmjson_file(job.filepath)
 
@@ -217,11 +222,11 @@ class PdbjPipeline(BasePipeline):
                         row.get("oper_expression", "")
                     )
 
-            # Transform and load using cached table lookups
+            # Transform and load
             inserted, updated, _deleted = _load_pdbj_data(
                 data=data,
                 entry_id=job.entry_id,
-                schema_def=schema_def,
+                meta=meta,
                 conninfo=conninfo,
                 normalize_fn=normalize_column_name,
             )
@@ -279,7 +284,7 @@ class PdbjCifPipeline(BasePipeline):
         # Use streaming loader - jobs submitted as discovered
         results = run_loader_streaming(
             settings=self.settings,
-            schema_def=self.schema_def,
+            schema_name=self.meta.schema,
             jobs_iter=self._iter_jobs(),
             process_func=self.process_job,
             max_workers=self.settings.rdb.get_workers(),
@@ -333,11 +338,15 @@ class PdbjCifPipeline(BasePipeline):
     def process_job(
         self,
         job: Job,
-        schema_def: SchemaDef,
+        schema_name: str,
         conninfo: str,
     ) -> LoaderResult:
         """Process a single PDB entry from CIF."""
         try:
+            from mine2.models import get_metadata
+
+            meta = get_metadata(schema_name)
+
             # Parse CIF file (row-oriented, same format as mmJSON)
             data = parse_cif_file(job.filepath)
 
@@ -363,7 +372,7 @@ class PdbjCifPipeline(BasePipeline):
             inserted, updated, _deleted = _load_pdbj_data(
                 data=data,
                 entry_id=job.entry_id,
-                schema_def=schema_def,
+                meta=meta,
                 conninfo=conninfo,
                 normalize_fn=None,
             )
@@ -387,26 +396,26 @@ class PdbjCifPipeline(BasePipeline):
 def run(
     settings: Settings,
     config: PipelineConfig,
-    schema_def: SchemaDef,
+    meta: MetaData,
     limit: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the pdbj pipeline (mmJSON version)."""
     if logger is None:
         logger = _default_logger
-    pipeline = PdbjPipeline(settings, config, schema_def)
+    pipeline = PdbjPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)
 
 
 def run_cif(
     settings: Settings,
     config: PipelineConfig,
-    schema_def: SchemaDef,
+    meta: MetaData,
     limit: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the pdbj-cif pipeline (CIF version)."""
     if logger is None:
         logger = _default_logger
-    pipeline = PdbjCifPipeline(settings, config, schema_def)
+    pipeline = PdbjCifPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)
