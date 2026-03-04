@@ -52,9 +52,16 @@ def _generate_canonical_smiles(block: gemmi.cif.Block) -> str | None:
         Canonical SMILES string, or None if conversion failed
     """
     try:
-        result = read_ccd_block(block, sanitize_mol=True, add_conformers=False)
-        if result.mol is not None:
-            return Chem.MolToSmiles(result.mol, canonical=True)
+        # Suppress RDKit C++ warnings (ring finding, hydrogen removal, etc.)
+        from rdkit import RDLogger
+
+        RDLogger.DisableLog("rdApp.*")
+        try:
+            result = read_ccd_block(block, sanitize_mol=True, add_conformers=False)
+            if result.mol is not None:
+                return Chem.MolToSmiles(result.mol, canonical=True)
+        finally:
+            RDLogger.EnableLog("rdApp.*")
     except Exception as e:
         logger.warning(f"SMILES generation failed for {block.name}: {e}")
     return None
