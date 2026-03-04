@@ -1,5 +1,6 @@
 """CIF parser using gemmi library."""
 
+import gzip
 import logging
 from pathlib import Path
 from typing import Any
@@ -115,8 +116,22 @@ def parse_cif_file(filepath: Path | str) -> dict[str, Any]:
 
 
 # =============================================================================
-# mmJSON support (using gemmi.cif.read_mmjson)
+# mmJSON support
 # =============================================================================
+
+
+def _read_mmjson_gz(filepath: Path | str) -> gemmi.cif.Document:
+    """Read an mmJSON file, handling gzip decompression in Python.
+
+    gemmi's built-in gz reader rejects files with high compression ratios
+    (>100x) as a zip-bomb safety check. We bypass this by decompressing
+    in Python and passing the string to gemmi.
+    """
+    filepath = Path(filepath)
+    if filepath.suffix == ".gz":
+        with gzip.open(filepath, "rt", encoding="utf-8") as f:
+            return gemmi.cif.read_mmjson_string(f.read())
+    return gemmi.cif.read_mmjson(str(filepath))
 
 
 def parse_mmjson_document(doc: gemmi.cif.Document) -> dict[str, Any]:
@@ -151,8 +166,6 @@ def parse_mmjson(content: str) -> dict[str, Any]:
 def parse_mmjson_file(filepath: Path | str) -> dict[str, Any]:
     """Parse an mmJSON file (supports gzip compression).
 
-    Uses gemmi.cif.read_mmjson() which handles .gz files automatically.
-
     Args:
         filepath: Path to the mmJSON file (.json or .json.gz)
 
@@ -160,7 +173,7 @@ def parse_mmjson_file(filepath: Path | str) -> dict[str, Any]:
         Parsed data as row-oriented dictionary
     """
     logger.debug("Parsing mmJSON file: %s", filepath)
-    doc = gemmi.cif.read_mmjson(str(filepath))
+    doc = _read_mmjson_gz(filepath)
     logger.debug("mmJSON document has %d block(s)", len(doc))
     return parse_mmjson_document(doc)
 
@@ -177,6 +190,6 @@ def parse_mmjson_file_blocks(filepath: Path | str) -> dict[str, dict[str, Any]]:
         Dict mapping block names to their row-oriented data
     """
     logger.debug("Parsing mmJSON file (multi-block): %s", filepath)
-    doc = gemmi.cif.read_mmjson(str(filepath))
+    doc = _read_mmjson_gz(filepath)
     logger.debug("mmJSON document has %d block(s)", len(doc))
     return parse_mmjson_blocks(doc)
