@@ -121,7 +121,6 @@ def create_test_settings(data_dir: Path) -> Settings:
         rdb=RdbConfig(nworkers=2, constring="test"),
         pipelines={
             "prd": PipelineConfig(
-                deffile="schemas/prd.def.yml",
                 data=str(data_dir),
             )
         },

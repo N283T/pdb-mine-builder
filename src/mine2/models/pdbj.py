@@ -1,7 +1,4 @@
-"""SQLAlchemy schema definition for pdbj.
-
-Auto-generated from schemas/pdbj.def.yml by scripts/convert_yaml_to_sa.py.
-"""
+"""SQLAlchemy schema definition for pdbj."""
 
 from sqlalchemy import (
     ARRAY,

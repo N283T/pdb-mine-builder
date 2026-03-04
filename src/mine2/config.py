@@ -40,7 +40,10 @@ class SyncTarget(BaseModel):
 class PipelineConfig(BaseModel):
     """Pipeline configuration."""
 
-    deffile: str = Field(description="Schema definition file path")
+    deffile: str | None = Field(
+        default=None,
+        description="Schema definition file path (deprecated: schemas are now defined in SQLAlchemy models)",
+    )
     data: str = Field(description="Data directory path")
     data_plus: str | None = Field(
         default=None, alias="data-plus", description="Additional data directory"

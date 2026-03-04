@@ -46,11 +46,9 @@ rdb:
 
 pipelines:
   pdbj:
-    deffile: ${CWD}schemas/pdbj.def.yml
     data: /path/to/pdb/mmjson-noatom/
     data-plus: /path/to/pdb/mmjson-plus/
   cc:
-    deffile: ${CWD}schemas/cc.def.yml
     data: /path/to/cc/mmjson/
   # ... other pipelines
 ```
@@ -141,7 +139,6 @@ Both CIF and mmJSON pdbj pipelines can merge PDBj-specific plus data when config
 # config.yml
 pipelines:
   pdbj:
-    deffile: ${CWD}schemas/pdbj.def.yml
     data: /path/to/mmCIF/             # CIF files
     data-plus: /path/to/mmjson-plus/  # Plus data (mmJSON format)
 ```

@@ -1,7 +1,4 @@
-"""SQLAlchemy schema definition for prd_family.
-
-Auto-generated from schemas/prd_family.def.yml by scripts/convert_yaml_to_sa.py.
-"""
+"""SQLAlchemy schema definition for prd_family."""
 
 from sqlalchemy import (
     ARRAY,

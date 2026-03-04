@@ -46,7 +46,6 @@ def create_test_mmjson_file(
 def create_test_settings(data_dir: Path, plus_dir: Path | None = None) -> Settings:
     """Create test settings."""
     config = PipelineConfig(
-        deffile="schemas/pdbj.def.yml",
         data=str(data_dir),
     )
     if plus_dir:

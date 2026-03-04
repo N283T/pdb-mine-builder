@@ -123,7 +123,6 @@ def create_test_ihm_mmjson_file(path: Path, entry_id: str) -> None:
 def create_test_settings(data_dir: Path, plus_dir: Path | None = None) -> Settings:
     """Create test settings."""
     config = PipelineConfig(
-        deffile="schemas/ihm.def.yml",
         data=str(data_dir),
     )
     if plus_dir:

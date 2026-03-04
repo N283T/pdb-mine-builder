@@ -24,7 +24,6 @@ def create_test_settings(data_dir: Path) -> Settings:
         rdb=RdbConfig(nworkers=2, constring="test"),
         pipelines={
             "pdbj": PipelineConfig(
-                deffile="schemas/pdbj.def.yml",
                 data=str(data_dir),
             )
         },
@@ -312,7 +311,9 @@ class TestBuMwParity:
         mmjson_plus_fields = mmjson_call.kwargs["table_rows"]["brief_summary"][0][
             "plus_fields"
         ]
-        cif_plus_fields = cif_call.kwargs["table_rows"]["brief_summary"][0]["plus_fields"]
+        cif_plus_fields = cif_call.kwargs["table_rows"]["brief_summary"][0][
+            "plus_fields"
+        ]
         if isinstance(mmjson_plus_fields, str):
             mmjson_plus_fields = json.loads(mmjson_plus_fields)
         if isinstance(cif_plus_fields, str):

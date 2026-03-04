@@ -134,7 +134,6 @@ def create_test_settings(data_dir: Path) -> Settings:
         rdb=RdbConfig(nworkers=2, constring="test"),
         pipelines={
             "pdbj": PipelineConfig(
-                deffile="schemas/pdbj.def.yml",
                 data=str(data_dir),
             )
         },
@@ -500,7 +499,6 @@ def create_test_settings_with_plus(data_dir: Path, plus_dir: Path) -> Settings:
         rdb=RdbConfig(nworkers=2, constring="test"),
         pipelines={
             "pdbj": PipelineConfig(
-                deffile="schemas/pdbj.def.yml",
                 data=str(data_dir),
                 data_plus=str(plus_dir),
             )

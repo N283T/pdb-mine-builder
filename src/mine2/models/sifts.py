@@ -1,7 +1,4 @@
-"""SQLAlchemy schema definition for sifts.
-
-Auto-generated from schemas/sifts.def.yml by scripts/convert_yaml_to_sa.py.
-"""
+"""SQLAlchemy schema definition for sifts."""
 
 from sqlalchemy import (
     Column,

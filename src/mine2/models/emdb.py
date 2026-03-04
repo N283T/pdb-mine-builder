@@ -1,7 +1,4 @@
-"""SQLAlchemy schema definition for emdb.
-
-Auto-generated from schemas/emdb.def.yml by scripts/convert_yaml_to_sa.py.
-"""
+"""SQLAlchemy schema definition for emdb."""
 
 from sqlalchemy import (
     ARRAY,

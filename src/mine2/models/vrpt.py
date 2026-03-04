@@ -1,7 +1,4 @@
-"""SQLAlchemy schema definition for vrpt.
-
-Auto-generated from schemas/vrpt.def.yml by scripts/convert_yaml_to_sa.py.
-"""
+"""SQLAlchemy schema definition for vrpt."""
 
 from sqlalchemy import (
     ARRAY,

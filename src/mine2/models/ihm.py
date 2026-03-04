@@ -1,7 +1,4 @@
-"""SQLAlchemy schema definition for ihm.
-
-Auto-generated from schemas/ihm.def.yml by scripts/convert_yaml_to_sa.py.
-"""
+"""SQLAlchemy schema definition for ihm."""
 
 from sqlalchemy import (
     ARRAY,

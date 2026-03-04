@@ -32,7 +32,6 @@ Edit `config.yml`:
 ```yaml
 pipelines:
   mydata:
-    deffile: ${CWD}schemas/mydata.def.yml
     data: /path/to/data/
 ```
 

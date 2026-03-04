@@ -19,7 +19,6 @@ def create_test_settings(data_dir: Path, conninfo: str) -> Settings:
         rdb=RdbConfig(nworkers=1, constring=conninfo),
         pipelines={
             "pdbj": PipelineConfig(
-                deffile="schemas/pdbj.def.yml",
                 data=str(data_dir),
             )
         },
