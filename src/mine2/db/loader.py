@@ -720,3 +720,54 @@ def bulk_upsert(
 
     # Note: This doesn't accurately track insert vs update counts
     return len(rows), 0
+
+
+def delete_missing_entries(
+    conninfo: str,
+    schema: str,
+    pk_column: str,
+    tables: list[str],
+    keep_entry_ids: list[str],
+) -> int:
+    """Delete rows whose entry id is not in keep_entry_ids.
+
+    This is primarily for full-reload pipelines that parse a single large CIF
+    and upsert all rows in bulk. It removes stale rows for entries no longer
+    present in source data.
+
+    Args:
+        conninfo: PostgreSQL connection string
+        schema: Schema name
+        pk_column: Entry-id column name (e.g., comp_id/model_id/prd_id)
+        tables: Table names to prune
+        keep_entry_ids: Entry IDs that must remain
+
+    Returns:
+        Total number of rows deleted across tables
+    """
+    import psycopg
+    from psycopg import sql
+
+    total_deleted = 0
+    keep_ids = list(dict.fromkeys(keep_entry_ids))
+
+    with psycopg.connect(conninfo) as conn:
+        with conn.cursor() as cur:
+            for table in tables:
+                table_lower = table.lower()
+                full_table = sql.Identifier(schema, table_lower)
+                pk_col = sql.Identifier(pk_column)
+
+                if keep_ids:
+                    cur.execute(
+                        sql.SQL("DELETE FROM {} WHERE {} <> ALL(%s)").format(
+                            full_table, pk_col
+                        ),
+                        (keep_ids,),
+                    )
+                else:
+                    cur.execute(sql.SQL("DELETE FROM {}").format(full_table))
+                total_deleted += cur.rowcount
+        conn.commit()
+
+    return total_deleted

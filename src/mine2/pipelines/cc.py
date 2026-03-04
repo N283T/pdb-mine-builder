@@ -21,7 +21,14 @@ from rich.progress import (
 )
 
 from mine2.config import PipelineConfig, Settings
-from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
+from mine2.db.loader import (
+    Job,
+    LoaderResult,
+    SchemaDef,
+    TableDef,
+    bulk_upsert,
+    delete_missing_entries,
+)
 from mine2.parsers.cif import parse_block
 from mine2.parsers.mmjson import normalize_column_name
 from mine2.pipelines.base import BasePipeline, sync_entry_tables, transform_category
@@ -320,6 +327,21 @@ class CcCifPipeline:
         # Phase 2: Batch insert all rows per table
         console.print("[bold]Phase 2: Batch inserting...[/bold]")
         results = self._batch_insert(parsed_results, conninfo)
+
+        # Phase 3: Prune stale rows (only for full successful reloads)
+        if limit is None and all(r.success for r in results):
+            deleted = delete_missing_entries(
+                conninfo=conninfo,
+                schema=self.schema_def.schema_name,
+                pk_column=self.schema_def.primary_key,
+                tables=[t.name for t in self.schema_def.tables],
+                keep_entry_ids=[r.entry_id for r in results],
+            )
+            console.print(f"  [dim]Pruned stale rows: {deleted}[/dim]")
+        elif limit is not None:
+            console.print("  [dim]Skipping prune (limited run)[/dim]")
+        else:
+            console.print("  [yellow]Skipping prune due to failed entries[/yellow]")
 
         self._print_summary(results, logger)
         return results
