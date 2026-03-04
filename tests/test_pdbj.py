@@ -52,13 +52,19 @@ def create_test_mmjson_file(
         f.write(content)
 
 
-def create_test_settings(data_dir: Path, plus_dir: Path | None = None) -> Settings:
+def create_test_settings(
+    data_dir: Path,
+    plus_dir: Path | None = None,
+    nextgen_plus_dir: Path | None = None,
+) -> Settings:
     """Create test settings."""
     config = PipelineConfig(
         data=str(data_dir),
     )
     if plus_dir:
         config.data_plus = str(plus_dir)
+    if nextgen_plus_dir:
+        config.data_nextgen_plus = str(nextgen_plus_dir)
 
     return Settings(
         rdb=RdbConfig(nworkers=2, constring="test"),
@@ -358,3 +364,164 @@ class TestFindJobs:
         jobs = pipeline.find_jobs()
 
         assert jobs == []
+
+
+# =============================================================================
+# Nextgen-plus (SIFTS) data tests for mmJSON pipeline
+# =============================================================================
+
+
+class TestFindJobsWithNextgenPlusData:
+    """Tests for PdbjPipeline.find_jobs() with nextgen-plus data."""
+
+    def test_finds_nextgen_plus_files_when_configured(self, tmp_path):
+        """find_jobs includes nextgen_plus_path when directory is configured."""
+        data_dir = tmp_path / "pdbj"
+        data_dir.mkdir()
+        create_test_mmjson_file(
+            data_dir / "100d-noatom.json.gz", "100d", {"entry": [{"id": "100D"}]}
+        )
+
+        nextgen_dir = tmp_path / "nextgen-plus"
+        nextgen_dir.mkdir()
+        nextgen_path = nextgen_dir / "100d-plus.json.gz"
+        create_test_mmjson_file(
+            nextgen_path,
+            "100d",
+            {
+                "pdbx_sifts_xref_db": [
+                    {
+                        "entity_id": "1",
+                        "seq_id_ordinal": "1",
+                        "db_name": "UNP",
+                        "db_accession": "P12345",
+                    }
+                ]
+            },
+        )
+
+        settings = create_test_settings(data_dir, nextgen_plus_dir=nextgen_dir)
+        config = settings.pipelines["pdbj"]
+        meta = create_test_meta()
+
+        pipeline = PdbjPipeline(settings, config, meta)
+        jobs = pipeline.find_jobs()
+
+        assert len(jobs) == 1
+        assert jobs[0].extra.get("nextgen_plus_path") == nextgen_path
+
+    def test_nextgen_plus_path_none_when_file_not_exists(self, tmp_path):
+        """nextgen_plus_path is None when file doesn't exist for entry."""
+        data_dir = tmp_path / "pdbj"
+        data_dir.mkdir()
+        create_test_mmjson_file(
+            data_dir / "100d-noatom.json.gz", "100d", {"entry": [{"id": "100D"}]}
+        )
+
+        nextgen_dir = tmp_path / "nextgen-plus"
+        nextgen_dir.mkdir()
+
+        settings = create_test_settings(data_dir, nextgen_plus_dir=nextgen_dir)
+        config = settings.pipelines["pdbj"]
+        meta = create_test_meta()
+
+        pipeline = PdbjPipeline(settings, config, meta)
+        jobs = pipeline.find_jobs()
+
+        assert len(jobs) == 1
+        assert jobs[0].extra.get("nextgen_plus_path") is None
+
+    def test_nextgen_plus_path_none_when_not_configured(self, tmp_path):
+        """nextgen_plus_path is None when directory is not configured."""
+        data_dir = tmp_path / "pdbj"
+        data_dir.mkdir()
+        create_test_mmjson_file(
+            data_dir / "100d-noatom.json.gz", "100d", {"entry": [{"id": "100D"}]}
+        )
+
+        settings = create_test_settings(data_dir)
+        config = settings.pipelines["pdbj"]
+        meta = create_test_meta()
+
+        pipeline = PdbjPipeline(settings, config, meta)
+        jobs = pipeline.find_jobs()
+
+        assert len(jobs) == 1
+        assert jobs[0].extra.get("nextgen_plus_path") is None
+
+
+class TestProcessJobWithNextgenPlusData:
+    """Tests for PdbjPipeline.process_job() with nextgen-plus data merging."""
+
+    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    def test_merges_nextgen_plus_data(self, mock_sync, tmp_path):
+        """Nextgen-plus SIFTS categories are merged into mmJSON data."""
+        data_dir = tmp_path / "pdbj"
+        data_dir.mkdir()
+        mmjson_file = data_dir / "100d-noatom.json.gz"
+        create_test_mmjson_file(mmjson_file, "100d", {"entry": [{"id": "100D"}]})
+
+        nextgen_dir = tmp_path / "nextgen-plus"
+        nextgen_dir.mkdir()
+        nextgen_path = nextgen_dir / "100d-plus.json.gz"
+        create_test_mmjson_file(
+            nextgen_path,
+            "100d",
+            {
+                "pdbx_sifts_xref_db": [
+                    {
+                        "entity_id": "1",
+                        "asym_id": "A",
+                        "seq_id_ordinal": "1",
+                        "seq_id": "1",
+                        "xref_db_name": "UNP",
+                        "xref_db_acc": "P12345",
+                    }
+                ]
+            },
+        )
+
+        settings = create_test_settings(data_dir, nextgen_plus_dir=nextgen_dir)
+        config = settings.pipelines["pdbj"]
+        meta = create_test_meta()
+
+        pipeline = PdbjPipeline(settings, config, meta)
+        mock_sync.return_value = (1, 0, 0)
+
+        job = Job(
+            entry_id="100d",
+            filepath=mmjson_file,
+            extra={"plus_path": None, "nextgen_plus_path": nextgen_path},
+        )
+        result = pipeline.process_job(job, "pdbj", "test_conninfo")
+
+        assert result.success
+        table_rows = mock_sync.call_args.kwargs["table_rows"]
+        assert "pdbx_sifts_xref_db" in table_rows
+        assert table_rows["pdbx_sifts_xref_db"][0]["xref_db_acc"] == "P12345"
+
+    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    def test_works_without_nextgen_plus(self, mock_sync, tmp_path):
+        """Process job works when nextgen_plus_path is None."""
+        data_dir = tmp_path / "pdbj"
+        data_dir.mkdir()
+        mmjson_file = data_dir / "100d-noatom.json.gz"
+        create_test_mmjson_file(mmjson_file, "100d", {"entry": [{"id": "100D"}]})
+
+        settings = create_test_settings(data_dir)
+        config = settings.pipelines["pdbj"]
+        meta = create_test_meta()
+
+        pipeline = PdbjPipeline(settings, config, meta)
+        mock_sync.return_value = (1, 0, 0)
+
+        job = Job(
+            entry_id="100d",
+            filepath=mmjson_file,
+            extra={"plus_path": None, "nextgen_plus_path": None},
+        )
+        result = pipeline.process_job(job, "pdbj", "test_conninfo")
+
+        assert result.success
+        table_rows = mock_sync.call_args.kwargs["table_rows"]
+        assert "entry" in table_rows

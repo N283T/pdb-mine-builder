@@ -36,6 +36,44 @@ _default_logger = logging.getLogger("mine2.pipelines.pdbj")
 # =============================================================================
 
 
+def _resolve_plus_path(directory: Path | None, entry_id: str) -> Path | None:
+    """Return the plus file path for an entry if it exists, otherwise None."""
+    if directory is None:
+        return None
+    candidate = directory.joinpath(f"{entry_id}-plus.json.gz")
+    return candidate if candidate.exists() else None
+
+
+def _validate_plus_dir(label: str, directory: Path | None) -> Path | None:
+    """Validate a plus directory exists, warning and returning None if not."""
+    if directory is None:
+        return None
+    if not directory.exists():
+        console.print(
+            f"  [yellow]Warning: {label} directory not found: {directory}[/yellow]"
+        )
+        _default_logger.warning(
+            "Configured %s directory does not exist: %s", label, directory
+        )
+        return None
+    return directory
+
+
+def _merge_extra_paths(data: dict[str, Any], job: Job) -> dict[str, Any]:
+    """Merge all extra plus files from job.extra into data, in order.
+
+    Files are merged sequentially (plus_path first, then nextgen_plus_path),
+    so later sources take precedence for overlapping categories via merge_data.
+    """
+    extra = job.extra or {}
+    for key in ("plus_path", "nextgen_plus_path"):
+        path = extra.get(key)
+        if path is not None:
+            _default_logger.debug("Merging %s: %s", key, path)
+            data = merge_data(data, parse_mmjson_file(path))
+    return data
+
+
 def _transform_pdbj_data(
     data: dict[str, Any],
     entry_id: str,
@@ -187,9 +225,18 @@ class PdbjPipeline(BasePipeline):
         return name
 
     def find_jobs(self, limit: int | None = None) -> list[Job]:
-        """Find mmJSON files and pair with plus data if available."""
+        """Find mmJSON files and pair with plus/nextgen-plus data if available."""
         data_dir = Path(self.config.data)
-        plus_dir = Path(self.config.data_plus) if self.config.data_plus else None
+        plus_dir = _validate_plus_dir(
+            "plus",
+            Path(self.config.data_plus) if self.config.data_plus else None,
+        )
+        nextgen_plus_dir = _validate_plus_dir(
+            "nextgen-plus",
+            Path(self.config.data_nextgen_plus)
+            if self.config.data_nextgen_plus
+            else None,
+        )
 
         if not data_dir.exists():
             console.print(f"  [red]Data directory not found: {data_dir}[/red]")
@@ -198,24 +245,29 @@ class PdbjPipeline(BasePipeline):
         jobs = []
         for filepath in data_dir.rglob(self.file_pattern):
             entry_id = self.extract_entry_id(filepath)
-
-            # Look for plus file: {entry_id}-plus.json.gz
-            plus_path = None
-            if plus_dir:
-                candidate = plus_dir / f"{entry_id}-plus.json.gz"
-                if candidate.exists():
-                    plus_path = candidate
-
             jobs.append(
                 Job(
                     entry_id=entry_id,
                     filepath=filepath,
-                    extra={"plus_path": plus_path},
+                    extra={
+                        "plus_path": _resolve_plus_path(plus_dir, entry_id),
+                        "nextgen_plus_path": _resolve_plus_path(
+                            nextgen_plus_dir, entry_id
+                        ),
+                    },
                 )
             )
 
             if limit and len(jobs) >= limit:
                 break
+
+        if plus_dir:
+            count = sum(1 for j in jobs if j.extra.get("plus_path") is not None)
+            console.print(f"  Plus data matched: {count}/{len(jobs)}")
+        if nextgen_plus_dir:
+            count = sum(1 for j in jobs if j.extra.get("nextgen_plus_path") is not None)
+            console.print(f"  Nextgen-plus (SIFTS) matched: {count}/{len(jobs)}")
+
         return jobs
 
     def process_job(
@@ -230,14 +282,9 @@ class PdbjPipeline(BasePipeline):
 
             meta = get_metadata(schema_name)
 
-            # Load main data (row-oriented)
+            # Load main data and merge any plus sources
             data = parse_mmjson_file(job.filepath)
-
-            # Merge with plus data if available
-            plus_path = job.extra.get("plus_path")
-            if plus_path:
-                plus_data = parse_mmjson_file(plus_path)
-                data = merge_data(data, plus_data)
+            data = _merge_extra_paths(data, job)
 
             # Apply entry-specific patches
             apply_patches(job.entry_id, data)
@@ -284,18 +331,14 @@ def _parse_cif_entry(
     Shared by both update (process_job) and load (_process_cif_load) modes.
 
     Args:
-        job: Job with filepath and optional plus_path in extra.
+        job: Job with filepath. extra may contain 'plus_path' and/or
+            'nextgen_plus_path' pointing to supplementary mmJSON files.
 
     Returns:
         Parsed and patched data dict.
     """
     data = parse_cif_file(job.filepath)
-
-    plus_path = job.extra.get("plus_path") if job.extra else None
-    if plus_path:
-        plus_data = parse_mmjson_file(plus_path)
-        data = merge_data(data, plus_data)
-
+    data = _merge_extra_paths(data, job)
     apply_patches(job.entry_id, data)
 
     if "pdbx_struct_assembly_gen" in data:
@@ -362,22 +405,27 @@ class PdbjCifPipeline(BasePipeline):
         if not data_dir.exists():
             return
 
-        plus_dir = Path(self.config.data_plus) if self.config.data_plus else None
+        plus_dir = _validate_plus_dir(
+            "plus",
+            Path(self.config.data_plus) if self.config.data_plus else None,
+        )
+        nextgen_plus_dir = _validate_plus_dir(
+            "nextgen-plus",
+            Path(self.config.data_nextgen_plus)
+            if self.config.data_nextgen_plus
+            else None,
+        )
 
         for filepath_str in gemmi.CifWalk(str(data_dir)):
             filepath = Path(filepath_str)
             entry_id = self.extract_entry_id(filepath)
-
-            plus_path = None
-            if plus_dir:
-                candidate = plus_dir / f"{entry_id}-plus.json.gz"
-                if candidate.exists():
-                    plus_path = candidate
-
             yield Job(
                 entry_id=entry_id,
                 filepath=filepath,
-                extra={"plus_path": plus_path},
+                extra={
+                    "plus_path": _resolve_plus_path(plus_dir, entry_id),
+                    "nextgen_plus_path": _resolve_plus_path(nextgen_plus_dir, entry_id),
+                },
             )
 
     def find_jobs(self, limit: int | None = None) -> list[Job]:
