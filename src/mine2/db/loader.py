@@ -123,7 +123,10 @@ def ensure_schema(schema_def: SchemaDef, conninfo: str) -> None:
                 )
             )
 
-            # Create tables
+            # Create/migrate tables (columns, PK, unique keys, indexes)
+            # NOTE: Foreign keys defined in schema YAML are not enforced in the DB.
+            # Each bulk_upsert call uses its own transaction, so FK ordering across
+            # tables cannot be guaranteed. FKs remain as schema documentation only.
             for table in schema_def.tables:
                 create_or_migrate_table(cur, schema_def.schema_name, table)
 
@@ -182,6 +185,15 @@ def create_table(cur: Any, schema: str, table: TableDef) -> None:
         sql.SQL(", ").join(columns_sql_parts),
     )
     cur.execute(create_sql)
+
+    # Create unique constraints
+    for uk_cols in table.unique_keys:
+        uk = sql.SQL(", ").join(sql.Identifier(c) for c in uk_cols)
+        cur.execute(
+            sql.SQL("ALTER TABLE {} ADD UNIQUE ({})").format(
+                sql.Identifier(schema, table_name_lower), uk
+            )
+        )
 
     # Create indexes (reuse shared helper)
     _ensure_indexes(cur, schema, table_name_lower, table.indexes)
@@ -273,8 +285,9 @@ def migrate_table_schema(cur: Any, schema: str, table: TableDef) -> None:
         )
 
     _reconcile_primary_key(cur, schema, table_name_lower, table.primary_key)
-    _reconcile_foreign_keys(cur, schema, table_name_lower, table.foreign_keys)
+    _reconcile_unique_keys(cur, schema, table_name_lower, table.unique_keys)
     _ensure_indexes(cur, schema, table_name_lower, table.indexes)
+    # NOTE: foreign keys are NOT enforced in the DB (see ensure_schema comment)
 
 
 def _normalize_type_name(type_name: str) -> str:
@@ -312,8 +325,7 @@ def _reconcile_primary_key(
 
     cur.execute(
         """
-        SELECT tc.constraint_name,
-               array_agg(kcu.column_name ORDER BY kcu.ordinal_position) AS columns
+        SELECT tc.constraint_name, kcu.column_name
         FROM information_schema.table_constraints tc
         JOIN information_schema.key_column_usage kcu
           ON tc.constraint_name = kcu.constraint_name
@@ -321,13 +333,13 @@ def _reconcile_primary_key(
         WHERE tc.table_schema = %s
           AND tc.table_name = %s
           AND tc.constraint_type = 'PRIMARY KEY'
-        GROUP BY tc.constraint_name
+        ORDER BY kcu.ordinal_position
         """,
         (schema, table_name),
     )
-    row = cur.fetchone()
-    current_pk = list(row["columns"]) if row else []
-    current_pk_name = row["constraint_name"] if row else None
+    rows = cur.fetchall()
+    current_pk = [r["column_name"] for r in rows]
+    current_pk_name = rows[0]["constraint_name"] if rows else None
 
     if current_pk == expected_pk:
         return
@@ -335,7 +347,7 @@ def _reconcile_primary_key(
     full_table = sql.Identifier(schema, table_name)
     if current_pk_name:
         cur.execute(
-            sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(
+            sql.SQL("ALTER TABLE {} DROP CONSTRAINT {} CASCADE").format(
                 full_table, sql.Identifier(current_pk_name)
             )
         )
@@ -344,6 +356,58 @@ def _reconcile_primary_key(
         cur.execute(
             sql.SQL("ALTER TABLE {} ADD PRIMARY KEY ({})").format(full_table, pk_cols)
         )
+
+
+def _reconcile_unique_keys(
+    cur: Any,
+    schema: str,
+    table_name: str,
+    expected_uks: list[list[str]],
+) -> None:
+    """Ensure unique constraints match schema (drop removed, add missing)."""
+    from psycopg import sql
+
+    full_table = sql.Identifier(schema, table_name)
+
+    # Get existing unique constraints (exclude PK)
+    cur.execute(
+        """
+        SELECT tc.constraint_name, kcu.column_name
+        FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu
+          ON tc.constraint_name = kcu.constraint_name
+         AND tc.constraint_schema = kcu.constraint_schema
+        WHERE tc.table_schema = %s
+          AND tc.table_name = %s
+          AND tc.constraint_type = 'UNIQUE'
+        ORDER BY tc.constraint_name, kcu.ordinal_position
+        """,
+        (schema, table_name),
+    )
+    current_uks: dict[str, list[str]] = {}
+    for row in cur.fetchall():
+        current_uks.setdefault(row["constraint_name"], []).append(row["column_name"])
+
+    # Normalize expected to sorted lists for comparison
+    expected_sets = [sorted(uk) for uk in expected_uks]
+    current_sets = {name: sorted(cols) for name, cols in current_uks.items()}
+
+    # Drop constraints that are no longer expected
+    for name, cols in current_sets.items():
+        if cols not in expected_sets:
+            cur.execute(
+                sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(
+                    full_table, sql.Identifier(name)
+                )
+            )
+
+    # Add missing unique constraints
+    existing_col_sets = list(current_sets.values())
+    for uk_cols in expected_sets:
+        if uk_cols in existing_col_sets:
+            continue
+        uk = sql.SQL(", ").join(sql.Identifier(c) for c in uk_cols)
+        cur.execute(sql.SQL("ALTER TABLE {} ADD UNIQUE ({})").format(full_table, uk))
 
 
 def _reconcile_foreign_keys(
