@@ -1,7 +1,7 @@
 """Load command - bulk load data using COPY protocol."""
 
 import importlib
-import logging
+from typing import Any
 
 import typer
 from rich.console import Console
@@ -14,25 +14,9 @@ from mine2.models import get_metadata
 
 console = Console()
 
-# Pipelines supported by load command (CIF only)
+# Pipelines supported by load command (CIF only).
+# For these pipelines, schema name matches pipeline name.
 LOAD_PIPELINES = ["pdbj", "cc", "ccmodel", "prd"]
-
-# Pipeline name -> schema name
-PIPELINE_SCHEMA_MAP = {
-    "pdbj": "pdbj",
-    "cc": "cc",
-    "ccmodel": "ccmodel",
-    "prd": "prd",
-}
-
-
-def _get_load_runner(pipeline_name: str) -> tuple[str, str]:
-    """Get module name and load function for a pipeline.
-
-    Returns:
-        Tuple of (module_name, function_name)
-    """
-    return (pipeline_name, "run_cif_load")
 
 
 def run_load(
@@ -62,36 +46,39 @@ def run_load(
 
     # Confirmation prompt unless --force
     if not force:
-        schema_names = sorted({PIPELINE_SCHEMA_MAP[p] for p in pipelines})
+        schema_names = sorted(set(pipelines))
         console.print(
             f"[bold red]WARNING: This will TRUNCATE all tables in: "
             f"{', '.join(schema_names)}[/bold red]"
         )
-        confirm = typer.confirm("Continue?", abort=True)
-        if not confirm:
-            return
+        typer.confirm("Continue?", abort=True)
 
     console.print(f"[bold]Loading {len(pipelines)} pipeline(s)...[/bold]")
+
+    # Pre-flight: verify all pipelines are importable and configured
+    # BEFORE truncating any data.
+    pipeline_runners: list[tuple[str, Any, Any, Any]] = []
+
+    for pipeline_name in pipelines:
+        pipeline_config = settings.pipelines.get(pipeline_name)
+        if not pipeline_config:
+            msg = (
+                f"Pipeline {pipeline_name!r} has no configuration in "
+                f"settings.pipelines. Check config.yml."
+            )
+            raise RuntimeError(msg)
+
+        pipeline_module = importlib.import_module(f"mine2.pipelines.{pipeline_name}")
+        runner = getattr(pipeline_module, "run_cif_load")
+        meta = get_metadata(pipeline_name)
+        pipeline_runners.append((pipeline_name, pipeline_config, meta, runner))
 
     init_pool(settings.rdb.constring, max_size=settings.rdb.get_workers() + 2)
     ensure_metadata_table(settings.rdb.constring)
 
     try:
-        for pipeline_name in pipelines:
+        for pipeline_name, pipeline_config, meta, runner in pipeline_runners:
             console.print(f"\n[bold blue]Pipeline: {pipeline_name} (load)[/bold blue]")
-
-            pipeline_config = settings.pipelines.get(pipeline_name)
-            if not pipeline_config:
-                msg = (
-                    f"Pipeline {pipeline_name!r} has no configuration in "
-                    f"settings.pipelines. Check config.yml."
-                )
-                logging.getLogger("mine2.load").warning(msg)
-                console.print("  [yellow]No config found, skipping[/yellow]")
-                continue
-
-            schema_name = PIPELINE_SCHEMA_MAP[pipeline_name]
-            meta = get_metadata(schema_name)
             console.print(f"  Schema: {meta.schema}")
             console.print(f"  Tables: {len(meta.tables)}")
 
@@ -101,28 +88,15 @@ def run_load(
             # TRUNCATE all tables
             truncate_schema_tables(meta, settings.rdb.constring)
 
-            # Import and run load pipeline
-            try:
-                module_name, run_func = _get_load_runner(pipeline_name)
-                pipeline_module = importlib.import_module(
-                    f"mine2.pipelines.{module_name}"
-                )
-                runner = getattr(pipeline_module, run_func)
-                results = runner(settings, pipeline_config, meta, limit=limit)
+            # Run load pipeline
+            results = runner(settings, pipeline_config, meta, limit=limit)
 
-                success_count = (
-                    len([r for r in results if r.success]) if results else None
-                )
-                update_pipeline_metadata(
-                    settings.rdb.constring,
-                    meta.schema,
-                    entries_count=success_count,
-                )
-            except ImportError as e:
-                console.print(f"  [red]Pipeline not implemented: {e}[/red]")
-            except Exception as e:
-                console.print(f"  [red]Pipeline error: {e}[/red]")
-                raise
+            success_count = sum(1 for r in results if r.success) if results else None
+            update_pipeline_metadata(
+                settings.rdb.constring,
+                meta.schema,
+                entries_count=success_count,
+            )
 
     finally:
         close_pool()

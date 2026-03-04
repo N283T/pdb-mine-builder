@@ -582,13 +582,13 @@ def bulk_copy_entry(
                 for table_name in table_names:
                     current_table = table_name
                     rows = tables_with_data[table_name]
-                    if not rows:
-                        continue
 
-                    sample_row = rows[0]
-                    columns = [pk_column] + [
-                        c for c in sample_row.keys() if c != pk_column
-                    ]
+                    all_columns: set[str] = set()
+                    for row in rows:
+                        all_columns.update(row.keys())
+                    columns = [pk_column] + sorted(
+                        c for c in all_columns if c != pk_column
+                    )
 
                     full_table = psql.Identifier(schema, table_name)
                     col_names = psql.SQL(", ").join(psql.Identifier(c) for c in columns)
