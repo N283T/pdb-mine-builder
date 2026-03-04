@@ -28,7 +28,13 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import TypeEngine
 
 from mine2.config import PipelineConfig, Settings
-from mine2.db.delta import apply_delta, compute_delta, fetch_entry_data
+from mine2.db.delta import (
+    apply_delta,
+    compute_delta,
+    entry_exists,
+    fetch_entry_data,
+    insert_new_entry,
+)
 from mine2.db.loader import (
     Job,
     LoaderResult,
@@ -319,8 +325,12 @@ def sync_entry_tables(
 ) -> tuple[int, int, int]:
     """Synchronize all rows for one entry using delta (insert/update/delete).
 
-    This preserves original mine2updater behavior where rows removed from
-    source files are also removed from the database for the same entry.
+    For new entries (not yet in brief_summary), uses a fast-path that
+    directly inserts all rows without querying existing data.
+
+    For existing entries, uses delta sync to detect and apply changes,
+    preserving original mine2updater behavior where rows removed from
+    source files are also removed from the database.
 
     Args:
         conninfo: Database connection string.
@@ -332,6 +342,19 @@ def sync_entry_tables(
         Tuple of (inserted_count, updated_count, deleted_count).
     """
     pk_column = get_entry_pk(meta)
+
+    # Fast path: new entry → direct insert (skip delta sync)
+    if not entry_exists(conninfo, meta.schema, entry_id, pk_column):
+        inserted = insert_new_entry(
+            conninfo=conninfo,
+            schema=meta.schema,
+            entry_id=entry_id,
+            pk_column=pk_column,
+            table_rows=table_rows,
+        )
+        return inserted, 0, 0
+
+    # Existing entry: full delta sync (fetch → compare → apply)
     all_tables_list = get_all_tables(meta)
     all_table_names = [t.name for t in all_tables_list]
 

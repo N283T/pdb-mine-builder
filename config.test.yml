@@ -5,27 +5,27 @@ rdb:
 pipelines:
   # pdbj: test data uses mmJSON fixtures
   pdbj:
-    data: ${CWD}data/mmjson-noatom/
-    data-plus: ${CWD}data/plus/
+    data: ${CWD}/data/mmjson-noatom/
+    data-plus: ${CWD}/data/plus/
   pdbj-json:
-    data: ${CWD}data/mmjson-noatom/
-    data-plus: ${CWD}data/plus/
+    data: ${CWD}/data/mmjson-noatom/
+    data-plus: ${CWD}/data/plus/
   cc:
-    data: ${CWD}data/cc/
+    data: ${CWD}/data/cc/
   cc-json:
-    data: ${CWD}data/cc/
+    data: ${CWD}/data/cc/
   ccmodel:
-    data: ${CWD}data/ccmodel/
+    data: ${CWD}/data/ccmodel/
   ccmodel-json:
-    data: ${CWD}data/ccmodel/
+    data: ${CWD}/data/ccmodel/
   prd:
-    data: ${CWD}data/prd/
+    data: ${CWD}/data/prd/
   prd-json:
-    data: ${CWD}data/prd/
+    data: ${CWD}/data/prd/
   vrpt:
-    data: ${CWD}data/vrpt-json/*
-    data-cif: ${CWD}data/vrpt/*_validation.cif.gz
+    data: ${CWD}/data/vrpt-json/*
+    data-cif: ${CWD}/data/vrpt/*_validation.cif.gz
   contacts:
-    data: ${CWD}data/contacts/
+    data: ${CWD}/data/contacts/
   sifts:
-    data: ${CWD}data/sifts/
+    data: ${CWD}/data/sifts/
