@@ -116,9 +116,9 @@ def load_config(config_path: Path) -> Settings:
     data_dir = Path(os.environ.get("DATA_DIR", "/mnt/c/pdb"))
 
     variables = {
-        "CWD": str(cwd) + "/",
-        "DATA_DIR": str(data_dir) + "/",
-        "HOME": str(Path.home()) + "/",
+        "CWD": str(cwd),
+        "DATA_DIR": str(data_dir),
+        "HOME": str(Path.home()),
     }
 
     # Resolve variables in config
