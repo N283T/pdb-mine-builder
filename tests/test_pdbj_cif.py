@@ -493,16 +493,21 @@ class TestRealPdbFixtures:
             assert cat in data, f"Missing category: {cat}"
 
 
-def create_test_settings_with_plus(data_dir: Path, plus_dir: Path) -> Settings:
+def create_test_settings_with_plus(
+    data_dir: Path,
+    plus_dir: Path,
+    nextgen_plus_dir: Path | None = None,
+) -> Settings:
     """Create test settings with plus data directory."""
+    config = PipelineConfig(
+        data=str(data_dir),
+        data_plus=str(plus_dir),
+    )
+    if nextgen_plus_dir:
+        config.data_nextgen_plus = str(nextgen_plus_dir)
     return Settings(
         rdb=RdbConfig(nworkers=2, constring="test"),
-        pipelines={
-            "pdbj": PipelineConfig(
-                data=str(data_dir),
-                data_plus=str(plus_dir),
-            )
-        },
+        pipelines={"pdbj": config},
     )
 
 
@@ -945,3 +950,231 @@ class TestCifPatchApplication:
 
         # No patches for 100d, chem_comp should not be added
         assert "chem_comp" not in result
+
+
+# =============================================================================
+# Nextgen-plus (SIFTS) data tests
+# =============================================================================
+
+
+class TestFindJobsWithNextgenPlusData:
+    """Tests for PdbjCifPipeline.find_jobs() with nextgen-plus data."""
+
+    def test_finds_nextgen_plus_files_when_configured(self, tmp_path: Path) -> None:
+        """find_jobs includes nextgen_plus_path when directory is configured."""
+        cif_dir = tmp_path / "mmCIF"
+        cif_dir.mkdir()
+        cif_path = cif_dir / "100d.cif.gz"
+        create_test_pdbj_cif_file(cif_path, [{"id": "100d"}])
+
+        nextgen_dir = tmp_path / "nextgen-plus"
+        nextgen_dir.mkdir()
+        nextgen_path = nextgen_dir / "100d-plus.json.gz"
+        create_test_plus_file(
+            nextgen_path,
+            "100d",
+            {
+                "pdbx_sifts_xref_db": [
+                    {
+                        "entity_id": "1",
+                        "seq_id_ordinal": "1",
+                        "db_name": "UNP",
+                        "db_accession": "P12345",
+                    }
+                ]
+            },
+        )
+
+        settings = create_test_settings_with_plus(
+            cif_dir, tmp_path / "empty-plus", nextgen_dir
+        )
+        # Create the empty plus dir so it doesn't interfere
+        (tmp_path / "empty-plus").mkdir()
+        config = settings.pipelines["pdbj"]
+        meta = create_test_meta()
+
+        pipeline = PdbjCifPipeline(settings, config, meta)
+        jobs = pipeline.find_jobs()
+
+        assert len(jobs) == 1
+        assert jobs[0].extra is not None
+        assert jobs[0].extra.get("nextgen_plus_path") == nextgen_path
+
+    def test_nextgen_plus_path_none_when_file_not_exists(self, tmp_path: Path) -> None:
+        """nextgen_plus_path is None when file doesn't exist for entry."""
+        cif_dir = tmp_path / "mmCIF"
+        cif_dir.mkdir()
+        cif_path = cif_dir / "100d.cif.gz"
+        create_test_pdbj_cif_file(cif_path, [{"id": "100d"}])
+
+        nextgen_dir = tmp_path / "nextgen-plus"
+        nextgen_dir.mkdir()
+        # No matching file created
+
+        settings = create_test_settings_with_plus(
+            cif_dir, tmp_path / "empty-plus", nextgen_dir
+        )
+        (tmp_path / "empty-plus").mkdir()
+        config = settings.pipelines["pdbj"]
+        meta = create_test_meta()
+
+        pipeline = PdbjCifPipeline(settings, config, meta)
+        jobs = pipeline.find_jobs()
+
+        assert len(jobs) == 1
+        assert jobs[0].extra.get("nextgen_plus_path") is None
+
+    def test_nextgen_plus_path_none_when_not_configured(self, tmp_path: Path) -> None:
+        """nextgen_plus_path is None when directory is not configured."""
+        cif_dir = tmp_path / "mmCIF"
+        cif_dir.mkdir()
+        cif_path = cif_dir / "100d.cif.gz"
+        create_test_pdbj_cif_file(cif_path, [{"id": "100d"}])
+
+        settings = create_test_settings(cif_dir)
+        config = settings.pipelines["pdbj"]
+        meta = create_test_meta()
+
+        pipeline = PdbjCifPipeline(settings, config, meta)
+        jobs = pipeline.find_jobs()
+
+        assert len(jobs) == 1
+        assert jobs[0].extra.get("nextgen_plus_path") is None
+
+
+class TestProcessJobWithNextgenPlusData:
+    """Tests for PdbjCifPipeline.process_job() with nextgen-plus data merging."""
+
+    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    def test_merges_nextgen_plus_data(self, mock_sync, tmp_path: Path) -> None:
+        """Nextgen-plus SIFTS categories are merged into CIF data."""
+        cif_dir = tmp_path / "mmCIF"
+        cif_dir.mkdir()
+        cif_path = cif_dir / "100d.cif.gz"
+        create_test_pdbj_cif_file(cif_path, [{"id": "100d"}])
+
+        nextgen_dir = tmp_path / "nextgen-plus"
+        nextgen_dir.mkdir()
+        nextgen_path = nextgen_dir / "100d-plus.json.gz"
+        create_test_plus_file(
+            nextgen_path,
+            "100d",
+            {
+                "pdbx_sifts_xref_db": [
+                    {
+                        "entity_id": "1",
+                        "asym_id": "A",
+                        "seq_id_ordinal": "1",
+                        "seq_id": "1",
+                        "xref_db_name": "UNP",
+                        "xref_db_acc": "P12345",
+                    }
+                ]
+            },
+        )
+
+        settings = create_test_settings_with_plus(
+            cif_dir, tmp_path / "empty-plus", nextgen_dir
+        )
+        (tmp_path / "empty-plus").mkdir()
+        config = settings.pipelines["pdbj"]
+        meta = create_test_meta()
+
+        pipeline = PdbjCifPipeline(settings, config, meta)
+        mock_sync.return_value = (1, 0, 0)
+
+        job = Job(
+            entry_id="100d",
+            filepath=cif_path,
+            extra={"plus_path": None, "nextgen_plus_path": nextgen_path},
+        )
+        result = pipeline.process_job(job, "pdbj", "test_conninfo")
+
+        assert result.success
+        table_rows = mock_sync.call_args.kwargs["table_rows"]
+        assert "pdbx_sifts_xref_db" in table_rows
+        assert table_rows["pdbx_sifts_xref_db"][0]["xref_db_acc"] == "P12345"
+
+    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    def test_merges_both_plus_and_nextgen_plus(self, mock_sync, tmp_path: Path) -> None:
+        """Both old plus and nextgen-plus data are merged."""
+        cif_dir = tmp_path / "mmCIF"
+        cif_dir.mkdir()
+        cif_path = cif_dir / "100d.cif.gz"
+        create_test_pdbj_cif_file(cif_path, [{"id": "100d"}])
+
+        plus_dir = tmp_path / "mmjson-plus"
+        plus_dir.mkdir()
+        plus_path = plus_dir / "100d-plus.json.gz"
+        create_test_plus_file(
+            plus_path,
+            "100d",
+            {"gene_ontology_pdbmlplus": [{"goid": "GO:0001234", "name": "test"}]},
+        )
+
+        nextgen_dir = tmp_path / "nextgen-plus"
+        nextgen_dir.mkdir()
+        nextgen_path = nextgen_dir / "100d-plus.json.gz"
+        create_test_plus_file(
+            nextgen_path,
+            "100d",
+            {
+                "pdbx_sifts_xref_db": [
+                    {
+                        "entity_id": "1",
+                        "asym_id": "A",
+                        "seq_id_ordinal": "1",
+                        "seq_id": "1",
+                        "xref_db_name": "UNP",
+                        "xref_db_acc": "P12345",
+                    }
+                ]
+            },
+        )
+
+        settings = create_test_settings_with_plus(cif_dir, plus_dir, nextgen_dir)
+        config = settings.pipelines["pdbj"]
+        meta = create_test_meta()
+
+        pipeline = PdbjCifPipeline(settings, config, meta)
+        mock_sync.return_value = (1, 0, 0)
+
+        job = Job(
+            entry_id="100d",
+            filepath=cif_path,
+            extra={"plus_path": plus_path, "nextgen_plus_path": nextgen_path},
+        )
+        result = pipeline.process_job(job, "pdbj", "test_conninfo")
+
+        assert result.success
+        table_rows = mock_sync.call_args.kwargs["table_rows"]
+        # Old plus data
+        assert "gene_ontology_pdbmlplus" in table_rows
+        # Nextgen-plus SIFTS data
+        assert "pdbx_sifts_xref_db" in table_rows
+
+    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    def test_works_without_nextgen_plus(self, mock_sync, tmp_path: Path) -> None:
+        """Process job works when nextgen_plus_path is None."""
+        cif_dir = tmp_path / "mmCIF"
+        cif_dir.mkdir()
+        cif_path = cif_dir / "100d.cif.gz"
+        create_test_pdbj_cif_file(cif_path, [{"id": "100d"}])
+
+        settings = create_test_settings(cif_dir)
+        config = settings.pipelines["pdbj"]
+        meta = create_test_meta()
+
+        pipeline = PdbjCifPipeline(settings, config, meta)
+        mock_sync.return_value = (1, 0, 0)
+
+        job = Job(
+            entry_id="100d",
+            filepath=cif_path,
+            extra={"plus_path": None, "nextgen_plus_path": None},
+        )
+        result = pipeline.process_job(job, "pdbj", "test_conninfo")
+
+        assert result.success
+        table_rows = mock_sync.call_args.kwargs["table_rows"]
+        assert "entry" in table_rows
