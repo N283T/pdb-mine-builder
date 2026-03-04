@@ -10,6 +10,7 @@ from typing import Any
 from rich.console import Console
 
 from mine2.config import PipelineConfig, Settings
+from mine2.db.delta import apply_delta, compute_delta, fetch_entry_data
 from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, run_loader
 
 console = Console()
@@ -344,6 +345,65 @@ def transform_category(
         result.append(transformed_row)
 
     return result
+
+
+def sync_entry_tables(
+    conninfo: str,
+    schema_def: SchemaDef,
+    entry_id: str,
+    table_rows: dict[str, list[dict[str, Any]]],
+) -> tuple[int, int, int]:
+    """Synchronize all rows for one entry using delta (insert/update/delete).
+
+    This preserves original mine2updater behavior where rows removed from
+    source files are also removed from the database for the same entry.
+    """
+    pk_column = schema_def.primary_key
+    table_defs = {t.name: t for t in schema_def.tables}
+    all_tables = [t.name for t in schema_def.tables]
+
+    # Ensure every schema table is present in new_data so missing categories
+    # are interpreted as "delete existing rows for this entry".
+    new_data: dict[str, list[dict[str, Any]]] = {name: [] for name in all_tables}
+    for table_name, rows in table_rows.items():
+        if table_name in new_data:
+            new_data[table_name] = rows
+
+    db_data = fetch_entry_data(
+        conninfo=conninfo,
+        schema=schema_def.schema_name,
+        entry_id=entry_id,
+        pk_column=pk_column,
+        tables=all_tables,
+    )
+
+    table_pk_columns = {
+        name: [c for c in tdef.primary_key if c != pk_column]
+        for name, tdef in table_defs.items()
+    }
+    table_columns = {
+        name: [col_name for col_name, _ in tdef.columns]
+        for name, tdef in table_defs.items()
+    }
+
+    delta = compute_delta(
+        entry_id=entry_id,
+        db_data=db_data,
+        new_data=new_data,
+        table_pk_columns=table_pk_columns,
+        table_columns=table_columns,
+    )
+
+    return apply_delta(
+        conninfo=conninfo,
+        schema=schema_def.schema_name,
+        entry_id=entry_id,
+        pk_column=pk_column,
+        delta=delta,
+        new_data=new_data,
+        db_data=db_data,
+        table_pk_columns=table_pk_columns,
+    )
 
 
 class BasePipeline(ABC):

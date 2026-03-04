@@ -17,7 +17,7 @@ from typing import Any
 from rich.console import Console
 
 from mine2.config import PipelineConfig, Settings
-from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
+from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef
 from mine2.parsers.cif import parse_mmjson_file
 from mine2.parsers.mmjson import (
     clean_array,
@@ -27,7 +27,7 @@ from mine2.parsers.mmjson import (
     normalize_column_name,
     remove_null,
 )
-from mine2.pipelines.base import BasePipeline, transform_category
+from mine2.pipelines.base import BasePipeline, sync_entry_tables, transform_category
 from mine2.utils.assembly import (
     CHAIN_TYPE_MAPPING,
     EXPTL_METHOD_MAPPING,
@@ -135,47 +135,17 @@ class IhmPipeline(BasePipeline):
                     )
 
             # Transform and load
-            rows_inserted = 0
-
-            # Get entry table definition
-            entry_table = next(
-                (t for t in schema_def.tables if t.name == "entry"), None
-            )
-            entry_pk = (
-                entry_table.primary_key if entry_table else [schema_def.primary_key]
-            )
+            table_rows: dict[str, list[dict[str, Any]]] = {}
 
             # Load entry table
             entry_rows = self._transform_entry(data, job.entry_id)
             if entry_rows:
-                columns = list(entry_rows[0].keys())
-                inserted, _ = bulk_upsert(
-                    conninfo,
-                    schema_def.schema_name,
-                    "entry",
-                    columns,
-                    [tuple(r[c] for c in columns) for r in entry_rows],
-                    entry_pk,
-                )
-                rows_inserted += inserted
+                table_rows["entry"] = entry_rows
 
             # Load brief_summary
             brief_rows = self._transform_brief_summary(data, job.entry_id)
             if brief_rows:
-                brief_table = next(
-                    (t for t in schema_def.tables if t.name == "brief_summary"), None
-                )
-                if brief_table:
-                    columns = list(brief_rows[0].keys())
-                    inserted, _ = bulk_upsert(
-                        conninfo,
-                        schema_def.schema_name,
-                        "brief_summary",
-                        columns,
-                        [tuple(r[c] for c in columns) for r in brief_rows],
-                        brief_table.primary_key,
-                    )
-                    rows_inserted += inserted
+                table_rows["brief_summary"] = brief_rows
 
             # Load other categories
             for table in schema_def.tables:
@@ -184,21 +154,20 @@ class IhmPipeline(BasePipeline):
 
                 category_rows = self._transform_category(data, table, job.entry_id)
                 if category_rows:
-                    columns = list(category_rows[0].keys())
-                    inserted, _ = bulk_upsert(
-                        conninfo,
-                        schema_def.schema_name,
-                        table.name,
-                        columns,
-                        [tuple(r[c] for c in columns) for r in category_rows],
-                        table.primary_key,
-                    )
-                    rows_inserted += inserted
+                    table_rows[table.name] = category_rows
+
+            inserted, updated, _deleted = sync_entry_tables(
+                conninfo=conninfo,
+                schema_def=schema_def,
+                entry_id=job.entry_id,
+                table_rows=table_rows,
+            )
 
             return LoaderResult(
                 entry_id=job.entry_id,
                 success=True,
-                rows_inserted=rows_inserted,
+                rows_inserted=inserted,
+                rows_updated=updated,
             )
 
         except Exception as e:

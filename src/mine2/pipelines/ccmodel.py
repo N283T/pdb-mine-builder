@@ -21,7 +21,7 @@ from mine2.config import PipelineConfig, Settings
 from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
 from mine2.parsers.cif import parse_block, parse_mmjson_file
 from mine2.parsers.mmjson import normalize_column_name
-from mine2.pipelines.base import BasePipeline, transform_category
+from mine2.pipelines.base import BasePipeline, sync_entry_tables, transform_category
 
 console = Console()
 
@@ -117,21 +117,12 @@ class CcmodelPipeline(BasePipeline):
         """Process a single component model."""
         try:
             data = parse_mmjson_file(job.filepath)
-            rows_inserted = 0
+            table_rows: dict[str, list[dict[str, Any]]] = {}
 
             # Generate and load brief_summary
             brief_rows = self._generate_brief_summary(data, job.entry_id)
             if brief_rows:
-                columns = list(brief_rows[0].keys())
-                inserted, _ = bulk_upsert(
-                    conninfo,
-                    schema_def.schema_name,
-                    "brief_summary",
-                    columns,
-                    [tuple(r[c] for c in columns) for r in brief_rows],
-                    ["model_id"],
-                )
-                rows_inserted += inserted
+                table_rows["brief_summary"] = brief_rows
 
             # Load all tables from schema
             for table in schema_def.tables:
@@ -142,21 +133,20 @@ class CcmodelPipeline(BasePipeline):
                     data, table, job.entry_id, schema_def.primary_key
                 )
                 if category_rows:
-                    columns = list(category_rows[0].keys())
-                    inserted, _ = bulk_upsert(
-                        conninfo,
-                        schema_def.schema_name,
-                        table.name,
-                        columns,
-                        [tuple(r[c] for c in columns) for r in category_rows],
-                        table.primary_key,
-                    )
-                    rows_inserted += inserted
+                    table_rows[table.name] = category_rows
+
+            inserted, updated, _deleted = sync_entry_tables(
+                conninfo=conninfo,
+                schema_def=schema_def,
+                entry_id=job.entry_id,
+                table_rows=table_rows,
+            )
 
             return LoaderResult(
                 entry_id=job.entry_id,
                 success=True,
-                rows_inserted=rows_inserted,
+                rows_inserted=inserted,
+                rows_updated=updated,
             )
 
         except Exception as e:

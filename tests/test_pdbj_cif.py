@@ -719,15 +719,14 @@ class TestProcessJobWithPlusData:
         )
 
         # Mock bulk_upsert to capture what gets loaded
-        with patch("mine2.pipelines.pdbj.bulk_upsert") as mock_upsert:
-            mock_upsert.return_value = (1, 0)
+        with patch("mine2.pipelines.pdbj.sync_entry_tables") as mock_sync_entry_tables:
+            mock_sync_entry_tables.return_value = (1, 0, 0)
             result = pipeline.process_job(job, schema_def, "test_conninfo")
 
             assert result.success
             # Verify gene_ontology_pdbmlplus was loaded (from plus data)
-            calls = mock_upsert.call_args_list
-            table_names = [call[0][2] for call in calls]  # Third arg is table name
-            assert "gene_ontology_pdbmlplus" in table_names
+            table_rows = mock_sync_entry_tables.call_args.kwargs["table_rows"]
+            assert "gene_ontology_pdbmlplus" in table_rows
 
     def test_works_without_plus_data(self, tmp_path: Path) -> None:
         """Process job works when plus_path is None."""
@@ -753,15 +752,14 @@ class TestProcessJobWithPlusData:
         )
 
         # Mock bulk_upsert
-        with patch("mine2.pipelines.pdbj.bulk_upsert") as mock_upsert:
-            mock_upsert.return_value = (1, 0)
+        with patch("mine2.pipelines.pdbj.sync_entry_tables") as mock_sync_entry_tables:
+            mock_sync_entry_tables.return_value = (1, 0, 0)
             result = pipeline.process_job(job, schema_def, "test_conninfo")
 
             assert result.success
             # Should still load entry and cell tables
-            calls = mock_upsert.call_args_list
-            table_names = [call[0][2] for call in calls]
-            assert "entry" in table_names
+            table_rows = mock_sync_entry_tables.call_args.kwargs["table_rows"]
+            assert "entry" in table_rows
 
 
 # =============================================================================
@@ -772,8 +770,8 @@ class TestProcessJobWithPlusData:
 class TestCifHashAsymIdList:
     """Tests for _hash_asym_id_list computation in CIF pipeline."""
 
-    @patch("mine2.pipelines.pdbj.bulk_upsert")
-    def test_hash_added_to_assembly_gen_cif(self, mock_bulk_upsert, tmp_path):
+    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    def test_hash_added_to_assembly_gen_cif(self, mock_sync_entry_tables, tmp_path):
         """Test that _hash_asym_id_list is computed for CIF data."""
         cif_dir = tmp_path / "mmCIF"
         cif_dir.mkdir()
@@ -794,34 +792,22 @@ class TestCifHashAsymIdList:
         schema_def = create_test_schema_def_with_assembly()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
-        mock_bulk_upsert.return_value = (1, 0)
+        mock_sync_entry_tables.return_value = (1, 0, 0)
 
         job = Job(entry_id="100d", filepath=cif_path, extra={})
         result = pipeline.process_job(job, schema_def, "test_conninfo")
 
         assert result.success
 
-        # Find the call for pdbx_struct_assembly_gen
-        for call in mock_bulk_upsert.call_args_list:
-            table_name = call[0][2]
-            if table_name == "pdbx_struct_assembly_gen":
-                columns = call[0][3]
-                rows = call[0][4]
+        table_rows = mock_sync_entry_tables.call_args.kwargs["table_rows"]
+        assert "pdbx_struct_assembly_gen" in table_rows
+        rows = table_rows["pdbx_struct_assembly_gen"]
+        for row in rows:
+            expected_hash = hex_sha256(row["asym_id_list"])
+            assert row["_hash_asym_id_list"] == expected_hash
 
-                assert "_hash_asym_id_list" in columns
-
-                hash_idx = columns.index("_hash_asym_id_list")
-                asym_list_idx = columns.index("asym_id_list")
-
-                for row in rows:
-                    expected_hash = hex_sha256(row[asym_list_idx])
-                    assert row[hash_idx] == expected_hash
-                break
-        else:
-            pytest.fail("pdbx_struct_assembly_gen was not loaded")
-
-    @patch("mine2.pipelines.pdbj.bulk_upsert")
-    def test_hash_is_sha256_cif(self, mock_bulk_upsert, tmp_path):
+    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    def test_hash_is_sha256_cif(self, mock_sync_entry_tables, tmp_path):
         """Test that the hash is SHA256 (64 hex chars) for CIF data."""
         cif_dir = tmp_path / "mmCIF"
         cif_dir.mkdir()
@@ -838,30 +824,24 @@ class TestCifHashAsymIdList:
         schema_def = create_test_schema_def_with_assembly()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
-        mock_bulk_upsert.return_value = (1, 0)
+        mock_sync_entry_tables.return_value = (1, 0, 0)
 
         job = Job(entry_id="100d", filepath=cif_path, extra={})
         pipeline.process_job(job, schema_def, "test_conninfo")
 
-        for call in mock_bulk_upsert.call_args_list:
-            table_name = call[0][2]
-            if table_name == "pdbx_struct_assembly_gen":
-                columns = call[0][3]
-                rows = call[0][4]
-                hash_idx = columns.index("_hash_asym_id_list")
-
-                for row in rows:
-                    hash_value = row[hash_idx]
-                    assert len(hash_value) == 64
-                    assert all(c in "0123456789abcdef" for c in hash_value)
-                break
+        table_rows = mock_sync_entry_tables.call_args.kwargs["table_rows"]
+        rows = table_rows["pdbx_struct_assembly_gen"]
+        for row in rows:
+            hash_value = row["_hash_asym_id_list"]
+            assert len(hash_value) == 64
+            assert all(c in "0123456789abcdef" for c in hash_value)
 
 
 class TestCifBuMwCalculation:
     """Tests for bu_mw calculation in CIF pipeline."""
 
-    @patch("mine2.pipelines.pdbj.bulk_upsert")
-    def test_bu_mw_in_plus_fields_cif(self, mock_bulk_upsert, tmp_path):
+    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    def test_bu_mw_in_plus_fields_cif(self, mock_sync_entry_tables, tmp_path):
         """Test that bu_mw is calculated and added to plus_fields for CIF."""
         cif_dir = tmp_path / "mmCIF"
         cif_dir.mkdir()
@@ -885,32 +865,25 @@ class TestCifBuMwCalculation:
         schema_def = create_test_schema_def_with_assembly()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
-        mock_bulk_upsert.return_value = (1, 0)
+        mock_sync_entry_tables.return_value = (1, 0, 0)
 
         job = Job(entry_id="100d", filepath=cif_path, extra={})
         result = pipeline.process_job(job, schema_def, "test_conninfo")
 
         assert result.success
 
-        for call in mock_bulk_upsert.call_args_list:
-            table_name = call[0][2]
-            if table_name == "brief_summary":
-                columns = call[0][3]
-                rows = call[0][4]
+        table_rows = mock_sync_entry_tables.call_args.kwargs["table_rows"]
+        assert "brief_summary" in table_rows
+        rows = table_rows["brief_summary"]
+        for row in rows:
+            plus_fields = row["plus_fields"]
+            if isinstance(plus_fields, str):
+                plus_fields = json.loads(plus_fields)
+            assert "bu_mw" in plus_fields
+            assert plus_fields["bu_mw"] == 1000.0
 
-                assert "plus_fields" in columns
-                plus_idx = columns.index("plus_fields")
-
-                for row in rows:
-                    plus_fields = json.loads(row[plus_idx])
-                    assert "bu_mw" in plus_fields
-                    assert plus_fields["bu_mw"] == 1000.0
-                break
-        else:
-            pytest.fail("brief_summary was not loaded")
-
-    @patch("mine2.pipelines.pdbj.bulk_upsert")
-    def test_bu_mw_zero_when_no_assembly_cif(self, mock_bulk_upsert, tmp_path):
+    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    def test_bu_mw_zero_when_no_assembly_cif(self, mock_sync_entry_tables, tmp_path):
         """Test that bu_mw is 0 when no assembly data in CIF."""
         cif_dir = tmp_path / "mmCIF"
         cif_dir.mkdir()
@@ -939,25 +912,21 @@ _brief_summary.docid 100
         schema_def = create_test_schema_def_with_assembly()
 
         pipeline = PdbjCifPipeline(settings, config, schema_def)
-        mock_bulk_upsert.return_value = (1, 0)
+        mock_sync_entry_tables.return_value = (1, 0, 0)
 
         job = Job(entry_id=pdb_id, filepath=cif_path, extra={})
         result = pipeline.process_job(job, schema_def, "test_conninfo")
 
         assert result.success
 
-        for call in mock_bulk_upsert.call_args_list:
-            table_name = call[0][2]
-            if table_name == "brief_summary":
-                columns = call[0][3]
-                rows = call[0][4]
-                plus_idx = columns.index("plus_fields")
-
-                for row in rows:
-                    plus_fields = json.loads(row[plus_idx])
-                    assert "bu_mw" in plus_fields
-                    assert plus_fields["bu_mw"] == 0.0
-                break
+        table_rows = mock_sync_entry_tables.call_args.kwargs["table_rows"]
+        rows = table_rows["brief_summary"]
+        for row in rows:
+            plus_fields = row["plus_fields"]
+            if isinstance(plus_fields, str):
+                plus_fields = json.loads(plus_fields)
+            assert "bu_mw" in plus_fields
+            assert plus_fields["bu_mw"] == 0.0
 
 
 class TestCifPatchApplication:

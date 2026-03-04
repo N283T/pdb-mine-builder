@@ -123,8 +123,8 @@ def create_test_schema_def() -> SchemaDef:
 class TestHashAsymIdList:
     """Tests for _hash_asym_id_list computation."""
 
-    @patch("mine2.pipelines.pdbj.bulk_upsert")
-    def test_hash_added_to_assembly_gen(self, mock_bulk_upsert, tmp_path):
+    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    def test_hash_added_to_assembly_gen(self, mock_sync_entry_tables, tmp_path):
         """Test that _hash_asym_id_list is computed."""
         data_dir = tmp_path / "pdbj"
         data_dir.mkdir(parents=True)
@@ -151,36 +151,22 @@ class TestHashAsymIdList:
         schema_def = create_test_schema_def()
 
         pipeline = PdbjPipeline(settings, config, schema_def)
-        mock_bulk_upsert.return_value = (1, 0)
+        mock_sync_entry_tables.return_value = (1, 0, 0)
 
         job = Job(entry_id="100d", filepath=mmjson_file, extra={})
         result = pipeline.process_job(job, schema_def, "test_conninfo")
 
         assert result.success
 
-        # Find the call for pdbx_struct_assembly_gen
-        for call in mock_bulk_upsert.call_args_list:
-            table_name = call[0][2]  # Third arg is table name
-            if table_name == "pdbx_struct_assembly_gen":
-                columns = call[0][3]  # Fourth arg is columns
-                rows = call[0][4]  # Fifth arg is rows
+        table_rows = mock_sync_entry_tables.call_args.kwargs["table_rows"]
+        assert "pdbx_struct_assembly_gen" in table_rows
+        rows = table_rows["pdbx_struct_assembly_gen"]
+        for row in rows:
+            expected_hash = hex_sha256(row["asym_id_list"])
+            assert row["_hash_asym_id_list"] == expected_hash
 
-                # Check _hash_asym_id_list is in columns
-                assert "_hash_asym_id_list" in columns
-
-                # Get the hash value
-                hash_idx = columns.index("_hash_asym_id_list")
-                asym_list_idx = columns.index("asym_id_list")
-
-                for row in rows:
-                    expected_hash = hex_sha256(row[asym_list_idx])
-                    assert row[hash_idx] == expected_hash
-                break
-        else:
-            pytest.fail("pdbx_struct_assembly_gen was not loaded")
-
-    @patch("mine2.pipelines.pdbj.bulk_upsert")
-    def test_hash_is_sha256(self, mock_bulk_upsert, tmp_path):
+    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    def test_hash_is_sha256(self, mock_sync_entry_tables, tmp_path):
         """Test that the hash is SHA256."""
         data_dir = tmp_path / "pdbj"
         data_dir.mkdir(parents=True)
@@ -207,31 +193,24 @@ class TestHashAsymIdList:
         schema_def = create_test_schema_def()
 
         pipeline = PdbjPipeline(settings, config, schema_def)
-        mock_bulk_upsert.return_value = (1, 0)
+        mock_sync_entry_tables.return_value = (1, 0, 0)
 
         job = Job(entry_id="100d", filepath=mmjson_file, extra={})
         pipeline.process_job(job, schema_def, "test_conninfo")
 
-        # Verify hash is 64 characters (SHA256 hex)
-        for call in mock_bulk_upsert.call_args_list:
-            table_name = call[0][2]
-            if table_name == "pdbx_struct_assembly_gen":
-                columns = call[0][3]
-                rows = call[0][4]
-                hash_idx = columns.index("_hash_asym_id_list")
-
-                for row in rows:
-                    hash_value = row[hash_idx]
-                    assert len(hash_value) == 64
-                    assert all(c in "0123456789abcdef" for c in hash_value)
-                break
+        table_rows = mock_sync_entry_tables.call_args.kwargs["table_rows"]
+        rows = table_rows["pdbx_struct_assembly_gen"]
+        for row in rows:
+            hash_value = row["_hash_asym_id_list"]
+            assert len(hash_value) == 64
+            assert all(c in "0123456789abcdef" for c in hash_value)
 
 
 class TestBuMwCalculation:
     """Tests for bu_mw calculation in brief_summary."""
 
-    @patch("mine2.pipelines.pdbj.bulk_upsert")
-    def test_bu_mw_in_plus_fields(self, mock_bulk_upsert, tmp_path):
+    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    def test_bu_mw_in_plus_fields(self, mock_sync_entry_tables, tmp_path):
         """Test that bu_mw is calculated and added to plus_fields."""
         data_dir = tmp_path / "pdbj"
         data_dir.mkdir(parents=True)
@@ -261,35 +240,25 @@ class TestBuMwCalculation:
         schema_def = create_test_schema_def()
 
         pipeline = PdbjPipeline(settings, config, schema_def)
-        mock_bulk_upsert.return_value = (1, 0)
+        mock_sync_entry_tables.return_value = (1, 0, 0)
 
         job = Job(entry_id="100d", filepath=mmjson_file, extra={})
         result = pipeline.process_job(job, schema_def, "test_conninfo")
 
         assert result.success
 
-        # Find the call for brief_summary
-        for call in mock_bulk_upsert.call_args_list:
-            table_name = call[0][2]
-            if table_name == "brief_summary":
-                columns = call[0][3]
-                rows = call[0][4]
+        table_rows = mock_sync_entry_tables.call_args.kwargs["table_rows"]
+        assert "brief_summary" in table_rows
+        rows = table_rows["brief_summary"]
+        for row in rows:
+            plus_fields = row["plus_fields"]
+            if isinstance(plus_fields, str):
+                plus_fields = json.loads(plus_fields)
+            assert "bu_mw" in plus_fields
+            assert plus_fields["bu_mw"] == 1000.0
 
-                # Check plus_fields is in columns
-                assert "plus_fields" in columns
-                plus_idx = columns.index("plus_fields")
-
-                for row in rows:
-                    plus_fields = json.loads(row[plus_idx])
-                    assert "bu_mw" in plus_fields
-                    # bu_mw should be 1000.0 for single chain with weight 1000
-                    assert plus_fields["bu_mw"] == 1000.0
-                break
-        else:
-            pytest.fail("brief_summary was not loaded")
-
-    @patch("mine2.pipelines.pdbj.bulk_upsert")
-    def test_bu_mw_zero_when_no_assembly(self, mock_bulk_upsert, tmp_path):
+    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    def test_bu_mw_zero_when_no_assembly(self, mock_sync_entry_tables, tmp_path):
         """Test that bu_mw is 0 when no assembly data."""
         data_dir = tmp_path / "pdbj"
         data_dir.mkdir(parents=True)
@@ -309,26 +278,21 @@ class TestBuMwCalculation:
         schema_def = create_test_schema_def()
 
         pipeline = PdbjPipeline(settings, config, schema_def)
-        mock_bulk_upsert.return_value = (1, 0)
+        mock_sync_entry_tables.return_value = (1, 0, 0)
 
         job = Job(entry_id="100d", filepath=mmjson_file, extra={})
         result = pipeline.process_job(job, schema_def, "test_conninfo")
 
         assert result.success
 
-        # Find the call for brief_summary
-        for call in mock_bulk_upsert.call_args_list:
-            table_name = call[0][2]
-            if table_name == "brief_summary":
-                columns = call[0][3]
-                rows = call[0][4]
-                plus_idx = columns.index("plus_fields")
-
-                for row in rows:
-                    plus_fields = json.loads(row[plus_idx])
-                    assert "bu_mw" in plus_fields
-                    assert plus_fields["bu_mw"] == 0.0
-                break
+        table_rows = mock_sync_entry_tables.call_args.kwargs["table_rows"]
+        rows = table_rows["brief_summary"]
+        for row in rows:
+            plus_fields = row["plus_fields"]
+            if isinstance(plus_fields, str):
+                plus_fields = json.loads(plus_fields)
+            assert "bu_mw" in plus_fields
+            assert plus_fields["bu_mw"] == 0.0
 
 
 class TestExtractEntryId:

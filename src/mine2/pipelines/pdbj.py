@@ -14,12 +14,11 @@ from mine2.db.loader import (
     LoaderResult,
     SchemaDef,
     TableDef,
-    bulk_upsert,
     run_loader_streaming,
 )
 from mine2.parsers.cif import parse_cif_file, parse_mmjson_file
 from mine2.parsers.mmjson import merge_data, normalize_column_name
-from mine2.pipelines.base import BasePipeline, transform_category
+from mine2.pipelines.base import BasePipeline, sync_entry_tables, transform_category
 from mine2.utils.assembly import calculate_mw_for_bu, hex_sha256
 from mine2.utils.brief_summary import generate_brief_summary
 from mine2.utils.patches import apply_patches
@@ -39,7 +38,7 @@ def _load_pdbj_data(
     schema_def: SchemaDef,
     conninfo: str,
     normalize_fn: Any | None = None,
-) -> int:
+) -> tuple[int, int, int]:
     """Load PDB data into database tables.
 
     Shared by both PdbjPipeline (mmJSON) and PdbjCifPipeline (CIF).
@@ -52,27 +51,15 @@ def _load_pdbj_data(
         normalize_fn: Column name normalizer (for mmJSON) or None (for CIF)
 
     Returns:
-        Number of rows inserted
+        Tuple of (inserted_count, updated_count, deleted_count)
     """
-    rows_inserted = 0
+    table_rows: dict[str, list[dict[str, Any]]] = {}
 
     # Use cached table lookups (O(1) instead of O(n) iteration)
-    entry_table = schema_def.get_table("entry")
-    entry_pk = entry_table.primary_key if entry_table else [schema_def.primary_key]
-
     # Load entry table
     entry_rows = _transform_entry(data, entry_id)
     if entry_rows:
-        columns = list(entry_rows[0].keys())
-        inserted, _ = bulk_upsert(
-            conninfo,
-            schema_def.schema_name,
-            "entry",
-            columns,
-            [tuple(r[c] for c in columns) for r in entry_rows],
-            entry_pk,
-        )
-        rows_inserted += inserted
+        table_rows["entry"] = entry_rows
     # Free memory after processing
     data.pop("entry", None)
 
@@ -81,16 +68,7 @@ def _load_pdbj_data(
     if brief_table:
         brief_rows = _transform_brief_summary(data, brief_table, entry_id)
         if brief_rows:
-            columns = list(brief_rows[0].keys())
-            inserted, _ = bulk_upsert(
-                conninfo,
-                schema_def.schema_name,
-                "brief_summary",
-                columns,
-                [tuple(r[c] for c in columns) for r in brief_rows],
-                brief_table.primary_key,
-            )
-            rows_inserted += inserted
+            table_rows["brief_summary"] = brief_rows
         # Free memory after processing
         data.pop("brief_summary", None)
 
@@ -105,21 +83,17 @@ def _load_pdbj_data(
 
         category_rows = transform_category(rows, table, entry_id, "pdbid", normalize_fn)
         if category_rows:
-            columns = list(category_rows[0].keys())
-            inserted, _ = bulk_upsert(
-                conninfo,
-                schema_def.schema_name,
-                table.name,
-                columns,
-                [tuple(r[c] for c in columns) for r in category_rows],
-                table.primary_key,
-            )
-            rows_inserted += inserted
+            table_rows[table.name] = category_rows
 
         # Free memory after processing each category
         data.pop(table.name, None)
 
-    return rows_inserted
+    return sync_entry_tables(
+        conninfo=conninfo,
+        schema_def=schema_def,
+        entry_id=entry_id,
+        table_rows=table_rows,
+    )
 
 
 def _transform_entry(data: dict[str, Any], entry_id: str) -> list[dict]:
@@ -244,7 +218,7 @@ class PdbjPipeline(BasePipeline):
                     )
 
             # Transform and load using cached table lookups
-            rows_inserted = _load_pdbj_data(
+            inserted, updated, _deleted = _load_pdbj_data(
                 data=data,
                 entry_id=job.entry_id,
                 schema_def=schema_def,
@@ -255,7 +229,8 @@ class PdbjPipeline(BasePipeline):
             return LoaderResult(
                 entry_id=job.entry_id,
                 success=True,
-                rows_inserted=rows_inserted,
+                rows_inserted=inserted,
+                rows_updated=updated,
             )
 
         except Exception as e:
@@ -385,7 +360,7 @@ class PdbjCifPipeline(BasePipeline):
 
             # Transform and load using shared function
             # CIF: no column name normalization (pass None)
-            rows_inserted = _load_pdbj_data(
+            inserted, updated, _deleted = _load_pdbj_data(
                 data=data,
                 entry_id=job.entry_id,
                 schema_def=schema_def,
@@ -396,7 +371,8 @@ class PdbjCifPipeline(BasePipeline):
             return LoaderResult(
                 entry_id=job.entry_id,
                 success=True,
-                rows_inserted=rows_inserted,
+                rows_inserted=inserted,
+                rows_updated=updated,
             )
 
         except Exception as e:

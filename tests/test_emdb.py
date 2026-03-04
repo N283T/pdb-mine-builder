@@ -344,7 +344,7 @@ class TestTransformBriefSummary:
 class TestProcessJob:
     """Tests for process_job method."""
 
-    @patch("mine2.pipelines.emdb.bulk_upsert")
+    @patch("mine2.pipelines.emdb.sync_entry_tables")
     def test_process_job_success(self, mock_bulk_upsert, tmp_path):
         """Test successful job processing."""
         data_dir = tmp_path / "emdb"
@@ -360,7 +360,7 @@ class TestProcessJob:
         pipeline = EmdbPipeline(settings, config, schema_def)
 
         # Mock bulk_upsert to return success
-        mock_bulk_upsert.return_value = (1, 0)
+        mock_bulk_upsert.return_value = (1, 0, 0)
 
         from mine2.db.loader import Job
 

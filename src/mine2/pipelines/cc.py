@@ -24,7 +24,7 @@ from mine2.config import PipelineConfig, Settings
 from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
 from mine2.parsers.cif import parse_block
 from mine2.parsers.mmjson import normalize_column_name
-from mine2.pipelines.base import BasePipeline, transform_category
+from mine2.pipelines.base import BasePipeline, sync_entry_tables, transform_category
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -212,7 +212,7 @@ class CcPipeline(BasePipeline):
 
             # Parse block data for database insertion
             data = parse_block(block)
-            rows_inserted = 0
+            table_rows: dict[str, list[dict[str, Any]]] = {}
 
             # Generate canonical SMILES using ccd2rdmol (same as CIF pipeline)
             # This is more reliable than extracting SMILES from CCD data
@@ -232,21 +232,20 @@ class CcPipeline(BasePipeline):
                     )
 
                 if category_rows:
-                    columns = list(category_rows[0].keys())
-                    inserted, _ = bulk_upsert(
-                        conninfo,
-                        schema_def.schema_name,
-                        table.name,
-                        columns,
-                        [tuple(r[c] for c in columns) for r in category_rows],
-                        table.primary_key,
-                    )
-                    rows_inserted += inserted
+                    table_rows[table.name] = category_rows
+
+            inserted, updated, _deleted = sync_entry_tables(
+                conninfo=conninfo,
+                schema_def=schema_def,
+                entry_id=job.entry_id,
+                table_rows=table_rows,
+            )
 
             return LoaderResult(
                 entry_id=job.entry_id,
                 success=True,
-                rows_inserted=rows_inserted,
+                rows_inserted=inserted,
+                rows_updated=updated,
             )
 
         except Exception as e:

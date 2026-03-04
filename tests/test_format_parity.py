@@ -182,8 +182,8 @@ def create_cif_file(path: Path, entry_id: str, data: dict[str, list[dict]]) -> N
 class TestHashAsymIdListParity:
     """Test that _hash_asym_id_list is computed identically for CIF and mmJSON."""
 
-    @patch("mine2.pipelines.pdbj.bulk_upsert")
-    def test_same_hash_for_same_asym_id_list(self, mock_bulk_upsert, tmp_path):
+    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    def test_same_hash_for_same_asym_id_list(self, mock_sync_entry_tables, tmp_path):
         """Both formats produce the same hash for identical asym_id_list."""
         entry_id = "100d"
         asym_id_list = "A,B,C"
@@ -216,7 +216,7 @@ class TestHashAsymIdListParity:
         create_cif_file(cif_path, entry_id, test_data)
 
         schema_def = create_test_schema_def()
-        mock_bulk_upsert.return_value = (1, 0)
+        mock_sync_entry_tables.return_value = (1, 0, 0)
 
         # Process mmJSON
         mmjson_settings = create_test_settings(mmjson_dir)
@@ -226,8 +226,8 @@ class TestHashAsymIdListParity:
         mmjson_job = Job(entry_id=entry_id, filepath=mmjson_path, extra={})
         mmjson_pipeline.process_job(mmjson_job, schema_def, "test_conninfo")
 
-        mmjson_calls = mock_bulk_upsert.call_args_list.copy()
-        mock_bulk_upsert.reset_mock()
+        mmjson_call = mock_sync_entry_tables.call_args
+        mock_sync_entry_tables.reset_mock()
 
         # Process CIF
         cif_settings = create_test_settings(cif_dir)
@@ -237,21 +237,11 @@ class TestHashAsymIdListParity:
         cif_job = Job(entry_id=entry_id, filepath=cif_path, extra={})
         cif_pipeline.process_job(cif_job, schema_def, "test_conninfo")
 
-        cif_calls = mock_bulk_upsert.call_args_list.copy()
-
-        # Extract hash values from both
-        def get_hash_from_calls(calls):
-            for call in calls:
-                table_name = call[0][2]
-                if table_name == "pdbx_struct_assembly_gen":
-                    columns = call[0][3]
-                    rows = call[0][4]
-                    hash_idx = columns.index("_hash_asym_id_list")
-                    return rows[0][hash_idx]
-            return None
-
-        mmjson_hash = get_hash_from_calls(mmjson_calls)
-        cif_hash = get_hash_from_calls(cif_calls)
+        cif_call = mock_sync_entry_tables.call_args
+        mmjson_rows = mmjson_call.kwargs["table_rows"]["pdbx_struct_assembly_gen"]
+        cif_rows = cif_call.kwargs["table_rows"]["pdbx_struct_assembly_gen"]
+        mmjson_hash = mmjson_rows[0]["_hash_asym_id_list"]
+        cif_hash = cif_rows[0]["_hash_asym_id_list"]
 
         # Verify both are correct
         expected_hash = hex_sha256(asym_id_list)
@@ -263,8 +253,8 @@ class TestHashAsymIdListParity:
 class TestBuMwParity:
     """Test that bu_mw is calculated identically for CIF and mmJSON."""
 
-    @patch("mine2.pipelines.pdbj.bulk_upsert")
-    def test_same_bu_mw_for_same_data(self, mock_bulk_upsert, tmp_path):
+    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    def test_same_bu_mw_for_same_data(self, mock_sync_entry_tables, tmp_path):
         """Both formats produce the same bu_mw for identical assembly data."""
         entry_id = "100d"
 
@@ -297,7 +287,7 @@ class TestBuMwParity:
         create_cif_file(cif_path, entry_id, test_data)
 
         schema_def = create_test_schema_def()
-        mock_bulk_upsert.return_value = (1, 0)
+        mock_sync_entry_tables.return_value = (1, 0, 0)
 
         # Process mmJSON
         mmjson_settings = create_test_settings(mmjson_dir)
@@ -307,8 +297,8 @@ class TestBuMwParity:
         mmjson_job = Job(entry_id=entry_id, filepath=mmjson_path, extra={})
         mmjson_pipeline.process_job(mmjson_job, schema_def, "test_conninfo")
 
-        mmjson_calls = mock_bulk_upsert.call_args_list.copy()
-        mock_bulk_upsert.reset_mock()
+        mmjson_call = mock_sync_entry_tables.call_args
+        mock_sync_entry_tables.reset_mock()
 
         # Process CIF
         cif_settings = create_test_settings(cif_dir)
@@ -318,22 +308,17 @@ class TestBuMwParity:
         cif_job = Job(entry_id=entry_id, filepath=cif_path, extra={})
         cif_pipeline.process_job(cif_job, schema_def, "test_conninfo")
 
-        cif_calls = mock_bulk_upsert.call_args_list.copy()
-
-        # Extract bu_mw from both
-        def get_bu_mw_from_calls(calls):
-            for call in calls:
-                table_name = call[0][2]
-                if table_name == "brief_summary":
-                    columns = call[0][3]
-                    rows = call[0][4]
-                    plus_idx = columns.index("plus_fields")
-                    plus_fields = json.loads(rows[0][plus_idx])
-                    return plus_fields.get("bu_mw")
-            return None
-
-        mmjson_bu_mw = get_bu_mw_from_calls(mmjson_calls)
-        cif_bu_mw = get_bu_mw_from_calls(cif_calls)
+        cif_call = mock_sync_entry_tables.call_args
+        mmjson_plus_fields = mmjson_call.kwargs["table_rows"]["brief_summary"][0][
+            "plus_fields"
+        ]
+        cif_plus_fields = cif_call.kwargs["table_rows"]["brief_summary"][0]["plus_fields"]
+        if isinstance(mmjson_plus_fields, str):
+            mmjson_plus_fields = json.loads(mmjson_plus_fields)
+        if isinstance(cif_plus_fields, str):
+            cif_plus_fields = json.loads(cif_plus_fields)
+        mmjson_bu_mw = mmjson_plus_fields.get("bu_mw")
+        cif_bu_mw = cif_plus_fields.get("bu_mw")
 
         # Verify both are correct
         assert mmjson_bu_mw == 1000.0
