@@ -315,6 +315,17 @@ def transform_category(
 
         result.append(transformed_row)
 
+    # Deduplicate by primary key (last occurrence wins, matching upsert semantics).
+    # Some source files contain duplicate rows that violate PK constraints.
+    pk_columns = [c.name for c in table.primary_key.columns]
+    if pk_columns:
+        seen: dict[tuple, int] = {}
+        for i, row in enumerate(result):
+            key = tuple(row.get(c) for c in pk_columns)
+            seen[key] = i
+        if len(seen) < len(result):
+            result = [result[i] for i in sorted(seen.values())]
+
     return result
 
 
