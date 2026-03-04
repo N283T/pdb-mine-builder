@@ -6,9 +6,15 @@ from typing import Any
 
 import gemmi
 from rich.console import Console
+from sqlalchemy import MetaData, Table
 
 from mine2.config import PipelineConfig, Settings
-from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef
+from mine2.db.loader import (
+    Job,
+    LoaderResult,
+    get_all_tables,
+    get_entry_pk,
+)
 from mine2.parsers.cif import parse_cif_file
 from mine2.pipelines.base import BasePipeline, sync_entry_tables, transform_category
 
@@ -78,11 +84,16 @@ class VrptPipeline(BasePipeline):
     def process_job(
         self,
         job: Job,
-        schema_def: SchemaDef,
+        schema_name: str,
         conninfo: str,
     ) -> LoaderResult:
         """Process a single validation report."""
         try:
+            from mine2.models import get_metadata
+
+            meta = get_metadata(schema_name)
+            entry_pk = get_entry_pk(meta)
+
             # Parse CIF directly with gemmi
             data = parse_cif_file(job.filepath)
             table_rows: dict[str, list[dict[str, Any]]] = {}
@@ -93,19 +104,19 @@ class VrptPipeline(BasePipeline):
                 table_rows["brief_summary"] = brief_rows
 
             # Load all tables from schema
-            for table in schema_def.tables:
+            for table in get_all_tables(meta):
                 if table.name == "brief_summary":
                     continue  # Already handled
 
                 category_rows = self._transform_category(
-                    data, table, job.entry_id, schema_def.primary_key
+                    data, table, job.entry_id, entry_pk
                 )
                 if category_rows:
                     table_rows[table.name] = category_rows
 
             inserted, updated, _deleted = sync_entry_tables(
                 conninfo=conninfo,
-                schema_def=schema_def,
+                meta=meta,
                 entry_id=job.entry_id,
                 table_rows=table_rows,
             )
@@ -132,7 +143,7 @@ class VrptPipeline(BasePipeline):
     def _transform_category(
         self,
         data: dict[str, Any],
-        table: TableDef,
+        table: Table,
         pdbid: str,
         pk_col: str,
     ) -> list[dict]:
@@ -145,9 +156,9 @@ class VrptPipeline(BasePipeline):
 def run(
     settings: Settings,
     config: PipelineConfig,
-    schema_def: SchemaDef,
+    meta: MetaData,
     limit: int | None = None,
 ) -> list[LoaderResult]:
     """Run the vrpt pipeline."""
-    pipeline = VrptPipeline(settings, config, schema_def)
+    pipeline = VrptPipeline(settings, config, meta)
     return pipeline.run(limit)

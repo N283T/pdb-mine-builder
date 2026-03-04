@@ -16,14 +16,15 @@ from rich.progress import (
     TimeElapsedColumn,
     track,
 )
+from sqlalchemy import MetaData, Table
 
 from mine2.config import PipelineConfig, Settings
 from mine2.db.loader import (
     Job,
     LoaderResult,
-    SchemaDef,
-    TableDef,
     bulk_upsert,
+    get_all_tables,
+    get_entry_pk,
 )
 from mine2.parsers.cif import parse_block, parse_mmjson_file_blocks
 from mine2.parsers.mmjson import normalize_column_name
@@ -54,14 +55,14 @@ PRDCC_TABLES = {
 def _parse_prd_cif_block(
     prd_block: gemmi.cif.Block,
     prdcc_block: gemmi.cif.Block | None,
-    schema_def: SchemaDef,
+    schema_name: str,
 ) -> tuple[str, dict[str, list[dict]], str | None]:
     """Parse a single PRD block with its corresponding PRDCC block.
 
     Args:
         prd_block: PRD CIF block
         prdcc_block: Corresponding PRDCC block (may be None)
-        schema_def: Schema definition
+        schema_name: Schema name for model lookup
 
     Returns:
         Tuple of (prd_id, table_rows_dict, error_message or None)
@@ -70,6 +71,11 @@ def _parse_prd_cif_block(
     prd_id = prd_block.name  # e.g., PRD_000001
 
     try:
+        from mine2.models import get_metadata
+
+        meta = get_metadata(schema_name)
+        entry_pk = get_entry_pk(meta)
+
         # Parse block data
         prd_data = parse_block(prd_block)
         prdcc_data = parse_block(prdcc_block) if prdcc_block else {}
@@ -82,7 +88,7 @@ def _parse_prd_cif_block(
             table_rows["brief_summary"] = brief_rows
 
         # Process other tables
-        for table in schema_def.tables:
+        for table in get_all_tables(meta):
             if table.name == "brief_summary":
                 continue
 
@@ -94,9 +100,7 @@ def _parse_prd_cif_block(
 
             rows = data.get(table.name, [])
             # CIF uses plain column names, no normalization needed
-            category_rows = transform_category(
-                rows, table, prd_id, schema_def.primary_key, None
-            )
+            category_rows = transform_category(rows, table, prd_id, entry_pk, None)
             if category_rows:
                 table_rows[table.name] = category_rows
 
@@ -150,11 +154,16 @@ class PrdPipeline(BasePipeline):
     def process_job(
         self,
         job: Job,
-        schema_def: SchemaDef,
+        schema_name: str,
         conninfo: str,
     ) -> LoaderResult:
         """Process a single PRD entry."""
         try:
+            from mine2.models import get_metadata
+
+            meta = get_metadata(schema_name)
+            entry_pk = get_entry_pk(meta)
+
             # Load all data blocks (PRD files have two: PRD and PRDCC)
             all_blocks = parse_mmjson_file_blocks(job.filepath)
 
@@ -173,7 +182,7 @@ class PrdPipeline(BasePipeline):
                 table_rows["brief_summary"] = brief_rows
 
             # Load all tables from schema
-            for table in schema_def.tables:
+            for table in get_all_tables(meta):
                 if table.name == "brief_summary":
                     continue  # Already handled
 
@@ -184,14 +193,14 @@ class PrdPipeline(BasePipeline):
                     data = prd_data
 
                 category_rows = self._transform_category(
-                    data, table, job.entry_id, schema_def.primary_key
+                    data, table, job.entry_id, entry_pk
                 )
                 if category_rows:
                     table_rows[table.name] = category_rows
 
             inserted, updated, _deleted = sync_entry_tables(
                 conninfo=conninfo,
-                schema_def=schema_def,
+                meta=meta,
                 entry_id=job.entry_id,
                 table_rows=table_rows,
             )
@@ -232,7 +241,7 @@ class PrdPipeline(BasePipeline):
     def _transform_category(
         self,
         data: dict[str, Any],
-        table: TableDef,
+        table: Table,
         prd_id: str,
         pk_col: str,
     ) -> list[dict]:
@@ -312,13 +321,14 @@ class PrdCifPipeline(BaseCifBatchPipeline):
         max_workers: int,
     ) -> list[tuple[str, dict[str, list[dict]], str | None]]:
         """Parse all blocks in parallel, returning parsed data."""
+        schema_name = self.meta.schema
         if len(block_pairs) <= 10 or max_workers == 1:
             # Sequential parsing
             results = []
             for prd_block, prdcc_block in track(
                 block_pairs, description="Parsing...", console=console
             ):
-                result = _parse_prd_cif_block(prd_block, prdcc_block, self.schema_def)
+                result = _parse_prd_cif_block(prd_block, prdcc_block, schema_name)
                 results.append(result)
             return results
 
@@ -331,7 +341,7 @@ class PrdCifPipeline(BaseCifBatchPipeline):
                     _parse_prd_cif_block,
                     prd_block,
                     prdcc_block,
-                    self.schema_def,
+                    schema_name,
                 ): prd_block.name
                 for prd_block, prdcc_block in block_pairs
             }
@@ -398,7 +408,7 @@ class PrdCifPipeline(BaseCifBatchPipeline):
 def _process_prd_cif_block(
     prd_block: gemmi.cif.Block,
     prdcc_block: gemmi.cif.Block | None,
-    schema_def: SchemaDef,
+    schema_name: str,
     conninfo: str,
 ) -> LoaderResult:
     """Process a single PRD block with its corresponding PRDCC block (parse and insert).
@@ -406,14 +416,21 @@ def _process_prd_cif_block(
     This is a convenience wrapper for testing that combines parsing and inserting.
     Production code uses _parse_prd_cif_block + batch insert.
     """
-    prd_id, table_rows, error = _parse_prd_cif_block(prd_block, prdcc_block, schema_def)
+    from mine2.models import get_metadata
+
+    meta = get_metadata(schema_name)
+    entry_pk = get_entry_pk(meta)
+
+    prd_id, table_rows, error = _parse_prd_cif_block(
+        prd_block, prdcc_block, schema_name
+    )
 
     if error:
         return LoaderResult(entry_id=prd_id, success=False, error=error)
 
     try:
         rows_inserted = 0
-        for table in schema_def.tables:
+        for table in get_all_tables(meta):
             rows = table_rows.get(table.name, [])
             if not rows:
                 continue
@@ -423,17 +440,17 @@ def _process_prd_cif_block(
             for row in rows:
                 all_columns.update(row.keys())
 
-            pk_col = schema_def.primary_key
-            columns = [pk_col] + sorted(c for c in all_columns if c != pk_col)
+            columns = [entry_pk] + sorted(c for c in all_columns if c != entry_pk)
             row_tuples = [tuple(r.get(c) for c in columns) for r in rows]
 
+            pk_cols_for_table = [c.name for c in table.primary_key.columns]
             inserted, _ = bulk_upsert(
                 conninfo,
-                schema_def.schema_name,
+                meta.schema,
                 table.name,
                 columns,
                 row_tuples,
-                table.primary_key,
+                pk_cols_for_table,
             )
             rows_inserted += inserted
 
@@ -445,22 +462,22 @@ def _process_prd_cif_block(
 def run(
     settings: Settings,
     config: PipelineConfig,
-    schema_def: SchemaDef,
+    meta: MetaData,
     limit: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the prd pipeline (mmJSON version)."""
-    pipeline = PrdPipeline(settings, config, schema_def)
+    pipeline = PrdPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)
 
 
 def run_cif(
     settings: Settings,
     config: PipelineConfig,
-    schema_def: SchemaDef,
+    meta: MetaData,
     limit: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the prd-cif pipeline (CIF version)."""
-    pipeline = PrdCifPipeline(settings, config, schema_def)
+    pipeline = PrdCifPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)

@@ -15,9 +15,14 @@ from pathlib import Path
 from typing import Any
 
 from rich.console import Console
+from sqlalchemy import MetaData, Table
 
 from mine2.config import PipelineConfig, Settings
-from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef
+from mine2.db.loader import (
+    Job,
+    LoaderResult,
+    get_all_tables,
+)
 from mine2.parsers.cif import parse_mmjson_file
 from mine2.parsers.mmjson import (
     clean_array,
@@ -112,11 +117,15 @@ class IhmPipeline(BasePipeline):
     def process_job(
         self,
         job: Job,
-        schema_def: SchemaDef,
+        schema_name: str,
         conninfo: str,
     ) -> LoaderResult:
         """Process a single IHM entry."""
         try:
+            from mine2.models import get_metadata
+
+            meta = get_metadata(schema_name)
+
             # Load main data
             data = parse_mmjson_file(job.filepath)
 
@@ -148,7 +157,7 @@ class IhmPipeline(BasePipeline):
                 table_rows["brief_summary"] = brief_rows
 
             # Load other categories
-            for table in schema_def.tables:
+            for table in get_all_tables(meta):
                 if table.name in ("entry", "brief_summary"):
                     continue
 
@@ -158,7 +167,7 @@ class IhmPipeline(BasePipeline):
 
             inserted, updated, _deleted = sync_entry_tables(
                 conninfo=conninfo,
-                schema_def=schema_def,
+                meta=meta,
                 entry_id=job.entry_id,
                 table_rows=table_rows,
             )
@@ -475,7 +484,7 @@ class IhmPipeline(BasePipeline):
     def _transform_category(
         self,
         data: dict[str, Any],
-        table: TableDef,
+        table: Table,
         entry_id: str,
     ) -> list[dict]:
         """Transform a category's data."""
@@ -486,10 +495,10 @@ class IhmPipeline(BasePipeline):
 def run(
     settings: Settings,
     config: PipelineConfig,
-    schema_def: SchemaDef,
+    meta: MetaData,
     limit: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the IHM pipeline."""
-    pipeline = IhmPipeline(settings, config, schema_def)
+    pipeline = IhmPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)

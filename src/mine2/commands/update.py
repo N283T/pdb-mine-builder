@@ -1,14 +1,13 @@
 """Update command - run database pipelines."""
 
-from pathlib import Path
-
 from rich.console import Console
 
 from mine2.commands.utils import resolve_legacy_aliases
 from mine2.config import Settings
 from mine2.db.connection import close_pool, init_pool
-from mine2.db.loader import ensure_schema, load_schema_def
+from mine2.db.loader import ensure_schema
 from mine2.db.metadata import ensure_metadata_table, update_pipeline_metadata
+from mine2.models import get_metadata
 
 console = Console()
 
@@ -36,6 +35,35 @@ LEGACY_ALIASES = {
     "ccmodel-cif": "ccmodel",
     "prd-cif": "prd",
 }
+
+# Pipeline name -> schema name mapping
+PIPELINE_SCHEMA_MAP = {
+    "pdbj": "pdbj",
+    "pdbj-json": "pdbj",
+    "cc": "cc",
+    "cc-json": "cc",
+    "ccmodel": "ccmodel",
+    "ccmodel-json": "ccmodel",
+    "prd": "prd",
+    "prd-json": "prd",
+    "vrpt": "vrpt",
+    "contacts": "contacts",
+    "sifts": "sifts",
+    "emdb": "emdb",
+    "ihm": "ihm",
+}
+
+
+def _get_schema_name(pipeline_name: str) -> str:
+    """Resolve pipeline name to database schema name.
+
+    Args:
+        pipeline_name: One of the AVAILABLE_PIPELINES names.
+
+    Returns:
+        The corresponding schema name.
+    """
+    return PIPELINE_SCHEMA_MAP[pipeline_name]
 
 
 def run_update(
@@ -83,18 +111,14 @@ def run_update(
                 console.print("  [yellow]No config found, skipping[/yellow]")
                 continue
 
-            # Load schema definition
-            deffile = Path(pipeline_config.deffile)
-            if not deffile.exists():
-                console.print(f"  [red]Schema file not found: {deffile}[/red]")
-                continue
-
-            schema_def = load_schema_def(deffile)
-            console.print(f"  Schema: {schema_def.schema_name}")
-            console.print(f"  Tables: {len(schema_def.tables)}")
+            # Get MetaData from SQLAlchemy models
+            schema_name = _get_schema_name(pipeline_name)
+            meta = get_metadata(schema_name)
+            console.print(f"  Schema: {meta.schema}")
+            console.print(f"  Tables: {len(meta.tables)}")
 
             # Ensure schema exists
-            ensure_schema(schema_def, settings.rdb.constring)
+            ensure_schema(meta, settings.rdb.constring)
 
             # Import and run pipeline
             try:
@@ -106,12 +130,12 @@ def run_update(
                     results = runner(
                         settings,
                         pipeline_config,
-                        schema_def,
+                        meta,
                         limit=limit,
                         tables=tables,
                     )
                 else:
-                    results = runner(settings, pipeline_config, schema_def, limit=limit)
+                    results = runner(settings, pipeline_config, meta, limit=limit)
 
                 # Update pipeline metadata with timestamp
                 success_count = (
@@ -119,7 +143,7 @@ def run_update(
                 )
                 update_pipeline_metadata(
                     settings.rdb.constring,
-                    schema_def.schema_name,
+                    meta.schema,
                     entries_count=success_count,
                 )
             except ImportError as e:
