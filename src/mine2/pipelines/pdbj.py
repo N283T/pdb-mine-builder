@@ -46,8 +46,12 @@ def _transform_pdbj_data(
 
     Shared by both update and load modes.
 
+    Warning:
+        This function **mutates** ``data`` by popping processed keys.
+        This is intentional for memory optimization on large entries.
+
     Args:
-        data: Parsed data dictionary
+        data: Parsed data dictionary (mutated: processed keys are removed).
         entry_id: PDB entry ID
         meta: SQLAlchemy MetaData instance
         normalize_fn: Column name normalizer (for mmJSON) or None (for CIF)
@@ -272,6 +276,36 @@ class PdbjPipeline(BasePipeline):
             )
 
 
+def _parse_cif_entry(
+    job: Job,
+) -> dict[str, Any]:
+    """Parse a CIF entry: read file, merge plus data, patch, add hashes.
+
+    Shared by both update (process_job) and load (_process_cif_load) modes.
+
+    Args:
+        job: Job with filepath and optional plus_path in extra.
+
+    Returns:
+        Parsed and patched data dict.
+    """
+    data = parse_cif_file(job.filepath)
+
+    plus_path = job.extra.get("plus_path") if job.extra else None
+    if plus_path:
+        plus_data = parse_mmjson_file(plus_path)
+        data = merge_data(data, plus_data)
+
+    apply_patches(job.entry_id, data)
+
+    if "pdbx_struct_assembly_gen" in data:
+        for row in data["pdbx_struct_assembly_gen"]:
+            row["_hash_asym_id_list"] = hex_sha256(row.get("asym_id_list", ""))
+            row["_hash_oper_expression"] = hex_sha256(row.get("oper_expression", ""))
+
+    return data
+
+
 class PdbjCifPipeline(BasePipeline):
     """Pipeline for loading PDB structure data from CIF files.
 
@@ -370,29 +404,8 @@ class PdbjCifPipeline(BasePipeline):
             from mine2.models import get_metadata
 
             meta = get_metadata(schema_name)
+            data = _parse_cif_entry(job)
 
-            # Parse CIF file (row-oriented, same format as mmJSON)
-            data = parse_cif_file(job.filepath)
-
-            # Merge with plus data if available (mmJSON format)
-            plus_path = job.extra.get("plus_path") if job.extra else None
-            if plus_path:
-                plus_data = parse_mmjson_file(plus_path)
-                data = merge_data(data, plus_data)
-
-            # Apply entry-specific patches
-            apply_patches(job.entry_id, data)
-
-            # Add hash columns to pdbx_struct_assembly_gen (avoid B-tree index limit)
-            if "pdbx_struct_assembly_gen" in data:
-                for row in data["pdbx_struct_assembly_gen"]:
-                    row["_hash_asym_id_list"] = hex_sha256(row.get("asym_id_list", ""))
-                    row["_hash_oper_expression"] = hex_sha256(
-                        row.get("oper_expression", "")
-                    )
-
-            # Transform and load using shared function
-            # CIF: no column name normalization (pass None)
             inserted, updated, _deleted = _load_pdbj_data(
                 data=data,
                 entry_id=job.entry_id,
@@ -460,22 +473,7 @@ def _process_cif_load(
         from mine2.models import get_metadata
 
         meta = get_metadata(schema_name)
-
-        data = parse_cif_file(job.filepath)
-
-        plus_path = job.extra.get("plus_path") if job.extra else None
-        if plus_path:
-            plus_data = parse_mmjson_file(plus_path)
-            data = merge_data(data, plus_data)
-
-        apply_patches(job.entry_id, data)
-
-        if "pdbx_struct_assembly_gen" in data:
-            for row in data["pdbx_struct_assembly_gen"]:
-                row["_hash_asym_id_list"] = hex_sha256(row.get("asym_id_list", ""))
-                row["_hash_oper_expression"] = hex_sha256(
-                    row.get("oper_expression", "")
-                )
+        data = _parse_cif_entry(job)
 
         table_rows = _transform_pdbj_data(
             data=data,

@@ -415,28 +415,4 @@ def run_cif_load(
 ) -> list[LoaderResult]:
     """Run ccmodel pipeline in load mode (COPY, no delta sync)."""
     pipeline = CcmodelCifPipeline(settings, config, meta)
-
-    cif_path = pipeline._find_cif_file()
-    if not cif_path:
-        return []
-    console.print(f"  CIF file: {cif_path}")
-
-    console.print("  Loading CIF...")
-    doc = gemmi.cif.read(str(cif_path))
-    console.print(f"  Found {len(doc)} models")
-
-    blocks = list(doc)[:limit]
-    if limit:
-        console.print(f"  Processing {len(blocks)} (limited)")
-
-    max_workers = settings.rdb.get_workers()
-    conninfo = settings.rdb.constring
-
-    console.print("[bold]Phase 1: Parsing blocks...[/bold]")
-    parsed_results = pipeline._parse_all_blocks(blocks, max_workers)
-
-    console.print("[bold]Phase 2: COPY inserting...[/bold]")
-    results = pipeline._batch_copy_insert(parsed_results, conninfo)
-
-    pipeline._print_summary(results, logger)
-    return results
+    return pipeline.run_load(limit, logger=logger)
