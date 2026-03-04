@@ -167,6 +167,73 @@ def update(
     logger.info("Update completed")
 
 
+@app.command()
+def load(
+    pipelines: Annotated[
+        Optional[list[str]],
+        typer.Argument(help="Pipelines: pdbj, cc, ccmodel, prd"),
+    ] = None,
+    config: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Config file path"),
+    ] = Path("config.yml"),
+    limit: Annotated[
+        Optional[int],
+        typer.Option("--limit", "-l", help="Limit number of entries to process"),
+    ] = None,
+    workers: Annotated[
+        Optional[int],
+        typer.Option(
+            "--workers", "-w", help="Number of worker processes (overrides config)"
+        ),
+    ] = None,
+    log: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--log",
+            help="Log file path (default: logs/load_<pipeline>_YYYYMMDD_HHMMSS.log)",
+        ),
+    ] = None,
+    verbose: Annotated[
+        bool,
+        typer.Option("--verbose", "-v", help="Enable verbose (DEBUG) logging"),
+    ] = False,
+    force: Annotated[
+        bool,
+        typer.Option("--force", "-f", help="Skip TRUNCATE confirmation prompt"),
+    ] = False,
+) -> None:
+    """Bulk load data using COPY protocol (TRUNCATE + COPY).
+
+    Significantly faster than 'update' for initial/full database loads.
+    WARNING: This will TRUNCATE all tables in the target schema before loading.
+
+    Examples:
+        mine2 load pdbj --limit 1000 --force
+        mine2 load cc ccmodel prd --force
+    """
+    from mine2.commands.load import run_load
+
+    if log is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        if pipelines and len(pipelines) == 1:
+            log_name = f"load_{pipelines[0].replace('-', '_')}"
+        elif pipelines:
+            log_name = "load_multi"
+        else:
+            log_name = "load_all"
+        log = Path(f"logs/{log_name}_{timestamp}.log")
+    logger = setup_logging(log, verbose)
+
+    settings = load_config(config)
+    if workers is not None:
+        settings.rdb.nworkers = workers
+
+    logger.info(f"Starting load: pipelines={pipelines or []}, limit={limit}")
+    run_load(settings, pipelines or [], limit=limit, force=force)
+    logger.info("Load completed")
+
+
 @app.command(name="all")
 def run_all(
     config: Annotated[

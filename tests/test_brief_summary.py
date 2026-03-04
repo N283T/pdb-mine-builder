@@ -1,6 +1,5 @@
 """Tests for brief_summary utilities."""
 
-
 from mine2.utils.brief_summary import (
     clean_array,
     gen_docid,

@@ -45,14 +45,16 @@ def convert_file(args: tuple[str, str]) -> tuple[str, bool, str]:
 
     try:
         # gemmi can read gzip files directly
-        doc = gemmi.cif.read(cif_path) # type: ignore
+        doc = gemmi.cif.read(cif_path)  # type: ignore
 
         # Convert to mmJSON format
         json_str = doc.as_json(mmjson=True)
 
         # Generate output filename: xxxx_validation.cif.gz -> xxxx_validation.json.gz
         cif_filename = Path(cif_path).name
-        json_filename = cif_filename.replace(".cif.gz", ".json.gz").replace(".cif", ".json")
+        json_filename = cif_filename.replace(".cif.gz", ".json.gz").replace(
+            ".cif", ".json"
+        )
         output_path = os.path.join(output_dir, json_filename)
 
         # Write gzipped JSON
@@ -65,7 +67,9 @@ def convert_file(args: tuple[str, str]) -> tuple[str, bool, str]:
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Convert CIF files to mmJSON format using gemmi")
+    parser = argparse.ArgumentParser(
+        description="Convert CIF files to mmJSON format using gemmi"
+    )
     parser.add_argument(
         "input_dir", help="Input directory containing CIF files (*.cif.gz or *.cif)"
     )
@@ -78,7 +82,9 @@ def main():
         help=f"Number of parallel jobs (default: {os.cpu_count()})",
     )
     parser.add_argument(
-        "--pattern", default="**/*.cif.gz", help="File pattern to match (default: **/*.cif.gz)"
+        "--pattern",
+        default="**/*.cif.gz",
+        help="File pattern to match (default: **/*.cif.gz)",
     )
 
     args = parser.parse_args()
@@ -91,7 +97,9 @@ def main():
     cif_files = list(input_path.glob(args.pattern))
 
     if not cif_files:
-        logger.warning(f"No files found matching pattern '{args.pattern}' in {args.input_dir}")
+        logger.warning(
+            f"No files found matching pattern '{args.pattern}' in {args.input_dir}"
+        )
         return
 
     logger.info(f"Found {len(cif_files)} files to convert")
@@ -106,8 +114,13 @@ def main():
     errors: list[tuple[str, str]] = []
 
     with ThreadPoolExecutor(max_workers=args.jobs) as executor:
-        futures = [executor.submit(convert_file, arg) for arg in tqdm(convert_args, desc="Preparing", unit="file")]
-        for future in tqdm(as_completed(futures), total=len(futures), desc="Converting", unit="file"):
+        futures = [
+            executor.submit(convert_file, arg)
+            for arg in tqdm(convert_args, desc="Preparing", unit="file")
+        ]
+        for future in tqdm(
+            as_completed(futures), total=len(futures), desc="Converting", unit="file"
+        ):
             cif_path, success, error_msg = future.result()
             if success:
                 success_count += 1

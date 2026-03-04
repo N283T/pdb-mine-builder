@@ -404,3 +404,15 @@ def run_cif(
     """Run the ccmodel-cif pipeline (single CIF version)."""
     pipeline = CcmodelCifPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)
+
+
+def run_cif_load(
+    settings: Settings,
+    config: PipelineConfig,
+    meta: MetaData,
+    limit: int | None = None,
+    logger: logging.Logger | None = None,
+) -> list[LoaderResult]:
+    """Run ccmodel pipeline in load mode (COPY, no delta sync)."""
+    pipeline = CcmodelCifPipeline(settings, config, meta)
+    return pipeline.run_load(limit, logger=logger)

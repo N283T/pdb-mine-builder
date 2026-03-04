@@ -154,7 +154,7 @@ def run_update(
 
                 # Update pipeline metadata with timestamp
                 success_count = (
-                    len([r for r in results if r.success]) if results else None
+                    sum(1 for r in results if r.success) if results else None
                 )
                 update_pipeline_metadata(
                     settings.rdb.constring,

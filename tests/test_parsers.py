@@ -1,6 +1,5 @@
 """Tests for parsers module."""
 
-
 from mine2.parsers.cif import (
     _normalize_cif_value,
     parse_cif,

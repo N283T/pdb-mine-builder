@@ -38,6 +38,7 @@ from mine2.db.delta import (
 from mine2.db.loader import (
     Job,
     LoaderResult,
+    bulk_insert,
     bulk_upsert,
     delete_missing_entries,
     get_all_tables,
@@ -538,12 +539,27 @@ class BaseCifBatchPipeline:
         self.config = config
         self.meta = meta
 
-    def _batch_insert(
+    def _find_cif_file(self) -> Path | None:
+        """Find the CIF file for this pipeline. Subclasses must override."""
+        raise NotImplementedError
+
+    def _parse_all_blocks(  # noqa: D102
+        self,
+        blocks: Any,
+        max_workers: int,
+    ) -> list[tuple[str, dict[str, list[dict]], str | None]]:
+        """Parse all blocks in parallel. Subclasses must override."""
+        raise NotImplementedError
+
+    def _accumulate_rows(
         self,
         parsed_results: list[tuple[str, dict[str, list[dict]], str | None]],
-        conninfo: str,
-    ) -> list[LoaderResult]:
-        """Accumulate rows from parsed blocks and bulk upsert per table."""
+    ) -> tuple[dict[str, list[dict]], list[LoaderResult]]:
+        """Separate parsed results into accumulated table rows and entry results.
+
+        Returns:
+            Tuple of (table_rows dict, per-entry LoaderResult list).
+        """
         table_rows: dict[str, list[dict]] = {}
         results: list[LoaderResult] = []
 
@@ -563,7 +579,31 @@ class BaseCifBatchPipeline:
                 LoaderResult(entry_id=entry_id, success=True, rows_inserted=0)
             )
 
-        # Bulk upsert per table
+        return table_rows, results
+
+    def _prepare_table_data(self, rows: list[dict]) -> tuple[list[str], list[tuple]]:
+        """Build ordered column list and row tuples from accumulated rows.
+
+        Returns:
+            Tuple of (columns, row_tuples).
+        """
+        all_columns: set[str] = set()
+        for row in rows:
+            all_columns.update(row.keys())
+
+        pk_col = get_entry_pk(self.meta)
+        columns = [pk_col] + sorted(c for c in all_columns if c != pk_col)
+        row_tuples = [tuple(r.get(c) for c in columns) for r in rows]
+        return columns, row_tuples
+
+    def _batch_insert(
+        self,
+        parsed_results: list[tuple[str, dict[str, list[dict]], str | None]],
+        conninfo: str,
+    ) -> list[LoaderResult]:
+        """Accumulate rows from parsed blocks and bulk upsert per table."""
+        table_rows, results = self._accumulate_rows(parsed_results)
+
         current_table_name = "<unknown>"
         try:
             for sa_table in track(
@@ -576,14 +616,7 @@ class BaseCifBatchPipeline:
                 if not rows:
                     continue
 
-                all_columns: set[str] = set()
-                for row in rows:
-                    all_columns.update(row.keys())
-
-                pk_col = get_entry_pk(self.meta)
-                columns = [pk_col] + sorted(c for c in all_columns if c != pk_col)
-                row_tuples = [tuple(r.get(c) for c in columns) for r in rows]
-
+                columns, row_tuples = self._prepare_table_data(rows)
                 pk_cols_for_table = [c.name for c in sa_table.primary_key.columns]
                 bulk_upsert(
                     conninfo,
@@ -666,3 +699,90 @@ class BaseCifBatchPipeline:
             keep_entry_ids=[r.entry_id for r in results],
         )
         console.print(f"  [dim]Pruned stale rows: {deleted}[/dim]")
+
+    def run_load(
+        self,
+        limit: int | None = None,
+        logger: logging.Logger | None = None,
+    ) -> list[LoaderResult]:
+        """Run the pipeline in load mode (COPY insert, no delta/prune).
+
+        This is the single-CIF-file variant used by cc and ccmodel.
+        Subclasses must implement ``_find_cif_file()`` and
+        ``_parse_all_blocks()``.
+
+        Pipelines with different file loading (e.g. prd with paired files)
+        should override this method.
+        """
+        import gemmi
+
+        cif_path = self._find_cif_file()
+        if not cif_path:
+            return []
+        console.print(f"  CIF file: {cif_path}")
+
+        console.print("  Loading CIF...")
+        doc = gemmi.cif.read(str(cif_path))
+        console.print(f"  Found {len(doc)} entries")
+
+        blocks = list(doc)[:limit]
+        if limit:
+            console.print(f"  Processing {len(blocks)} (limited)")
+
+        max_workers = self.settings.rdb.get_workers()
+        conninfo = self.settings.rdb.constring
+
+        console.print("[bold]Phase 1: Parsing blocks...[/bold]")
+        parsed_results = self._parse_all_blocks(blocks, max_workers)
+
+        console.print("[bold]Phase 2: COPY inserting...[/bold]")
+        results = self._batch_copy_insert(parsed_results, conninfo)
+
+        self._print_summary(results, logger)
+        return results
+
+    def _batch_copy_insert(
+        self,
+        parsed_results: list[tuple[str, dict[str, list[dict]], str | None]],
+        conninfo: str,
+    ) -> list[LoaderResult]:
+        """Accumulate rows from parsed blocks and bulk COPY insert per table.
+
+        Unlike _batch_insert (upsert), this uses COPY protocol for faster
+        insertion into already-truncated tables. No conflict handling needed.
+        """
+        table_rows, results = self._accumulate_rows(parsed_results)
+
+        current_table_name = "<unknown>"
+        try:
+            for sa_table in track(
+                get_all_tables(self.meta),
+                description="COPY inserting...",
+                console=console,
+            ):
+                current_table_name = sa_table.name
+                rows = table_rows.get(sa_table.name, [])
+                if not rows:
+                    continue
+
+                columns, row_tuples = self._prepare_table_data(rows)
+                bulk_insert(
+                    conninfo,
+                    self.meta.schema,
+                    sa_table.name,
+                    columns,
+                    row_tuples,
+                )
+                console.print(f"  [dim]{sa_table.name}: {len(rows)} rows[/dim]")
+        except Exception as e:
+            error_msg = (
+                f"Bulk COPY insert failed on table {current_table_name}: "
+                f"{e}\n{traceback.format_exc()}"
+            )
+            _default_logger.error(error_msg)
+            results = [
+                LoaderResult(entry_id=r.entry_id, success=False, error=error_msg)
+                for r in results
+            ]
+
+        return results

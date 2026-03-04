@@ -509,6 +509,115 @@ def bulk_upsert(
     return len(rows), 0
 
 
+def truncate_schema_tables(meta: MetaData, conninfo: str) -> None:
+    """TRUNCATE all tables in a schema using CASCADE.
+
+    Tables are truncated in reverse dependency order to minimize
+    foreign key violations, though CASCADE handles remaining ones.
+
+    Args:
+        meta: SQLAlchemy MetaData describing the schema and tables.
+        conninfo: PostgreSQL connection string.
+    """
+    import psycopg
+    from psycopg import sql as psql
+
+    tables = list(reversed(meta.sorted_tables))
+    if not tables:
+        return
+
+    with psycopg.connect(conninfo) as conn:
+        with conn.cursor() as cur:
+            for table in tables:
+                full_table = psql.Identifier(meta.schema, table.name)
+                cur.execute(psql.SQL("TRUNCATE {} CASCADE").format(full_table))
+        conn.commit()
+
+    console.print(
+        f"[yellow]Truncated {len(tables)} tables in schema '{meta.schema}'[/yellow]"
+    )
+
+
+def bulk_copy_entry(
+    conninfo: str,
+    schema: str,
+    entry_id: str,
+    pk_column: str,
+    table_rows: dict[str, list[dict[str, Any]]],
+) -> int:
+    """Insert all rows for one entry using COPY protocol.
+
+    brief_summary is inserted first to satisfy foreign key constraints.
+    All tables are written in a single transaction using COPY FROM STDIN.
+
+    Args:
+        conninfo: Database connection string.
+        schema: Schema name.
+        entry_id: Entry identifier.
+        pk_column: Primary key column name.
+        table_rows: Dict mapping table names to lists of row dicts.
+
+    Returns:
+        Total number of rows inserted.
+    """
+    import psycopg
+    from psycopg import sql as psql
+
+    tables_with_data = {k: v for k, v in table_rows.items() if v}
+    if not tables_with_data:
+        return 0
+
+    # Order: brief_summary first (FK constraint)
+    table_names = list(tables_with_data.keys())
+    if "brief_summary" in table_names:
+        table_names.remove("brief_summary")
+        table_names.insert(0, "brief_summary")
+
+    total_inserted = 0
+    current_table = "<unknown>"
+
+    with psycopg.connect(conninfo) as conn:
+        try:
+            with conn.cursor() as cur:
+                for table_name in table_names:
+                    current_table = table_name
+                    rows = tables_with_data[table_name]
+
+                    all_columns: set[str] = set()
+                    for row in rows:
+                        all_columns.update(row.keys())
+                    columns = [pk_column] + sorted(
+                        c for c in all_columns if c != pk_column
+                    )
+
+                    full_table = psql.Identifier(schema, table_name)
+                    col_names = psql.SQL(", ").join(psql.Identifier(c) for c in columns)
+
+                    with cur.copy(
+                        psql.SQL("COPY {} ({}) FROM STDIN").format(
+                            full_table, col_names
+                        )
+                    ) as copy:
+                        for row in rows:
+                            values = tuple(
+                                entry_id if c == pk_column else row.get(c)
+                                for c in columns
+                            )
+                            copy.write_row(values)
+
+                    total_inserted += len(rows)
+
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            raise RuntimeError(
+                f"COPY insert failed for entry {entry_id!r} "
+                f"on table {current_table!r} in schema {schema!r}: {e}"
+            ) from e
+
+    return total_inserted
+
+
 def delete_missing_entries(
     conninfo: str,
     schema: str,

@@ -259,13 +259,18 @@ class PrdCifPipeline(BaseCifBatchPipeline):
 
     name = "prd-cif"
 
-    def run(
-        self, limit: int | None = None, logger: logging.Logger | None = None
-    ) -> list[LoaderResult]:
-        """Run the pipeline with batch insert optimization."""
+    def _load_block_pairs(
+        self,
+        limit: int | None = None,
+    ) -> list[tuple[gemmi.cif.Block, gemmi.cif.Block | None]] | None:
+        """Load CIF files and build (PRD, PRDCC) block pairs.
+
+        Returns:
+            List of block pairs, or None if the PRD file is missing.
+        """
         prd_path, prdcc_path = self._find_cif_files()
         if not prd_path:
-            return []
+            return None
         console.print(f"  PRD CIF: {prd_path}")
         if prdcc_path:
             console.print(f"  PRDCC CIF: {prdcc_path}")
@@ -274,12 +279,10 @@ class PrdCifPipeline(BaseCifBatchPipeline):
                 "  [yellow]PRDCC CIF not found, skipping PRDCC tables[/yellow]"
             )
 
-        # Load both CIF files
         console.print("  Loading CIF files...")
         prd_doc = gemmi.cif.read(str(prd_path))
         console.print(f"  Found {len(prd_doc)} PRD entries")
 
-        # Build PRDCC lookup
         prdcc_lookup: dict[str, gemmi.cif.Block] = {}
         if prdcc_path:
             prdcc_doc = gemmi.cif.read(str(prdcc_path))
@@ -287,7 +290,6 @@ class PrdCifPipeline(BaseCifBatchPipeline):
                 prdcc_lookup[block.name] = block
             console.print(f"  Found {len(prdcc_lookup)} PRDCC entries")
 
-        # Build block pairs (prd_block, prdcc_block_or_none)
         block_pairs: list[tuple[gemmi.cif.Block, gemmi.cif.Block | None]] = []
         for prd_block in prd_doc:
             prdcc_id = prd_block.name.replace("PRD_", "PRDCC_")
@@ -298,18 +300,25 @@ class PrdCifPipeline(BaseCifBatchPipeline):
             block_pairs = block_pairs[:limit]
             console.print(f"  Processing {len(block_pairs)} (limited)")
 
+        return block_pairs
+
+    def run(
+        self, limit: int | None = None, logger: logging.Logger | None = None
+    ) -> list[LoaderResult]:
+        """Run the pipeline with batch insert optimization."""
+        block_pairs = self._load_block_pairs(limit)
+        if block_pairs is None:
+            return []
+
         max_workers = self.settings.rdb.get_workers()
         conninfo = self.settings.rdb.constring
 
-        # Phase 1: Parse all blocks (parallel) - collect rows
         console.print("[bold]Phase 1: Parsing blocks...[/bold]")
         parsed_results = self._parse_all_blocks(block_pairs, max_workers)
 
-        # Phase 2: Batch upsert all rows per table
         console.print("[bold]Phase 2: Batch upserting...[/bold]")
         results = self._batch_insert(parsed_results, conninfo)
 
-        # Phase 3: Prune stale rows
         self._prune_stale_rows(results, conninfo, limit)
 
         self._print_summary(results, logger)
@@ -482,3 +491,30 @@ def run_cif(
     """Run the prd-cif pipeline (CIF version)."""
     pipeline = PrdCifPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)
+
+
+def run_cif_load(
+    settings: Settings,
+    config: PipelineConfig,
+    meta: MetaData,
+    limit: int | None = None,
+    logger: logging.Logger | None = None,
+) -> list[LoaderResult]:
+    """Run prd pipeline in load mode (COPY, no delta sync)."""
+    pipeline = PrdCifPipeline(settings, config, meta)
+
+    block_pairs = pipeline._load_block_pairs(limit)
+    if block_pairs is None:
+        return []
+
+    max_workers = settings.rdb.get_workers()
+    conninfo = settings.rdb.constring
+
+    console.print("[bold]Phase 1: Parsing blocks...[/bold]")
+    parsed_results = pipeline._parse_all_blocks(block_pairs, max_workers)
+
+    console.print("[bold]Phase 2: COPY inserting...[/bold]")
+    results = pipeline._batch_copy_insert(parsed_results, conninfo)
+
+    pipeline._print_summary(results, logger)
+    return results
