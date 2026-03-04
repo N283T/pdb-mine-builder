@@ -98,6 +98,19 @@ TTL_FILES = {
 }
 
 
+_INT_COLUMNS = frozenset(
+    {
+        "entity_id",
+        "taxonomy_id",
+        "pubmed_id",
+        "pdb_start",
+        "pdb_end",
+        "uniprot_start",
+        "uniprot_end",
+    }
+)
+
+
 def parse_ttl_file(filepath: Path, pattern: str) -> Iterator[tuple]:
     """Parse TTL file and yield matching tuples.
 
@@ -115,6 +128,41 @@ def parse_ttl_file(filepath: Path, pattern: str) -> Iterator[tuple]:
             match = regex.search(line)
             if match:
                 yield match.groups()
+
+
+def _convert_ttl_rows(
+    filepath: Path,
+    config: dict,
+    batch_size: int = 10000,
+) -> Iterator[list[tuple]]:
+    """Parse TTL file and yield batches of type-converted rows.
+
+    Shared by load_ttl_file (upsert) and load_ttl_file_copy (insert).
+
+    Yields:
+        Lists of converted row tuples, each up to batch_size rows.
+    """
+    pattern = config["pattern"]
+    columns = config["columns"]
+
+    batch: list[tuple] = []
+    for row in parse_ttl_file(filepath, pattern):
+        converted = []
+        for col, val in zip(columns, row):
+            if col in _INT_COLUMNS:
+                converted.append(int(val))
+            elif col == "pdbid":
+                converted.append(val.lower())
+            else:
+                converted.append(val)
+        batch.append(tuple(converted))
+
+        if len(batch) >= batch_size:
+            yield batch
+            batch = []
+
+    if batch:
+        yield batch
 
 
 def load_ttl_file(
@@ -137,46 +185,13 @@ def load_ttl_file(
         Tuple of (rows_inserted, rows_updated)
     """
     table = config["table"]
-    pattern = config["pattern"]
     columns = config["columns"]
     pk = config["pk"]
 
     total_inserted = 0
     total_updated = 0
-    batch: list[tuple] = []
 
-    # Columns that should be converted to int
-    int_columns = {
-        "entity_id",
-        "taxonomy_id",
-        "pubmed_id",
-        "pdb_start",
-        "pdb_end",
-        "uniprot_start",
-        "uniprot_end",
-    }
-
-    for row in parse_ttl_file(filepath, pattern):
-        converted = []
-        for col, val in zip(columns, row):
-            if col in int_columns:
-                converted.append(int(val))
-            elif col == "pdbid":
-                converted.append(val.lower())
-            else:
-                converted.append(val)
-        batch.append(tuple(converted))
-
-        if len(batch) >= batch_size:
-            inserted, updated = bulk_upsert(
-                conninfo, schema_name, table, columns, batch, pk
-            )
-            total_inserted += inserted
-            total_updated += updated
-            batch = []
-
-    # Insert remaining rows
-    if batch:
+    for batch in _convert_ttl_rows(filepath, config, batch_size):
         inserted, updated = bulk_upsert(
             conninfo, schema_name, table, columns, batch, pk
         )
@@ -316,7 +331,7 @@ def load_ttl_file_copy(
 
     Args:
         filepath: Path to .ttl.gz file
-        config: TTL file configuration (table, pattern, columns, pk)
+        config: TTL file configuration (table, pattern, columns)
         schema_name: Database schema name
         conninfo: Database connection string
         batch_size: Number of rows per batch insert
@@ -325,40 +340,10 @@ def load_ttl_file_copy(
         Total rows inserted
     """
     table = config["table"]
-    pattern = config["pattern"]
     columns = config["columns"]
 
     total_inserted = 0
-    batch: list[tuple] = []
-
-    # Columns that should be converted to int
-    int_columns = {
-        "entity_id",
-        "taxonomy_id",
-        "pubmed_id",
-        "pdb_start",
-        "pdb_end",
-        "uniprot_start",
-        "uniprot_end",
-    }
-
-    for row in parse_ttl_file(filepath, pattern):
-        converted = []
-        for col, val in zip(columns, row):
-            if col in int_columns:
-                converted.append(int(val))
-            elif col == "pdbid":
-                converted.append(val.lower())
-            else:
-                converted.append(val)
-        batch.append(tuple(converted))
-
-        if len(batch) >= batch_size:
-            total_inserted += bulk_insert(conninfo, schema_name, table, columns, batch)
-            batch = []
-
-    # Insert remaining rows
-    if batch:
+    for batch in _convert_ttl_rows(filepath, config, batch_size):
         total_inserted += bulk_insert(conninfo, schema_name, table, columns, batch)
 
     return total_inserted

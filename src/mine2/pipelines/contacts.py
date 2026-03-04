@@ -31,6 +31,105 @@ from mine2.pipelines.base import BasePipeline, sync_entry_tables
 
 console = Console()
 
+# Required columns for column-oriented format
+_REQUIRED_COLUMNS = (
+    "label_asym_id_1",
+    "label_asym_id_2",
+    "label_seq_id_1",
+    "label_seq_id_2",
+    "label_comp_id_1",
+    "label_comp_id_2",
+    "distance",
+)
+
+
+def _load_contacts_file(
+    filepath: Path,
+) -> list[list[Any]] | dict[str, list[Any]]:
+    """Load contacts JSON file.
+
+    Returns either:
+    - list[list]: Array format (legacy)
+    - dict[str, list]: Column-oriented format (new)
+    """
+    if str(filepath).endswith(".json.gz"):
+        with gzip.open(filepath, "rt", encoding="utf-8") as f:
+            return json.load(f)
+    else:
+        with open(filepath, encoding="utf-8") as f:
+            return json.load(f)
+
+
+def _transform_contacts(
+    data: list[list[Any]] | dict[str, list[Any]], pdbid: str
+) -> list[dict]:
+    """Transform contact records to database rows.
+
+    Supports two formats:
+
+    1. Array format (legacy):
+       [[pdbid, asym_id_1, asym_id_2, seq_id_1, seq_id_2, comp_id_1, comp_id_2, distance, ...], ...]
+
+    2. Column-oriented format (new):
+       {
+         "label_asym_id_1": [...],
+         "label_asym_id_2": [...],
+         "label_seq_id_1": [...],
+         "label_seq_id_2": [...],
+         "label_comp_id_1": [...],
+         "label_comp_id_2": [...],
+         "distance": [...]
+       }
+    """
+    result = []
+
+    if isinstance(data, dict):
+        # Column-oriented format - validate required columns
+        missing = set(_REQUIRED_COLUMNS) - data.keys()
+        if missing:
+            raise ValueError(f"Missing required columns: {missing}")
+
+        # Validate all columns have equal length
+        lengths = {k: len(v) for k, v in data.items() if k in _REQUIRED_COLUMNS}
+        unique_lengths = set(lengths.values())
+        if len(unique_lengths) > 1:
+            raise ValueError(f"Column length mismatch: {lengths}")
+
+        n = lengths.get("label_asym_id_1", 0)
+        for i in range(n):
+            result.append(
+                {
+                    "pdbid": pdbid,
+                    "label_asym_id_1": data["label_asym_id_1"][i],
+                    "label_asym_id_2": data["label_asym_id_2"][i],
+                    "label_seq_id_1": data["label_seq_id_1"][i],
+                    "label_seq_id_2": data["label_seq_id_2"][i],
+                    "label_comp_id_1": data["label_comp_id_1"][i],
+                    "label_comp_id_2": data["label_comp_id_2"][i],
+                    "distance": data["distance"][i],
+                }
+            )
+    else:
+        # Array format (legacy)
+        for record in data:
+            if len(record) < 8:
+                continue
+
+            result.append(
+                {
+                    "pdbid": pdbid,
+                    "label_asym_id_1": record[1],
+                    "label_asym_id_2": record[2],
+                    "label_seq_id_1": record[3],
+                    "label_seq_id_2": record[4],
+                    "label_comp_id_1": record[5],
+                    "label_comp_id_2": record[6],
+                    "distance": record[7],
+                }
+            )
+
+    return result
+
 
 class ContactsPipeline(BasePipeline):
     """Pipeline for loading protein contact data.
@@ -104,101 +203,14 @@ class ContactsPipeline(BasePipeline):
     def _load_contacts_file(
         self, filepath: Path
     ) -> list[list[Any]] | dict[str, list[Any]]:
-        """Load contacts JSON file.
-
-        Returns either:
-        - list[list]: Array format (legacy)
-        - dict[str, list]: Column-oriented format (new)
-        """
-        if str(filepath).endswith(".json.gz"):
-            with gzip.open(filepath, "rt", encoding="utf-8") as f:
-                return json.load(f)
-        else:
-            with open(filepath, encoding="utf-8") as f:
-                return json.load(f)
-
-    # Required columns for column-oriented format
-    _REQUIRED_COLUMNS = (
-        "label_asym_id_1",
-        "label_asym_id_2",
-        "label_seq_id_1",
-        "label_seq_id_2",
-        "label_comp_id_1",
-        "label_comp_id_2",
-        "distance",
-    )
+        """Load contacts JSON file (delegates to module-level function)."""
+        return _load_contacts_file(filepath)
 
     def _transform_contacts(
         self, data: list[list[Any]] | dict[str, list[Any]], pdbid: str
     ) -> list[dict]:
-        """Transform contact records to database rows.
-
-        Supports two formats:
-
-        1. Array format (legacy):
-           [[pdbid, asym_id_1, asym_id_2, seq_id_1, seq_id_2, comp_id_1, comp_id_2, distance, ...], ...]
-
-        2. Column-oriented format (new):
-           {
-             "label_asym_id_1": [...],
-             "label_asym_id_2": [...],
-             "label_seq_id_1": [...],
-             "label_seq_id_2": [...],
-             "label_comp_id_1": [...],
-             "label_comp_id_2": [...],
-             "distance": [...]
-           }
-        """
-        result = []
-
-        if isinstance(data, dict):
-            # Column-oriented format - validate required columns
-            missing = set(self._REQUIRED_COLUMNS) - data.keys()
-            if missing:
-                raise ValueError(f"Missing required columns: {missing}")
-
-            # Validate all columns have equal length
-            lengths = {
-                k: len(v) for k, v in data.items() if k in self._REQUIRED_COLUMNS
-            }
-            unique_lengths = set(lengths.values())
-            if len(unique_lengths) > 1:
-                raise ValueError(f"Column length mismatch: {lengths}")
-
-            n = lengths.get("label_asym_id_1", 0)
-            for i in range(n):
-                result.append(
-                    {
-                        "pdbid": pdbid,
-                        "label_asym_id_1": data["label_asym_id_1"][i],
-                        "label_asym_id_2": data["label_asym_id_2"][i],
-                        "label_seq_id_1": data["label_seq_id_1"][i],
-                        "label_seq_id_2": data["label_seq_id_2"][i],
-                        "label_comp_id_1": data["label_comp_id_1"][i],
-                        "label_comp_id_2": data["label_comp_id_2"][i],
-                        "distance": data["distance"][i],
-                    }
-                )
-        else:
-            # Array format (legacy)
-            for record in data:
-                if len(record) < 8:
-                    continue
-
-                result.append(
-                    {
-                        "pdbid": pdbid,
-                        "label_asym_id_1": record[1],
-                        "label_asym_id_2": record[2],
-                        "label_seq_id_1": record[3],
-                        "label_seq_id_2": record[4],
-                        "label_comp_id_1": record[5],
-                        "label_comp_id_2": record[6],
-                        "distance": record[7],
-                    }
-                )
-
-        return result
+        """Transform contact records (delegates to module-level function)."""
+        return _transform_contacts(data, pdbid)
 
 
 def run(
@@ -230,15 +242,13 @@ def _process_contacts_load(
         from mine2.models import get_metadata
 
         meta = get_metadata(schema_name)
-        pipeline_instance = ContactsPipeline.__new__(ContactsPipeline)
 
-        # Load and transform
-        data = pipeline_instance._load_contacts_file(job.filepath)
+        data = _load_contacts_file(job.filepath)
         table_rows: dict[str, list[dict[str, Any]]] = {}
 
         table_rows["brief_summary"] = [{"pdbid": job.entry_id}]
 
-        contact_rows = pipeline_instance._transform_contacts(data, job.entry_id)
+        contact_rows = _transform_contacts(data, job.entry_id)
         if contact_rows:
             table_rows["list"] = contact_rows
 
