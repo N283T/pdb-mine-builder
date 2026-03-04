@@ -3,7 +3,14 @@
 import logging
 from unittest.mock import MagicMock, patch
 
-from mine2.db.loader import LoaderResult, SchemaDef, TableDef, _normalize_type_name
+from mine2.db.loader import (
+    LoaderResult,
+    SchemaDef,
+    TableDef,
+    _drop_all_foreign_keys,
+    _normalize_type_name,
+    migrate_table_schema,
+)
 from mine2.pipelines.base import BaseCifBatchPipeline
 
 
@@ -118,6 +125,83 @@ class TestDeleteMissingEntries:
             keep_entry_ids=["A", "B"],
         )
         assert result == 0
+
+
+# =============================================================================
+# FK/PK migration behavior tests
+# =============================================================================
+
+
+class TestFkAndPkMigrationBehavior:
+    """Tests for FK drop policy and PK migration SQL."""
+
+    def test_drop_all_foreign_keys_executes_drop_statements(self):
+        cur = MagicMock()
+        cur.fetchall.return_value = [
+            {"constraint_name": "fk_a"},
+            {"constraint_name": "fk_b"},
+        ]
+
+        _drop_all_foreign_keys(cur, "test_schema", "my_table")
+
+        assert cur.execute.call_count == 3
+        first_call = cur.execute.call_args_list[0]
+        assert first_call.args[1] == ("test_schema", "my_table")
+
+    def test_drop_all_foreign_keys_no_constraints(self):
+        cur = MagicMock()
+        cur.fetchall.return_value = []
+
+        _drop_all_foreign_keys(cur, "test_schema", "my_table")
+
+        assert cur.execute.call_count == 1
+
+    @patch("mine2.db.loader._ensure_indexes")
+    @patch("mine2.db.loader._reconcile_unique_keys")
+    @patch("mine2.db.loader._drop_all_foreign_keys")
+    def test_migrate_table_schema_drops_fk_before_pk_reconcile(
+        self,
+        mock_drop_fks,
+        _mock_reconcile_uks,
+        _mock_ensure_indexes,
+    ):
+        cur = MagicMock()
+        cur.fetchall.side_effect = [
+            [{"column_name": "id", "data_type": "text"}],  # current columns
+            [{"constraint_name": "my_table_pkey", "column_name": "id"}],  # current pk
+            [],  # current unique keys
+        ]
+        table = TableDef(
+            name="my_table",
+            columns=[("id", "text")],
+            primary_key=["id"],
+        )
+
+        migrate_table_schema(cur, "test_schema", table)
+
+        mock_drop_fks.assert_called_once_with(cur, "test_schema", "my_table")
+
+    def test_primary_key_drop_does_not_use_cascade(self):
+        cur = MagicMock()
+        cur.fetchall.side_effect = [
+            [],  # current columns
+            [{"constraint_name": "my_table_pkey", "column_name": "old_id"}],  # current pk
+            [],  # current unique keys
+        ]
+        table = TableDef(
+            name="my_table",
+            columns=[("id", "text")],
+            primary_key=["id"],
+        )
+
+        with patch("mine2.db.loader._drop_all_foreign_keys"), patch(
+            "mine2.db.loader._ensure_indexes"
+        ):
+            migrate_table_schema(cur, "test_schema", table)
+
+        executed_sql = [str(c.args[0]).lower() for c in cur.execute.call_args_list]
+        assert any("drop constraint" in sql_text for sql_text in executed_sql)
+        assert all("cascade" not in sql_text for sql_text in executed_sql)
 
 
 # =============================================================================
