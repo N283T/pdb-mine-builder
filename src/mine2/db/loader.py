@@ -1,6 +1,7 @@
 """Core data loader with parallel processing support."""
 
 import logging
+import re
 from collections.abc import Iterator
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
@@ -124,21 +125,25 @@ def ensure_schema(schema_def: SchemaDef, conninfo: str) -> None:
 
             # Create tables
             for table in schema_def.tables:
-                create_table_if_not_exists(cur, schema_def.schema_name, table)
+                create_or_migrate_table(cur, schema_def.schema_name, table)
 
         conn.commit()
 
     console.print(f"[green]Schema '{schema_def.schema_name}' ready[/green]")
 
 
-def create_table_if_not_exists(cur: Any, schema: str, table: TableDef) -> None:
-    """Create a table if it doesn't exist."""
-    from psycopg import sql
+def create_or_migrate_table(cur: Any, schema: str, table: TableDef) -> None:
+    """Create table if missing, otherwise migrate it to match schema definition."""
+    if _table_exists(cur, schema, table.name):
+        migrate_table_schema(cur, schema, table)
+        return
+    create_table(cur, schema, table)
 
+
+def _table_exists(cur: Any, schema: str, table_name: str) -> bool:
+    """Check whether a table exists."""
     # PostgreSQL lowercases unquoted identifiers
-    table_name_lower = table.name.lower()
-
-    # Check if table exists
+    table_name_lower = table_name.lower()
     cur.execute(
         """
         SELECT EXISTS (
@@ -148,10 +153,15 @@ def create_table_if_not_exists(cur: Any, schema: str, table: TableDef) -> None:
         """,
         (schema, table_name_lower),
     )
-    exists = cur.fetchone()["exists"]
+    return bool(cur.fetchone()["exists"])
 
-    if exists:
-        return
+
+def create_table(cur: Any, schema: str, table: TableDef) -> None:
+    """Create a new table."""
+    from psycopg import sql
+
+    # PostgreSQL lowercases unquoted identifiers
+    table_name_lower = table.name.lower()
 
     # Build CREATE TABLE statement using sql module for safety
     columns_sql_parts = []
@@ -173,24 +183,236 @@ def create_table_if_not_exists(cur: Any, schema: str, table: TableDef) -> None:
     )
     cur.execute(create_sql)
 
-    # Create indexes
-    for idx in table.indexes:
+    # Create indexes (reuse shared helper)
+    _ensure_indexes(cur, schema, table_name_lower, table.indexes)
+
+    console.print(f"  Created table: {schema}.{table_name_lower}")
+
+
+def migrate_table_schema(cur: Any, schema: str, table: TableDef) -> None:
+    """Migrate an existing table to match schema definition."""
+    from psycopg import sql
+
+    table_name_lower = table.name.lower()
+    full_table = sql.Identifier(schema, table_name_lower)
+
+    # Gather current columns and types
+    cur.execute(
+        """
+        SELECT
+            a.attname AS column_name,
+            pg_catalog.format_type(a.atttypid, a.atttypmod) AS data_type
+        FROM pg_catalog.pg_attribute a
+        JOIN pg_catalog.pg_class c ON c.oid = a.attrelid
+        JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = %s
+          AND c.relname = %s
+          AND a.attnum > 0
+          AND NOT a.attisdropped
+        """,
+        (schema, table_name_lower),
+    )
+    current_columns = {
+        row["column_name"]: _normalize_type_name(row["data_type"])
+        for row in cur.fetchall()
+    }
+    expected_columns = {
+        col_name: _normalize_type_name(col_type) for col_name, col_type in table.columns
+    }
+
+    # Drop columns removed from schema
+    for col_name in current_columns:
+        if col_name in expected_columns:
+            continue
+        console.print(
+            f"  [yellow]DROP COLUMN {schema}.{table_name_lower}.{col_name}[/yellow]"
+        )
+        cur.execute(
+            sql.SQL("ALTER TABLE {} DROP COLUMN {}").format(
+                full_table, sql.Identifier(col_name)
+            )
+        )
+
+    # Add missing columns
+    for col_name, col_type in expected_columns.items():
+        if col_name in current_columns:
+            continue
+        console.print(
+            f"  [dim]ADD COLUMN {schema}.{table_name_lower}.{col_name} {col_type}[/dim]"
+        )
+        cur.execute(
+            sql.SQL("ALTER TABLE {} ADD COLUMN {} {}").format(
+                full_table,
+                sql.Identifier(col_name),
+                sql.SQL(col_type),
+            )
+        )
+
+    # Alter changed column types
+    for col_name, col_type in expected_columns.items():
+        current_type = current_columns.get(col_name)
+        if current_type is None or current_type == col_type:
+            continue
+        # USING NULL discards all existing values by setting them to NULL
+        # before changing the column type.
+        console.print(
+            f"  [yellow]ALTER COLUMN {schema}.{table_name_lower}.{col_name} "
+            f"TYPE {current_type} → {col_type} (USING NULL: existing values discarded)[/yellow]"
+        )
+        cur.execute(
+            sql.SQL("ALTER TABLE {} ALTER COLUMN {} DROP DEFAULT").format(
+                full_table, sql.Identifier(col_name)
+            )
+        )
+        cur.execute(
+            sql.SQL("ALTER TABLE {} ALTER COLUMN {} TYPE {} USING NULL").format(
+                full_table,
+                sql.Identifier(col_name),
+                sql.SQL(col_type),
+            )
+        )
+
+    _reconcile_primary_key(cur, schema, table_name_lower, table.primary_key)
+    _reconcile_foreign_keys(cur, schema, table_name_lower, table.foreign_keys)
+    _ensure_indexes(cur, schema, table_name_lower, table.indexes)
+
+
+def _normalize_type_name(type_name: str) -> str:
+    """Normalize PostgreSQL type aliases to canonical names for comparison.
+
+    pg_catalog.format_type() returns verbose names (e.g. 'character varying')
+    while schema YAMLs use short names (e.g. 'text'). This mapping ensures
+    both sides compare equal.
+    """
+    t = type_name.strip().lower()
+
+    # Static alias map (pg_catalog verbose → schema canonical)
+    static_map = {
+        "character varying": "text",
+        "character": "char",
+        "serial": "integer",
+        "bigserial": "bigint",
+    }
+    if t in static_map:
+        return static_map[t]
+
+    # Handle character(N) → char(N) pattern
+    m = re.match(r"^character\((\d+)\)$", t)
+    if m:
+        return f"char({m.group(1)})"
+
+    return t
+
+
+def _reconcile_primary_key(
+    cur: Any, schema: str, table_name: str, expected_pk: list[str]
+) -> None:
+    """Ensure primary key definition matches schema."""
+    from psycopg import sql
+
+    cur.execute(
+        """
+        SELECT tc.constraint_name,
+               array_agg(kcu.column_name ORDER BY kcu.ordinal_position) AS columns
+        FROM information_schema.table_constraints tc
+        JOIN information_schema.key_column_usage kcu
+          ON tc.constraint_name = kcu.constraint_name
+         AND tc.constraint_schema = kcu.constraint_schema
+        WHERE tc.table_schema = %s
+          AND tc.table_name = %s
+          AND tc.constraint_type = 'PRIMARY KEY'
+        GROUP BY tc.constraint_name
+        """,
+        (schema, table_name),
+    )
+    row = cur.fetchone()
+    current_pk = list(row["columns"]) if row else []
+    current_pk_name = row["constraint_name"] if row else None
+
+    if current_pk == expected_pk:
+        return
+
+    full_table = sql.Identifier(schema, table_name)
+    if current_pk_name:
+        cur.execute(
+            sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(
+                full_table, sql.Identifier(current_pk_name)
+            )
+        )
+    if expected_pk:
+        pk_cols = sql.SQL(", ").join(sql.Identifier(c) for c in expected_pk)
+        cur.execute(
+            sql.SQL("ALTER TABLE {} ADD PRIMARY KEY ({})").format(full_table, pk_cols)
+        )
+
+
+def _reconcile_foreign_keys(
+    cur: Any,
+    schema: str,
+    table_name: str,
+    expected_fks: list[tuple[list[str], str, list[str]]],
+) -> None:
+    """Ensure foreign keys match schema (drop all existing, recreate expected)."""
+    from psycopg import sql
+
+    full_table = sql.Identifier(schema, table_name)
+
+    cur.execute(
+        """
+        SELECT constraint_name
+        FROM information_schema.table_constraints
+        WHERE table_schema = %s
+          AND table_name = %s
+          AND constraint_type = 'FOREIGN KEY'
+        """,
+        (schema, table_name),
+    )
+    for row in cur.fetchall():
+        cur.execute(
+            sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(
+                full_table, sql.Identifier(row["constraint_name"])
+            )
+        )
+
+    for child_cols, parent_table, parent_cols in expected_fks:
+        child = sql.SQL(", ").join(sql.Identifier(c) for c in child_cols)
+        parent = sql.SQL(", ").join(sql.Identifier(c) for c in parent_cols)
+        cur.execute(
+            sql.SQL(
+                "ALTER TABLE {} ADD FOREIGN KEY ({}) REFERENCES {} ({}) DEFERRABLE INITIALLY DEFERRED"
+            ).format(
+                full_table,
+                child,
+                sql.Identifier(schema, parent_table.lower()),
+                parent,
+            )
+        )
+
+
+def _ensure_indexes(
+    cur: Any,
+    schema: str,
+    table_name: str,
+    indexes: list[str | list[str]],
+) -> None:
+    """Ensure expected indexes exist."""
+    from psycopg import sql
+
+    for idx in indexes:
         if isinstance(idx, list):
-            idx_name = f"idx_{table_name_lower}_{'_'.join(idx)}"
+            idx_name = f"idx_{table_name}_{'_'.join(idx)}"
             idx_cols = sql.SQL(", ").join(sql.Identifier(c) for c in idx)
         else:
-            idx_name = f"idx_{table_name_lower}_{idx}"
+            idx_name = f"idx_{table_name}_{idx}"
             idx_cols = sql.Identifier(idx)
 
         cur.execute(
             sql.SQL("CREATE INDEX IF NOT EXISTS {} ON {} ({})").format(
                 sql.Identifier(idx_name),
-                sql.Identifier(schema, table_name_lower),
+                sql.Identifier(schema, table_name),
                 idx_cols,
             )
         )
-
-    console.print(f"  Created table: {schema}.{table_name_lower}")
 
 
 @dataclass
@@ -509,3 +731,66 @@ def bulk_upsert(
 
     # Note: This doesn't accurately track insert vs update counts
     return len(rows), 0
+
+
+def delete_missing_entries(
+    conninfo: str,
+    schema: str,
+    pk_column: str,
+    tables: list[str],
+    keep_entry_ids: list[str],
+) -> int:
+    """Delete rows whose entry id is not in keep_entry_ids.
+
+    This is primarily for full-reload pipelines that parse a single large CIF
+    and upsert all rows in bulk. It removes stale rows for entries no longer
+    present in source data.
+
+    Args:
+        conninfo: PostgreSQL connection string
+        schema: Schema name
+        pk_column: Entry-id column name (e.g., comp_id/model_id/prd_id)
+        tables: Table names to prune
+        keep_entry_ids: Entry IDs that must remain
+
+    Returns:
+        Total number of rows deleted across tables
+    """
+    import psycopg
+    from psycopg import sql
+
+    total_deleted = 0
+    keep_ids = list(dict.fromkeys(keep_entry_ids))
+
+    if not keep_ids:
+        _default_logger.warning(
+            "delete_missing_entries called with empty keep_entry_ids; "
+            "this would delete ALL rows from %s tables",
+            len(tables),
+        )
+
+    with psycopg.connect(conninfo) as conn:
+        with conn.cursor() as cur:
+            for table in tables:
+                table_lower = table.lower()
+                full_table = sql.Identifier(schema, table_lower)
+                pk_col = sql.Identifier(pk_column)
+
+                if keep_ids:
+                    # Use a temp table for efficient NOT IN filtering
+                    cur.execute("CREATE TEMP TABLE _keep_ids (id text) ON COMMIT DROP")
+                    with cur.copy("COPY _keep_ids (id) FROM STDIN") as copy:
+                        for kid in keep_ids:
+                            copy.write_row((kid,))
+                    cur.execute(
+                        sql.SQL(
+                            "DELETE FROM {} WHERE {} NOT IN (SELECT id FROM _keep_ids)"
+                        ).format(full_table, pk_col)
+                    )
+                    cur.execute("DROP TABLE _keep_ids")
+                else:
+                    cur.execute(sql.SQL("DELETE FROM {}").format(full_table))
+                total_deleted += cur.rowcount
+        conn.commit()
+
+    return total_deleted

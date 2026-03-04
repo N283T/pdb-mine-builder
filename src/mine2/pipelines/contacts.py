@@ -19,8 +19,8 @@ from typing import Any
 from rich.console import Console
 
 from mine2.config import PipelineConfig, Settings
-from mine2.db.loader import Job, LoaderResult, SchemaDef, bulk_upsert
-from mine2.pipelines.base import BasePipeline
+from mine2.db.loader import Job, LoaderResult, SchemaDef
+from mine2.pipelines.base import BasePipeline, sync_entry_tables
 
 console = Console()
 
@@ -57,45 +57,29 @@ class ContactsPipeline(BasePipeline):
         try:
             # Load JSON file (not mmJSON format)
             data = self._load_contacts_file(job.filepath)
-            rows_inserted = 0
+            table_rows: dict[str, list[dict[str, Any]]] = {}
 
             # Generate and load brief_summary
             brief_rows = [{"pdbid": job.entry_id}]
-            columns = list(brief_rows[0].keys())
-            inserted, _ = bulk_upsert(
-                conninfo,
-                schema_def.schema_name,
-                "brief_summary",
-                columns,
-                [tuple(r[c] for c in columns) for r in brief_rows],
-                ["pdbid"],
-            )
-            rows_inserted += inserted
+            table_rows["brief_summary"] = brief_rows
 
             # Transform and load contacts
             contact_rows = self._transform_contacts(data, job.entry_id)
             if contact_rows:
-                columns = list(contact_rows[0].keys())
-                inserted, _ = bulk_upsert(
-                    conninfo,
-                    schema_def.schema_name,
-                    "list",
-                    columns,
-                    [tuple(r[c] for c in columns) for r in contact_rows],
-                    [
-                        "pdbid",
-                        "label_asym_id_1",
-                        "label_asym_id_2",
-                        "label_seq_id_1",
-                        "label_seq_id_2",
-                    ],
-                )
-                rows_inserted += inserted
+                table_rows["list"] = contact_rows
+
+            inserted, updated, _deleted = sync_entry_tables(
+                conninfo=conninfo,
+                schema_def=schema_def,
+                entry_id=job.entry_id,
+                table_rows=table_rows,
+            )
 
             return LoaderResult(
                 entry_id=job.entry_id,
                 success=True,
-                rows_inserted=rows_inserted,
+                rows_inserted=inserted,
+                rows_updated=updated,
             )
 
         except Exception as e:

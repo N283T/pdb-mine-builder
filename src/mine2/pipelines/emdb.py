@@ -8,6 +8,7 @@ EMDB uses XML data files. The pipeline:
 """
 
 import json
+import logging
 import traceback
 from pathlib import Path
 from typing import Any
@@ -17,8 +18,8 @@ import defusedxml.ElementTree as ET
 from rich.console import Console
 
 from mine2.config import PipelineConfig, Settings
-from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
-from mine2.pipelines.base import BasePipeline, transform_category
+from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef
+from mine2.pipelines.base import BasePipeline, sync_entry_tables, transform_category
 
 console = Console()
 
@@ -118,7 +119,7 @@ class EmdbPipeline(BasePipeline):
             return []
 
         jobs = []
-        for filepath in sorted(data_dir.rglob(self.file_pattern)):
+        for filepath in data_dir.rglob(self.file_pattern):
             entry_id = self.extract_entry_id(filepath)
             jobs.append(
                 Job(
@@ -130,7 +131,6 @@ class EmdbPipeline(BasePipeline):
 
             if limit and len(jobs) >= limit:
                 break
-
         return jobs
 
     def process_job(
@@ -155,28 +155,14 @@ class EmdbPipeline(BasePipeline):
             row_data = self._xml_to_row_oriented(data)
 
             # Transform and load
-            rows_inserted = 0
+            table_rows: dict[str, list[dict[str, Any]]] = {}
 
             # Load brief_summary first
             brief_rows = self._transform_brief_summary(
                 data, row_data, job.entry_id, schema_def
             )
             if brief_rows:
-                # Get brief_summary table definition
-                brief_table = next(
-                    (t for t in schema_def.tables if t.name == "brief_summary"), None
-                )
-                if brief_table:
-                    columns = list(brief_rows[0].keys())
-                    inserted, _ = bulk_upsert(
-                        conninfo,
-                        schema_def.schema_name,
-                        "brief_summary",
-                        columns,
-                        [tuple(r[c] for c in columns) for r in brief_rows],
-                        brief_table.primary_key,
-                    )
-                    rows_inserted += inserted
+                table_rows["brief_summary"] = brief_rows
 
             # Load other categories
             for table in schema_def.tables:
@@ -185,21 +171,20 @@ class EmdbPipeline(BasePipeline):
 
                 category_rows = self._transform_category(row_data, table, job.entry_id)
                 if category_rows:
-                    columns = list(category_rows[0].keys())
-                    inserted, _ = bulk_upsert(
-                        conninfo,
-                        schema_def.schema_name,
-                        table.name,
-                        columns,
-                        [tuple(r[c] for c in columns) for r in category_rows],
-                        table.primary_key,
-                    )
-                    rows_inserted += inserted
+                    table_rows[table.name] = category_rows
+
+            inserted, updated, _deleted = sync_entry_tables(
+                conninfo=conninfo,
+                schema_def=schema_def,
+                entry_id=job.entry_id,
+                table_rows=table_rows,
+            )
 
             return LoaderResult(
                 entry_id=job.entry_id,
                 success=True,
-                rows_inserted=rows_inserted,
+                rows_inserted=inserted,
+                rows_updated=updated,
             )
 
         except Exception as e:
@@ -408,7 +393,8 @@ def run(
     config: PipelineConfig,
     schema_def: SchemaDef,
     limit: int | None = None,
+    logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the EMDB pipeline."""
     pipeline = EmdbPipeline(settings, config, schema_def)
-    return pipeline.run(limit)
+    return pipeline.run(limit, logger=logger)

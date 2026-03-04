@@ -431,7 +431,7 @@ class TestTransformBriefSummary:
 class TestHashAsymIdList:
     """Tests for _hash_asym_id_list computation."""
 
-    @patch("mine2.pipelines.ihm.bulk_upsert")
+    @patch("mine2.pipelines.ihm.sync_entry_tables")
     def test_hash_added_to_assembly_gen(self, mock_bulk_upsert, tmp_path):
         """Test that _hash_asym_id_list is computed."""
         data_dir = tmp_path / "ihm"
@@ -447,7 +447,7 @@ class TestHashAsymIdList:
         pipeline = IhmPipeline(settings, config, schema_def)
 
         # Mock bulk_upsert
-        mock_bulk_upsert.return_value = (1, 0)
+        mock_bulk_upsert.return_value = (1, 0, 0)
 
         from mine2.db.loader import Job
 
@@ -492,7 +492,7 @@ class TestCalculateMwForBu:
 class TestProcessJob:
     """Tests for process_job method."""
 
-    @patch("mine2.pipelines.ihm.bulk_upsert")
+    @patch("mine2.pipelines.ihm.sync_entry_tables")
     def test_process_job_success(self, mock_bulk_upsert, tmp_path):
         """Test successful job processing."""
         data_dir = tmp_path / "ihm"
@@ -508,7 +508,7 @@ class TestProcessJob:
         pipeline = IhmPipeline(settings, config, schema_def)
 
         # Mock bulk_upsert to return success
-        mock_bulk_upsert.return_value = (1, 0)
+        mock_bulk_upsert.return_value = (1, 0, 0)
 
         from mine2.db.loader import Job
 

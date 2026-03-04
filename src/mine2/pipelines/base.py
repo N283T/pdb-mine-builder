@@ -1,6 +1,7 @@
 """Base pipeline functionality."""
 
 import logging
+import traceback
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from math import floor, log10
@@ -8,9 +9,19 @@ from pathlib import Path
 from typing import Any
 
 from rich.console import Console
+from rich.progress import track
 
 from mine2.config import PipelineConfig, Settings
-from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, run_loader
+from mine2.db.delta import apply_delta, compute_delta, fetch_entry_data
+from mine2.db.loader import (
+    Job,
+    LoaderResult,
+    SchemaDef,
+    TableDef,
+    bulk_upsert,
+    delete_missing_entries,
+    run_loader,
+)
 
 console = Console()
 _default_logger = logging.getLogger("mine2.pipelines.base")
@@ -346,6 +357,68 @@ def transform_category(
     return result
 
 
+def sync_entry_tables(
+    conninfo: str,
+    schema_def: SchemaDef,
+    entry_id: str,
+    table_rows: dict[str, list[dict[str, Any]]],
+) -> tuple[int, int, int]:
+    """Synchronize all rows for one entry using delta (insert/update/delete).
+
+    This preserves original mine2updater behavior where rows removed from
+    source files are also removed from the database for the same entry.
+
+    Returns:
+        Tuple of (inserted_count, updated_count, deleted_count)
+    """
+    pk_column = schema_def.primary_key
+    table_defs = {t.name: t for t in schema_def.tables}
+    all_tables = [t.name for t in schema_def.tables]
+
+    # Ensure every schema table is present in new_data so missing categories
+    # are interpreted as "delete existing rows for this entry".
+    new_data: dict[str, list[dict[str, Any]]] = {name: [] for name in all_tables}
+    for table_name, rows in table_rows.items():
+        if table_name in new_data:
+            new_data[table_name] = rows
+
+    db_data = fetch_entry_data(
+        conninfo=conninfo,
+        schema=schema_def.schema_name,
+        entry_id=entry_id,
+        pk_column=pk_column,
+        tables=all_tables,
+    )
+
+    table_pk_columns = {
+        name: [c for c in tdef.primary_key if c != pk_column]
+        for name, tdef in table_defs.items()
+    }
+    table_columns = {
+        name: [col_name for col_name, _ in tdef.columns]
+        for name, tdef in table_defs.items()
+    }
+
+    delta = compute_delta(
+        entry_id=entry_id,
+        db_data=db_data,
+        new_data=new_data,
+        table_pk_columns=table_pk_columns,
+        table_columns=table_columns,
+    )
+
+    return apply_delta(
+        conninfo=conninfo,
+        schema=schema_def.schema_name,
+        entry_id=entry_id,
+        pk_column=pk_column,
+        delta=delta,
+        new_data=new_data,
+        db_data=db_data,
+        table_pk_columns=table_pk_columns,
+    )
+
+
 class BasePipeline(ABC):
     """Base class for data loading pipelines."""
 
@@ -459,3 +532,147 @@ class BasePipeline(ABC):
             Dict mapping table names to lists of row dicts
         """
         return {}
+
+
+class BaseCifBatchPipeline:
+    """Base class for CIF batch pipelines (cc, ccmodel, prd).
+
+    Provides shared methods for batch upsert, summary output,
+    and stale-row pruning. Subclasses must set ``name`` and
+    ``schema_def``, and implement ``_parse_all_blocks()`` and
+    ``_find_cif_file()`` / ``_find_cif_files()``.
+    """
+
+    name: str = "base-cif-batch"
+
+    def __init__(
+        self,
+        settings: Settings,
+        config: PipelineConfig,
+        schema_def: SchemaDef,
+    ):
+        self.settings = settings
+        self.config = config
+        self.schema_def = schema_def
+
+    def _batch_insert(
+        self,
+        parsed_results: list[tuple[str, dict[str, list[dict]], str | None]],
+        conninfo: str,
+    ) -> list[LoaderResult]:
+        """Accumulate rows from parsed blocks and bulk upsert per table."""
+        table_rows: dict[str, list[dict]] = {}
+        results: list[LoaderResult] = []
+
+        for entry_id, rows_by_table, error in parsed_results:
+            if error:
+                results.append(
+                    LoaderResult(entry_id=entry_id, success=False, error=error)
+                )
+                continue
+
+            for table_name, rows in rows_by_table.items():
+                if table_name not in table_rows:
+                    table_rows[table_name] = []
+                table_rows[table_name].extend(rows)
+
+            results.append(
+                LoaderResult(entry_id=entry_id, success=True, rows_inserted=0)
+            )
+
+        # Bulk upsert per table
+        try:
+            for table in track(
+                self.schema_def.tables,
+                description="Upserting...",
+                console=console,
+            ):
+                rows = table_rows.get(table.name, [])
+                if not rows:
+                    continue
+
+                all_columns: set[str] = set()
+                for row in rows:
+                    all_columns.update(row.keys())
+
+                pk_col = self.schema_def.primary_key
+                columns = [pk_col] + sorted(c for c in all_columns if c != pk_col)
+                row_tuples = [tuple(r.get(c) for c in columns) for r in rows]
+
+                bulk_upsert(
+                    conninfo,
+                    self.schema_def.schema_name,
+                    table.name,
+                    columns,
+                    row_tuples,
+                    table.primary_key,
+                )
+                console.print(f"  [dim]{table.name}: {len(rows)} rows[/dim]")
+        except Exception as e:
+            error_msg = f"{e}\n{traceback.format_exc()}"
+            results = [
+                LoaderResult(entry_id=r.entry_id, success=False, error=error_msg)
+                for r in results
+            ]
+
+        return results
+
+    def _print_summary(
+        self, results: list[LoaderResult], logger: logging.Logger | None = None
+    ) -> None:
+        """Print processing summary to console and logger."""
+        success_count = sum(1 for r in results if r.success)
+        fail_count = len(results) - success_count
+
+        if logger:
+            logger.info(f"Completed: {success_count} succeeded, {fail_count} failed")
+
+        console.print(f"\n[green]✓ {success_count} succeeded[/green]", end="")
+        if fail_count > 0:
+            console.print(f", [red]✗ {fail_count} failed[/red]")
+            shown = 0
+            for r in results:
+                if not r.success and r.error:
+                    if shown < 5:
+                        error_line = r.error.split("\n")[0][:100]
+                        console.print(f"  [dim]{r.entry_id}: {error_line}[/dim]")
+                        shown += 1
+                    if logger:
+                        logger.error(f"FAILED {r.entry_id}:\n{r.error}")
+            if fail_count > 5:
+                console.print(
+                    f"  [dim]... and {fail_count - 5} more (see log file)[/dim]"
+                )
+        else:
+            console.print()
+
+    def _prune_stale_rows(
+        self,
+        results: list[LoaderResult],
+        conninfo: str,
+        limit: int | None,
+    ) -> None:
+        """Remove stale rows after a full successful reload.
+
+        Skips pruning when:
+        - ``limit`` is set (partial run)
+        - No entries were processed
+        - Any entry failed
+        """
+        if limit is not None:
+            console.print("  [dim]Skipping prune (limited run)[/dim]")
+            return
+
+        if not results or not all(r.success for r in results):
+            reason = "no entries processed" if not results else "failed entries"
+            console.print(f"  [yellow]Skipping prune ({reason})[/yellow]")
+            return
+
+        deleted = delete_missing_entries(
+            conninfo=conninfo,
+            schema=self.schema_def.schema_name,
+            pk_column=self.schema_def.primary_key,
+            tables=[t.name for t in self.schema_def.tables],
+            keep_entry_ids=[r.entry_id for r in results],
+        )
+        console.print(f"  [dim]Pruned stale rows: {deleted}[/dim]")
