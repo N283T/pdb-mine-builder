@@ -1,6 +1,5 @@
 """Tests for mmJSON utilities."""
 
-import pytest
 
 from mine2.parsers.mmjson import (
     clean_array,

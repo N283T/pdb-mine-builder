@@ -1,6 +1,5 @@
 """Tests for entry-specific patches."""
 
-import pytest
 
 from mine2.utils.patches import apply_patches, _patch_7ed1_met
 

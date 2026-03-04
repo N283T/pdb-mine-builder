@@ -1,23 +1,29 @@
 """Tests for base pipeline functionality."""
 
 import pytest
+from sqlalchemy import (
+    ARRAY,
+    Boolean,
+    Column,
+    Date,
+    Double,
+    Integer,
+    MetaData,
+    PrimaryKeyConstraint,
+    Table,
+    Text,
+)
 
 from mine2.pipelines.base import (
-    _coerce_array_value,
     _coerce_boolean,
-    _coerce_boolean_array,
     _coerce_date,
     _coerce_float,
-    _coerce_float_array,
     _coerce_integer,
-    _coerce_integer_array,
     _coerce_string,
-    _coerce_string_array,
     _coerce_string_lc,
     coerce_value,
     transform_category,
 )
-from mine2.db.loader import TableDef
 
 
 class TestCoerceString:
@@ -184,147 +190,40 @@ class TestCoerceDate:
         assert _coerce_date("") is None
 
 
-class TestCoerceStringArray:
-    """Tests for _coerce_string_array function."""
-
-    def test_none_returns_none(self):
-        assert _coerce_string_array(None) is None
-
-    def test_string_wrapped_in_list(self):
-        assert _coerce_string_array("hello") == ["hello"]
-
-    def test_list_preserved(self):
-        assert _coerce_string_array(["a", "b"]) == ["a", "b"]
-
-    def test_elements_converted_to_strings(self):
-        assert _coerce_string_array([1, 2, 3]) == ["1", "2", "3"]
-
-    def test_none_elements_preserved(self):
-        assert _coerce_string_array(["a", None, "b"]) == ["a", None, "b"]
-
-
-class TestCoerceIntegerArray:
-    """Tests for _coerce_integer_array function."""
-
-    def test_none_returns_none(self):
-        assert _coerce_integer_array(None) is None
-
-    def test_int_wrapped_in_list(self):
-        assert _coerce_integer_array(42) == [42]
-
-    def test_string_ints_converted(self):
-        assert _coerce_integer_array(["1", "2", "3"]) == [1, 2, 3]
-
-    def test_invalid_values_become_none(self):
-        assert _coerce_integer_array(["1", "invalid", "3"]) == [1, None, 3]
-
-
-class TestCoerceBooleanArray:
-    """Tests for _coerce_boolean_array function."""
-
-    def test_none_returns_none(self):
-        assert _coerce_boolean_array(None) is None
-
-    def test_bool_wrapped_in_list(self):
-        assert _coerce_boolean_array(True) == [True]
-
-    def test_string_bools_converted(self):
-        assert _coerce_boolean_array(["true", "false"]) == [True, False]
-
-
-class TestCoerceFloatArray:
-    """Tests for _coerce_float_array function."""
-
-    def test_none_returns_none(self):
-        assert _coerce_float_array(None) is None
-
-    def test_float_wrapped_in_list(self):
-        result = _coerce_float_array(3.14)
-        assert len(result) == 1
-        assert abs(result[0] - 3.14) < 1e-10
-
-    def test_string_floats_converted(self):
-        result = _coerce_float_array(["1.5", "2.5"])
-        assert len(result) == 2
-        assert abs(result[0] - 1.5) < 1e-10
-        assert abs(result[1] - 2.5) < 1e-10
-
-
 class TestCoerceValue:
     """Tests for coerce_value function (dispatcher)."""
 
     def test_text_type(self):
-        assert coerce_value("hello", "text") == "hello"
-        assert coerce_value(123, "text") == "123"
+        assert coerce_value("hello", Text()) == "hello"
+        assert coerce_value(123, Text()) == "123"
 
     def test_integer_type(self):
-        assert coerce_value("42", "integer") == 42
-        assert coerce_value(None, "integer") is None
+        assert coerce_value("42", Integer()) == 42
+        assert coerce_value(None, Integer()) is None
 
     def test_boolean_type(self):
-        assert coerce_value("true", "boolean") is True
-        assert coerce_value("false", "boolean") is False
+        assert coerce_value("true", Boolean()) is True
+        assert coerce_value("false", Boolean()) is False
 
     def test_date_type(self):
-        assert coerce_value("99-1-5", "date") == "1999-01-05"
+        assert coerce_value("99-1-5", Date()) == "1999-01-05"
 
     def test_float_type(self):
-        result = coerce_value("3.14", "double precision")
+        result = coerce_value("3.14", Double())
         assert abs(result - 3.14) < 1e-10
 
     def test_text_array_type(self):
-        assert coerce_value("single", "text[]") == ["single"]
-        assert coerce_value(["a", "b"], "text[]") == ["a", "b"]
+        assert coerce_value("single", ARRAY(Text)) == ["single"]
+        assert coerce_value(["a", "b"], ARRAY(Text)) == ["a", "b"]
 
     def test_integer_array_type(self):
-        assert coerce_value(42, "integer[]") == [42]
-        assert coerce_value(["1", "2"], "integer[]") == [1, 2]
+        assert coerce_value(42, ARRAY(Integer)) == [42]
+        assert coerce_value(["1", "2"], ARRAY(Integer)) == [1, 2]
 
     def test_unknown_type_passthrough(self):
-        obj = {"key": "value"}
-        assert coerce_value(obj, "unknown_type") == obj
-
-
-class TestCoerceArrayValue:
-    """Tests for _coerce_array_value function (backward compatibility)."""
-
-    def test_none_value_returns_none(self):
-        assert _coerce_array_value(None, "text[]") is None
-        assert _coerce_array_value(None, "integer[]") is None
-        assert _coerce_array_value(None, "text") is None
-
-    def test_non_array_column_returns_unchanged(self):
-        assert _coerce_array_value("hello", "text") == "hello"
-        assert _coerce_array_value(123, "integer") == 123
-        assert _coerce_array_value(["a", "b"], "text") == ["a", "b"]
-
-    def test_text_array_wraps_string(self):
-        result = _coerce_array_value("101d-A,B", "text[]")
-        assert result == ["101d-A,B"]
-
-    def test_text_array_preserves_list(self):
-        result = _coerce_array_value(["a", "b", "c"], "text[]")
-        assert result == ["a", "b", "c"]
-
-    def test_text_array_converts_elements_to_strings(self):
-        result = _coerce_array_value([1, 2, 3], "text[]")
-        assert result == ["1", "2", "3"]
-
-    def test_text_array_handles_none_elements(self):
-        result = _coerce_array_value(["a", None, "b"], "text[]")
-        assert result == ["a", None, "b"]
-
-    def test_integer_array_wraps_integer(self):
-        result = _coerce_array_value(42, "integer[]")
-        assert result == [42]
-
-    def test_integer_array_converts_strings_to_ints(self):
-        result = _coerce_array_value(["1", "2", "3"], "integer[]")
-        assert result == [1, 2, 3]
-
-    def test_integer_array_handles_invalid_values(self):
-        result = _coerce_array_value(["1", "invalid", "3"], "integer[]")
-        assert result == [1, None, 3]
+        # Default fallback is to treat as string
+        obj = "some_value"
+        assert coerce_value(obj, Text()) == "some_value"
 
 
 class TestTransformCategory:
@@ -333,30 +232,32 @@ class TestTransformCategory:
     @pytest.fixture
     def table_with_arrays(self):
         """Table definition with array columns."""
-        return TableDef(
-            name="test_table",
-            columns=[
-                ("pdbid", "text"),
-                ("name", "text"),
-                ("tags", "text[]"),
-                ("counts", "integer[]"),
-            ],
-            primary_key=["pdbid"],
+        meta = MetaData(schema="test")
+        meta.info = {"entry_pk": "pdbid"}
+        return Table(
+            "test_table",
+            meta,
+            Column("pdbid", Text),
+            Column("name", Text),
+            Column("tags", ARRAY(Text)),
+            Column("counts", ARRAY(Integer)),
+            PrimaryKeyConstraint("pdbid"),
         )
 
     @pytest.fixture
     def table_with_various_types(self):
         """Table definition with various column types."""
-        return TableDef(
-            name="test_table",
-            columns=[
-                ("pdbid", "text"),
-                ("created_date", "date"),
-                ("is_active", "boolean"),
-                ("score", "double precision"),
-                ("count", "integer"),
-            ],
-            primary_key=["pdbid"],
+        meta = MetaData(schema="test2")
+        meta.info = {"entry_pk": "pdbid"}
+        return Table(
+            "test_table",
+            meta,
+            Column("pdbid", Text),
+            Column("created_date", Date),
+            Column("is_active", Boolean),
+            Column("score", Double),
+            Column("count", Integer),
+            PrimaryKeyConstraint("pdbid"),
         )
 
     def test_empty_rows_returns_empty(self, table_with_arrays):

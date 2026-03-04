@@ -2,7 +2,6 @@
 
 import warnings
 
-import pytest
 
 from mine2.commands.update import AVAILABLE_PIPELINES, LEGACY_ALIASES
 from mine2.commands.sync import LEGACY_SYNC_ALIASES, SYNC_TARGETS
@@ -123,8 +122,7 @@ class TestPipelineNamingConsistency:
         """Available pipelines should not have -cif suffix (use legacy aliases)."""
         for name in AVAILABLE_PIPELINES:
             assert not name.endswith("-cif"), (
-                f"Pipeline '{name}' should not use -cif suffix; "
-                "CIF is now the default"
+                f"Pipeline '{name}' should not use -cif suffix; CIF is now the default"
             )
 
 

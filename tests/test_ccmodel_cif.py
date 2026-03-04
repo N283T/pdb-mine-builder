@@ -4,10 +4,9 @@ import gzip
 from pathlib import Path
 
 import gemmi
-import pytest
+from sqlalchemy import Column, MetaData, PrimaryKeyConstraint, Table, Text
 
 from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import SchemaDef, TableDef
 from mine2.parsers.cif import parse_cif_file
 from mine2.pipelines.ccmodel import (
     CcmodelCifPipeline,
@@ -71,24 +70,26 @@ def create_test_settings(data_dir: Path) -> Settings:
     )
 
 
-def create_test_schema_def() -> SchemaDef:
-    """Create minimal test schema definition for ccmodel."""
-    return SchemaDef(
-        schema_name="ccmodel",
-        primary_key="model_id",
-        tables=[
-            TableDef(
-                name="brief_summary",
-                columns=[("model_id", "TEXT"), ("comp_id", "TEXT")],
-                primary_key=["model_id"],
-            ),
-            TableDef(
-                name="pdbx_chem_comp_model",
-                columns=[("model_id", "TEXT"), ("id", "TEXT"), ("comp_id", "TEXT")],
-                primary_key=["model_id", "id"],
-            ),
-        ],
+def create_test_meta() -> MetaData:
+    """Create minimal test MetaData for ccmodel."""
+    meta = MetaData(schema="ccmodel")
+    meta.info = {"entry_pk": "model_id"}
+    Table(
+        "brief_summary",
+        meta,
+        Column("model_id", Text),
+        Column("comp_id", Text),
+        PrimaryKeyConstraint("model_id"),
     )
+    Table(
+        "pdbx_chem_comp_model",
+        meta,
+        Column("model_id", Text),
+        Column("id", Text),
+        Column("comp_id", Text),
+        PrimaryKeyConstraint("model_id", "id"),
+    )
+    return meta
 
 
 class TestGenerateBriefSummary:
@@ -126,9 +127,9 @@ class TestFindCifFile:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["ccmodel"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = CcmodelCifPipeline(settings, config, schema_def)
+        pipeline = CcmodelCifPipeline(settings, config, meta)
         found = pipeline._find_cif_file()
 
         assert found == cif_path
@@ -142,9 +143,9 @@ class TestFindCifFile:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["ccmodel"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = CcmodelCifPipeline(settings, config, schema_def)
+        pipeline = CcmodelCifPipeline(settings, config, meta)
         found = pipeline._find_cif_file()
 
         assert found == cif_path
@@ -158,9 +159,9 @@ class TestFindCifFile:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["ccmodel"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = CcmodelCifPipeline(settings, config, schema_def)
+        pipeline = CcmodelCifPipeline(settings, config, meta)
         found = pipeline._find_cif_file()
 
         assert found == cif_path
@@ -169,9 +170,9 @@ class TestFindCifFile:
         """Return None when CIF file not found."""
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["ccmodel"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = CcmodelCifPipeline(settings, config, schema_def)
+        pipeline = CcmodelCifPipeline(settings, config, meta)
         found = pipeline._find_cif_file()
 
         assert found is None
@@ -180,9 +181,9 @@ class TestFindCifFile:
         """Return None when data directory doesn't exist."""
         settings = create_test_settings(tmp_path.joinpath("nonexistent"))
         config = settings.pipelines["ccmodel"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = CcmodelCifPipeline(settings, config, schema_def)
+        pipeline = CcmodelCifPipeline(settings, config, meta)
         found = pipeline._find_cif_file()
 
         assert found is None
@@ -199,13 +200,12 @@ class TestProcessCcmodelCifBlock:
             [{"id": "M_DAL_00001", "comp_id": "DAL"}],
         )
 
-        schema_def = create_test_schema_def()
         doc = gemmi.cif.read(str(cif_path))
         block = doc[0]
 
         result = _process_ccmodel_cif_block(
             block=block,
-            schema_def=schema_def,
+            schema_name="ccmodel",
             conninfo="mock://test",
         )
 
@@ -221,13 +221,12 @@ class TestProcessCcmodelCifBlock:
             [{"id": "M_ALA_00001", "comp_id": "ALA"}],
         )
 
-        schema_def = create_test_schema_def()
         doc = gemmi.cif.read(str(cif_path))
         block = doc[0]
 
         result = _process_ccmodel_cif_block(
             block=block,
-            schema_def=schema_def,
+            schema_name="ccmodel",
             conninfo="mock://test",
         )
 
@@ -241,9 +240,9 @@ class TestCcmodelCifPipelineRun:
         """Run returns empty list when CIF file not found."""
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["ccmodel"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = CcmodelCifPipeline(settings, config, schema_def)
+        pipeline = CcmodelCifPipeline(settings, config, meta)
         results = pipeline.run()
 
         assert results == []
@@ -258,9 +257,9 @@ class TestCcmodelCifPipelineRun:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["ccmodel"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = CcmodelCifPipeline(settings, config, schema_def)
+        pipeline = CcmodelCifPipeline(settings, config, meta)
         results = pipeline.run(limit=5)
 
         assert len(results) == 5
@@ -275,9 +274,9 @@ class TestCcmodelCifPipelineRun:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["ccmodel"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = CcmodelCifPipeline(settings, config, schema_def)
+        pipeline = CcmodelCifPipeline(settings, config, meta)
         results = pipeline.run(limit=10)
 
         assert len(results) == 10

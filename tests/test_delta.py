@@ -2,7 +2,6 @@
 
 from datetime import date, datetime
 
-import pytest
 
 from mine2.db.delta import (
     DeltaResult,
@@ -389,7 +388,10 @@ class TestComputeDelta:
             "table2": [{"id": 1, "value": 100}],
         }
         new_data = {
-            "table1": [{"id": 1, "name": "updated"}, {"id": 3, "name": "c"}],  # 1 update, 1 insert, 1 delete
+            "table1": [
+                {"id": 1, "name": "updated"},
+                {"id": 3, "name": "c"},
+            ],  # 1 update, 1 insert, 1 delete
             "table2": [],  # 1 delete
         }
         table_pk = {"table1": ["id"], "table2": ["id"]}

@@ -4,10 +4,9 @@ import gzip
 from pathlib import Path
 
 import gemmi
-import pytest
+from sqlalchemy import Column, MetaData, PrimaryKeyConstraint, Table, Text
 
 from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import SchemaDef, TableDef
 from mine2.parsers.cif import parse_cif_file
 from mine2.pipelines.prd import (
     PRDCC_TABLES,
@@ -127,43 +126,37 @@ def create_test_settings(data_dir: Path) -> Settings:
     )
 
 
-def create_test_schema_def() -> SchemaDef:
-    """Create minimal test schema definition for prd."""
-    return SchemaDef(
-        schema_name="prd",
-        primary_key="prd_id",
-        tables=[
-            TableDef(
-                name="brief_summary",
-                columns=[
-                    ("prd_id", "TEXT"),
-                    ("name", "TEXT"),
-                    ("formula", "TEXT"),
-                    ("description", "TEXT"),
-                ],
-                primary_key=["prd_id"],
-            ),
-            TableDef(
-                name="pdbx_reference_molecule",
-                columns=[
-                    ("prd_id", "TEXT"),
-                    ("name", "TEXT"),
-                    ("formula", "TEXT"),
-                ],
-                primary_key=["prd_id"],
-            ),
-            TableDef(
-                name="chem_comp",
-                columns=[
-                    ("prd_id", "TEXT"),
-                    ("id", "TEXT"),
-                    ("formula", "TEXT"),
-                    ("name", "TEXT"),
-                ],
-                primary_key=["prd_id", "id"],
-            ),
-        ],
+def create_test_meta() -> MetaData:
+    """Create minimal test MetaData for prd."""
+    meta = MetaData(schema="prd")
+    meta.info = {"entry_pk": "prd_id"}
+    Table(
+        "brief_summary",
+        meta,
+        Column("prd_id", Text),
+        Column("name", Text),
+        Column("formula", Text),
+        Column("description", Text),
+        PrimaryKeyConstraint("prd_id"),
     )
+    Table(
+        "pdbx_reference_molecule",
+        meta,
+        Column("prd_id", Text),
+        Column("name", Text),
+        Column("formula", Text),
+        PrimaryKeyConstraint("prd_id"),
+    )
+    Table(
+        "chem_comp",
+        meta,
+        Column("prd_id", Text),
+        Column("id", Text),
+        Column("formula", Text),
+        Column("name", Text),
+        PrimaryKeyConstraint("prd_id", "id"),
+    )
+    return meta
 
 
 class TestGenerateBriefSummaryPrd:
@@ -223,9 +216,9 @@ class TestFindCifFiles:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["prd"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PrdCifPipeline(settings, config, schema_def)
+        pipeline = PrdCifPipeline(settings, config, meta)
         found_prd, found_prdcc = pipeline._find_cif_files()
 
         assert found_prd == prd_path
@@ -238,9 +231,9 @@ class TestFindCifFiles:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["prd"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PrdCifPipeline(settings, config, schema_def)
+        pipeline = PrdCifPipeline(settings, config, meta)
         found_prd, found_prdcc = pipeline._find_cif_files()
 
         assert found_prd == prd_path
@@ -255,9 +248,9 @@ class TestFindCifFiles:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["prd"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PrdCifPipeline(settings, config, schema_def)
+        pipeline = PrdCifPipeline(settings, config, meta)
         found_prd, found_prdcc = pipeline._find_cif_files()
 
         assert found_prd == prd_path
@@ -266,9 +259,9 @@ class TestFindCifFiles:
         """Return None when PRD CIF file not found."""
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["prd"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PrdCifPipeline(settings, config, schema_def)
+        pipeline = PrdCifPipeline(settings, config, meta)
         found_prd, found_prdcc = pipeline._find_cif_files()
 
         assert found_prd is None
@@ -278,9 +271,9 @@ class TestFindCifFiles:
         """Return None when data directory doesn't exist."""
         settings = create_test_settings(tmp_path.joinpath("nonexistent"))
         config = settings.pipelines["prd"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PrdCifPipeline(settings, config, schema_def)
+        pipeline = PrdCifPipeline(settings, config, meta)
         found_prd, found_prdcc = pipeline._find_cif_files()
 
         assert found_prd is None
@@ -302,8 +295,6 @@ class TestProcessPrdCifBlock:
             [{"id": "PRDCC_000001", "comp_id": "TST", "formula": "C10H20"}],
         )
 
-        schema_def = create_test_schema_def()
-
         prd_doc = gemmi.cif.read(str(prd_path))
         prdcc_doc = gemmi.cif.read(str(prdcc_path))
         prd_block = prd_doc[0]
@@ -312,7 +303,7 @@ class TestProcessPrdCifBlock:
         result = _process_prd_cif_block(
             prd_block=prd_block,
             prdcc_block=prdcc_block,
-            schema_def=schema_def,
+            schema_name="prd",
             conninfo="mock://test",
         )
 
@@ -328,15 +319,13 @@ class TestProcessPrdCifBlock:
             [{"id": "PRD_000001", "name": "Test", "formula": "C10H20"}],
         )
 
-        schema_def = create_test_schema_def()
-
         prd_doc = gemmi.cif.read(str(prd_path))
         prd_block = prd_doc[0]
 
         result = _process_prd_cif_block(
             prd_block=prd_block,
             prdcc_block=None,  # No PRDCC block
-            schema_def=schema_def,
+            schema_name="prd",
             conninfo="mock://test",
         )
 
@@ -350,9 +339,9 @@ class TestPrdCifPipelineRun:
         """Run returns empty list when PRD CIF file not found."""
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["prd"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PrdCifPipeline(settings, config, schema_def)
+        pipeline = PrdCifPipeline(settings, config, meta)
         results = pipeline.run()
 
         assert results == []
@@ -372,9 +361,9 @@ class TestPrdCifPipelineRun:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["prd"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PrdCifPipeline(settings, config, schema_def)
+        pipeline = PrdCifPipeline(settings, config, meta)
         results = pipeline.run(limit=5)
 
         assert len(results) == 5
@@ -389,9 +378,9 @@ class TestPrdCifPipelineRun:
 
         settings = create_test_settings(tmp_path)
         config = settings.pipelines["prd"]
-        schema_def = create_test_schema_def()
+        meta = create_test_meta()
 
-        pipeline = PrdCifPipeline(settings, config, schema_def)
+        pipeline = PrdCifPipeline(settings, config, meta)
         results = pipeline.run(limit=10)
 
         assert len(results) == 10
