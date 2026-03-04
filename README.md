@@ -68,7 +68,7 @@ pixi run mine2 --help
 pixi run mine2 sync [targets...]
 # Targets: pdbj (CIF), pdbj-json (mmJSON), pdbj-plus, cc, cc-json,
 #          ccmodel, ccmodel-json, prd, prd-json, vrpt, contacts,
-#          sifts, schemas, dictionaries
+#          sifts, schemas
 
 # Update database
 pixi run mine2 update [pipelines...]
@@ -166,6 +166,14 @@ The following data types have schema definitions but are **not implemented** as 
 | emdb | Not supported | Electron Microscopy Data Bank |
 
 These may be added in future versions if needed.
+
+### Removed from Original
+
+The following feature from the original mine2updater is **not included**:
+
+| Feature | Reason |
+|---------|--------|
+| `dictionaries` sync target | CIF dictionary files were used for type conversion during parsing. In mine2updater-ng, type information is defined in YAML schema files and gemmi handles CIF parsing internally, making the dictionaries unnecessary. |
 
 ## Database Management
 
