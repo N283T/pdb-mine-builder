@@ -131,9 +131,14 @@ def _create_engine(conninfo: str) -> Any:
     """
     from sqlalchemy import create_engine
 
+    # Use creator to avoid conninfo double-pass issue with psycopg3 driver.
+    # The empty URL + connect_args approach causes "multiple values for
+    # argument 'conninfo'" because the URL also generates a conninfo.
+    import psycopg
+
     return create_engine(
         "postgresql+psycopg://",
-        connect_args={"conninfo": conninfo},
+        creator=lambda: psycopg.connect(conninfo, autocommit=True),
     )
 
 
