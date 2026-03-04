@@ -1,0 +1,14 @@
+[project]
+name = "mine2"
+version = "0.2.0"
+description = "PDBj data synchronization and database loading tool"
+requires-python = ">=3.12"
+
+[project.scripts]
+mine2 = "mine2.cli:app"
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: mark test as integration test (requires database)",
+]
+testpaths = ["tests"]
