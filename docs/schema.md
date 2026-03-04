@@ -197,5 +197,5 @@ primary key columns with `_hash_` prefixed versions at runtime).
 1. **Order matters**: Define tables in dependency order
 2. **Use TEXT for IDs**: Even numeric-looking IDs should be TEXT
 3. **Nullable by default**: All columns except primary keys can be NULL
-4. **No foreign keys**: For performance, foreign keys are not enforced
+4. **No foreign keys**: For performance, foreign keys are not enforced (existing FK constraints are dropped during schema migration)
 5. **Hash long PK columns**: Use `_hash_<column>` for columns that may exceed index limits

@@ -126,7 +126,8 @@ def ensure_schema(schema_def: SchemaDef, conninfo: str) -> None:
             # Create/migrate tables (columns, PK, unique keys, indexes)
             # NOTE: Foreign keys defined in schema YAML are not enforced in the DB.
             # Each bulk_upsert call uses its own transaction, so FK ordering across
-            # tables cannot be guaranteed. FKs remain as schema documentation only.
+            # tables cannot be guaranteed. Existing FK constraints are dropped during
+            # migration and FKs remain as schema documentation only.
             for table in schema_def.tables:
                 create_or_migrate_table(cur, schema_def.schema_name, table)
 
@@ -284,6 +285,8 @@ def migrate_table_schema(cur: Any, schema: str, table: TableDef) -> None:
             )
         )
 
+    # Drop any pre-existing FK constraints explicitly. FK enforcement is disabled.
+    _drop_all_foreign_keys(cur, schema, table_name_lower)
     _reconcile_primary_key(cur, schema, table_name_lower, table.primary_key)
     _reconcile_unique_keys(cur, schema, table_name_lower, table.unique_keys)
     _ensure_indexes(cur, schema, table_name_lower, table.indexes)
@@ -347,7 +350,7 @@ def _reconcile_primary_key(
     full_table = sql.Identifier(schema, table_name)
     if current_pk_name:
         cur.execute(
-            sql.SQL("ALTER TABLE {} DROP CONSTRAINT {} CASCADE").format(
+            sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(
                 full_table, sql.Identifier(current_pk_name)
             )
         )
@@ -410,13 +413,12 @@ def _reconcile_unique_keys(
         cur.execute(sql.SQL("ALTER TABLE {} ADD UNIQUE ({})").format(full_table, uk))
 
 
-def _reconcile_foreign_keys(
+def _drop_all_foreign_keys(
     cur: Any,
     schema: str,
     table_name: str,
-    expected_fks: list[tuple[list[str], str, list[str]]],
 ) -> None:
-    """Ensure foreign keys match schema (drop all existing, recreate expected)."""
+    """Drop all foreign key constraints for a table."""
     from psycopg import sql
 
     full_table = sql.Identifier(schema, table_name)
@@ -432,23 +434,12 @@ def _reconcile_foreign_keys(
         (schema, table_name),
     )
     for row in cur.fetchall():
+        console.print(
+            f"  [dim]DROP FOREIGN KEY {schema}.{table_name}.{row['constraint_name']}[/dim]"
+        )
         cur.execute(
             sql.SQL("ALTER TABLE {} DROP CONSTRAINT {}").format(
                 full_table, sql.Identifier(row["constraint_name"])
-            )
-        )
-
-    for child_cols, parent_table, parent_cols in expected_fks:
-        child = sql.SQL(", ").join(sql.Identifier(c) for c in child_cols)
-        parent = sql.SQL(", ").join(sql.Identifier(c) for c in parent_cols)
-        cur.execute(
-            sql.SQL(
-                "ALTER TABLE {} ADD FOREIGN KEY ({}) REFERENCES {} ({}) DEFERRABLE INITIALLY DEFERRED"
-            ).format(
-                full_table,
-                child,
-                sql.Identifier(schema, parent_table.lower()),
-                parent,
             )
         )
 
