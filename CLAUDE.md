@@ -163,6 +163,37 @@ pixi run db-stop       # Stop PostgreSQL
 
 Connection: `config.yml` の `rdb.constring`
 
+### Bulk Load Mode
+
+For initial data loading, use bulk load mode to significantly improve performance:
+
+```bash
+# 1. Start PostgreSQL
+pixi run db-start
+
+# 2. Enable bulk load mode (disables fsync, autovacuum)
+pixi run db-bulkload-mode
+
+# 3. Run data loading
+pixi run mine2 update cc
+pixi run mine2 update pdbj
+# ... other pipelines
+
+# 4. Restore safe settings
+pixi run db-safe-mode
+
+# 5. Run VACUUM ANALYZE
+psql -c "VACUUM ANALYZE;"
+```
+
+**WARNING**: Bulk load mode disables crash safety. If PostgreSQL crashes during bulk load:
+```bash
+pixi run db-stop
+rm -rf $PGDATA
+pixi run db-init
+# Re-run data loading from scratch
+```
+
 ## Configuration
 
 - `config.yml` - Production config (gitignored)
