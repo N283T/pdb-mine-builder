@@ -296,7 +296,7 @@ class CcmodelCifPipeline(BaseCifBatchPipeline):
                         result = future.result()
                         results.append(result)
                     except Exception as e:
-                        results.append((model_id, {}, str(e)))
+                        results.append((model_id, {}, f"{e}\n{traceback.format_exc()}"))
                     progress.advance(task)
 
         return results
@@ -378,7 +378,8 @@ def _process_ccmodel_cif_block(
             entry_id=model_id, success=True, rows_inserted=rows_inserted
         )
     except Exception as e:
-        return LoaderResult(entry_id=model_id, success=False, error=str(e))
+        error_msg = f"{e}\n{traceback.format_exc()}"
+        return LoaderResult(entry_id=model_id, success=False, error=error_msg)
 
 
 def run(

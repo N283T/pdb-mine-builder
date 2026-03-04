@@ -1,5 +1,7 @@
 """Update command - run database pipelines."""
 
+import logging
+
 from rich.console import Console
 
 from mine2.commands.utils import resolve_legacy_aliases
@@ -116,6 +118,11 @@ def run_update(
 
             pipeline_config = settings.pipelines.get(pipeline_name)
             if not pipeline_config:
+                msg = (
+                    f"Pipeline {pipeline_name!r} has no configuration in "
+                    f"settings.pipelines. Check config.yml."
+                )
+                logging.getLogger("mine2.update").warning(msg)
                 console.print("  [yellow]No config found, skipping[/yellow]")
                 continue
 

@@ -541,12 +541,14 @@ class BaseCifBatchPipeline:
             )
 
         # Bulk upsert per table
+        current_table_name = "<unknown>"
         try:
             for sa_table in track(
                 get_all_tables(self.meta),
                 description="Upserting...",
                 console=console,
             ):
+                current_table_name = sa_table.name
                 rows = table_rows.get(sa_table.name, [])
                 if not rows:
                     continue
@@ -570,9 +572,8 @@ class BaseCifBatchPipeline:
                 )
                 console.print(f"  [dim]{sa_table.name}: {len(rows)} rows[/dim]")
         except Exception as e:
-            table_name = sa_table.name if "sa_table" in dir() else "<unknown>"
             error_msg = (
-                f"Bulk upsert failed on table {table_name}: "
+                f"Bulk upsert failed on table {current_table_name}: "
                 f"{e}\n{traceback.format_exc()}"
             )
             _default_logger.error(error_msg)

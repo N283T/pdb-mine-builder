@@ -361,7 +361,7 @@ class PrdCifPipeline(BaseCifBatchPipeline):
                         result = future.result()
                         results.append(result)
                     except Exception as e:
-                        results.append((prd_id, {}, str(e)))
+                        results.append((prd_id, {}, f"{e}\n{traceback.format_exc()}"))
                     progress.advance(task)
 
         return results
@@ -456,7 +456,8 @@ def _process_prd_cif_block(
 
         return LoaderResult(entry_id=prd_id, success=True, rows_inserted=rows_inserted)
     except Exception as e:
-        return LoaderResult(entry_id=prd_id, success=False, error=str(e))
+        error_msg = f"{e}\n{traceback.format_exc()}"
+        return LoaderResult(entry_id=prd_id, success=False, error=error_msg)
 
 
 def run(

@@ -56,7 +56,7 @@ def _generate_canonical_smiles(block: gemmi.cif.Block) -> str | None:
         if result.mol is not None:
             return Chem.MolToSmiles(result.mol, canonical=True)
     except Exception as e:
-        logger.debug(f"SMILES generation failed for {block.name}: {e}")
+        logger.warning(f"SMILES generation failed for {block.name}: {e}")
     return None
 
 
@@ -376,7 +376,7 @@ class CcCifPipeline(BaseCifBatchPipeline):
                         result = future.result()
                         results.append(result)
                     except Exception as e:
-                        results.append((comp_id, {}, str(e)))
+                        results.append((comp_id, {}, f"{e}\n{traceback.format_exc()}"))
                     progress.advance(task)
 
         return results
@@ -568,10 +568,12 @@ def _ensure_rdkit_setup(conninfo: str) -> None:
             try:
                 cur.execute("CREATE EXTENSION IF NOT EXISTS rdkit")
             except psycopg.errors.InsufficientPrivilege:
-                logger.warning(
+                msg = (
                     "Cannot create RDKit extension (insufficient privileges). "
                     "Run 'CREATE EXTENSION rdkit' as superuser."
                 )
+                logger.warning(msg)
+                console.print(f"  [yellow]{msg}[/yellow]")
                 return
 
             # Add mol column if table exists but column doesn't
@@ -671,7 +673,8 @@ def _process_cif_block(
 
         return LoaderResult(entry_id=comp_id, success=True, rows_inserted=rows_inserted)
     except Exception as e:
-        return LoaderResult(entry_id=comp_id, success=False, error=str(e))
+        error_msg = f"{e}\n{traceback.format_exc()}"
+        return LoaderResult(entry_id=comp_id, success=False, error=error_msg)
 
 
 def run(
