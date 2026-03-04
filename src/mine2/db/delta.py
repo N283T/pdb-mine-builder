@@ -459,7 +459,7 @@ def _apply_inserts(
     # Batch insert
     col_names = sql.SQL(", ").join(sql.Identifier(c) for c in columns)
     placeholders = sql.SQL(", ").join(sql.Placeholder() for _ in columns)
-    table = sql.Identifier(schema, table_name.lower())
+    table = sql.Identifier(schema, table_name)
 
     query = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
         table, col_names, placeholders
@@ -499,7 +499,7 @@ def _apply_updates(
         Number of rows updated
     """
     count = 0
-    table = sql.Identifier(schema, table_name.lower())
+    table = sql.Identifier(schema, table_name)
 
     for row_delta in updates:
         if row_delta.db_idx is None or row_delta.new_idx is None:
@@ -566,7 +566,7 @@ def _apply_deletes(
         Number of rows deleted
     """
     count = 0
-    table = sql.Identifier(schema, table_name.lower())
+    table = sql.Identifier(schema, table_name)
 
     for db_idx in delete_indices:
         db_row = db_rows[db_idx]
@@ -613,7 +613,7 @@ def fetch_entry_data(
         conn.row_factory = psycopg.rows.dict_row  # type: ignore[assignment]
         with conn.cursor() as cur:
             for table_name in tables:
-                table = sql.Identifier(schema, table_name.lower())
+                table = sql.Identifier(schema, table_name)
                 pk_col = sql.Identifier(pk_column)
 
                 query = sql.SQL("SELECT * FROM {} WHERE {} = %s").format(table, pk_col)
@@ -624,7 +624,9 @@ def fetch_entry_data(
                     # dict_row factory returns dict[str, Any]
                     result[table_name] = [dict(row) for row in rows]
                 except psycopg.errors.UndefinedTable:
-                    # Table doesn't exist yet
+                    # Table doesn't exist yet; rollback to clear
+                    # the aborted transaction state
+                    conn.rollback()
                     result[table_name] = []
 
     return result

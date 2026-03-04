@@ -477,9 +477,7 @@ def bulk_upsert(
     import psycopg
     from psycopg import sql
 
-    # PostgreSQL lowercases unquoted identifiers, match table creation
-    table_lower = table.lower()
-    full_table = sql.Identifier(schema, table_lower)
+    full_table = sql.Identifier(schema, table)
     col_names = sql.SQL(", ").join(sql.Identifier(c) for c in columns)
     placeholders = sql.SQL(", ").join(sql.Placeholder() * len(columns))
     conflict_cols = sql.SQL(", ").join(sql.Identifier(c) for c in conflict_columns)
@@ -550,8 +548,7 @@ def delete_missing_entries(
     with psycopg.connect(conninfo) as conn:
         with conn.cursor() as cur:
             for table in tables:
-                table_lower = table.lower()
-                full_table = sql.Identifier(schema, table_lower)
+                full_table = sql.Identifier(schema, table)
                 pk_col = sql.Identifier(pk_column)
 
                 if keep_ids:
