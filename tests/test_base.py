@@ -13,6 +13,7 @@ from sqlalchemy import (
     Table,
     Text,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 
 from mine2.pipelines.base import (
     _coerce_boolean,
@@ -20,7 +21,6 @@ from mine2.pipelines.base import (
     _coerce_float,
     _coerce_integer,
     _coerce_string,
-    _coerce_string_lc,
     coerce_value,
     transform_category,
 )
@@ -46,19 +46,6 @@ class TestCoerceString:
 
     def test_array_with_none_elements(self):
         assert _coerce_string(["a", None, "b"]) == "a-b"
-
-
-class TestCoerceStringLC:
-    """Tests for _coerce_string_lc function (lowercase)."""
-
-    def test_none_returns_none(self):
-        assert _coerce_string_lc(None) is None
-
-    def test_converts_to_lowercase(self):
-        assert _coerce_string_lc("HELLO") == "hello"
-
-    def test_array_joins_and_lowercases(self):
-        assert _coerce_string_lc(["A", "B", "C"]) == "a-b-c"
 
 
 class TestCoerceInteger:
@@ -220,10 +207,30 @@ class TestCoerceValue:
         assert coerce_value(42, ARRAY(Integer)) == [42]
         assert coerce_value(["1", "2"], ARRAY(Integer)) == [1, 2]
 
-    def test_unknown_type_passthrough(self):
-        # Default fallback is to treat as string
-        obj = "some_value"
-        assert coerce_value(obj, Text()) == "some_value"
+    def test_unknown_type_falls_back_to_string(self):
+        """Default fallback is to treat as string."""
+        assert coerce_value("some_value", Text()) == "some_value"
+
+    def test_jsonb_passthrough(self):
+        """JSONB values should be passed through unchanged."""
+        data = {"key": "value", "nested": [1, 2]}
+        assert coerce_value(data, JSONB()) == data
+        assert coerce_value(None, JSONB()) is None
+
+    def test_array_preserves_none_elements(self):
+        """Array coercion must preserve None elements (not drop them)."""
+        result = coerce_value(["a", None, "b"], ARRAY(Text))
+        assert result == ["a", None, "b"]
+        assert len(result) == 3
+
+    def test_integer_array_preserves_none_elements(self):
+        result = coerce_value([1, None, 3], ARRAY(Integer))
+        assert result == [1, None, 3]
+        assert len(result) == 3
+
+    def test_negative_float(self):
+        result = coerce_value(-3.14, Double())
+        assert abs(result - (-3.14)) < 1e-10
 
 
 class TestTransformCategory:

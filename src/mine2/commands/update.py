@@ -62,8 +62,16 @@ def _get_schema_name(pipeline_name: str) -> str:
 
     Returns:
         The corresponding schema name.
+
+    Raises:
+        KeyError: If the pipeline name has no schema mapping.
     """
-    return PIPELINE_SCHEMA_MAP[pipeline_name]
+    try:
+        return PIPELINE_SCHEMA_MAP[pipeline_name]
+    except KeyError:
+        available = ", ".join(sorted(PIPELINE_SCHEMA_MAP))
+        msg = f"Pipeline {pipeline_name!r} has no entry in PIPELINE_SCHEMA_MAP. Available: {available}"
+        raise KeyError(msg) from None
 
 
 def run_update(

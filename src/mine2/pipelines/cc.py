@@ -604,8 +604,7 @@ def _ensure_rdkit_setup(conninfo: str) -> None:
                 END $$
             """)
 
-            # Add RDKit descriptor columns (molecular properties)
-            # These are generated columns derived from mol column
+            # Add RDKit descriptor columns (regular columns populated via trigger)
             _add_rdkit_descriptor_columns(cur)
 
             # Load RDKit SQL functions (CREATE OR REPLACE is idempotent)

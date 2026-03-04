@@ -63,15 +63,6 @@ def _coerce_string(value: Any, is_pk: bool = False) -> Any:
     return str(value)
 
 
-def _coerce_string_lc(value: Any) -> Any:
-    """Coerce value to lowercase string (for citext columns)."""
-    if value is None:
-        return None
-    if isinstance(value, list):
-        return "-".join(str(v) for v in value if v is not None).lower()
-    return str(value).lower()
-
-
 def _coerce_integer(value: Any, is_pk: bool = False) -> Any:
     """Coerce value to integer.
 
@@ -191,7 +182,7 @@ def _coerce_array_by_type(value: Any, item_type: TypeEngine) -> Any:
         return None
     if not isinstance(value, list):
         value = [value]
-    return [coerce_value(v, item_type) for v in value if v is not None]
+    return [coerce_value(v, item_type) if v is not None else None for v in value]
 
 
 def coerce_value(value: Any, sa_type: TypeEngine, is_pk: bool = False) -> Any:
@@ -296,9 +287,9 @@ def transform_category(
         # Normalize all column names if needed
         if normalize_fn:
             normalized_row = {
-                normalize_fn(k): v
+                normalized: v
                 for k, v in row.items()
-                if normalize_fn(k) in valid_columns
+                if (normalized := normalize_fn(k)) in valid_columns
             }
         else:
             normalized_row = {k: v for k, v in row.items() if k in valid_columns}
@@ -311,11 +302,7 @@ def transform_category(
             value = normalized_row.get(col)
             col_obj = column_map.get(col)
             if col_obj is not None:
-                # Check for citext via column info
-                if col_obj.info.get("citext"):
-                    transformed_row[col] = _coerce_string_lc(value)
-                else:
-                    transformed_row[col] = coerce_value(value, col_obj.type)
+                transformed_row[col] = coerce_value(value, col_obj.type)
             else:
                 transformed_row[col] = value
 
@@ -583,7 +570,12 @@ class BaseCifBatchPipeline:
                 )
                 console.print(f"  [dim]{sa_table.name}: {len(rows)} rows[/dim]")
         except Exception as e:
-            error_msg = f"{e}\n{traceback.format_exc()}"
+            table_name = sa_table.name if "sa_table" in dir() else "<unknown>"
+            error_msg = (
+                f"Bulk upsert failed on table {table_name}: "
+                f"{e}\n{traceback.format_exc()}"
+            )
+            _default_logger.error(error_msg)
             results = [
                 LoaderResult(entry_id=r.entry_id, success=False, error=error_msg)
                 for r in results

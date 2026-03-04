@@ -5,10 +5,11 @@
 #     "pyyaml>=6.0",
 # ]
 # ///
-"""Convert YAML schema definitions to SQLAlchemy Table definitions.
+"""One-time converter: YAML schema definitions to SQLAlchemy Table definitions.
 
-Reads all schemas/*.def.yml files and generates src/mine2/models/*.py
-with SQLAlchemy Core Table definitions.
+Originally used to generate src/mine2/models/*.py from schemas/*.def.yml files.
+The YAML files have been removed; models are now the source of truth.
+Kept for reference in case similar conversions are needed.
 """
 
 from __future__ import annotations
@@ -25,6 +26,7 @@ import yaml
 # ---------------------------------------------------------------------------
 # Type mapping from YAML SQL types to SQLAlchemy expressions
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class SAType:
@@ -66,12 +68,8 @@ def _parse_yaml_type(yaml_type: str) -> SAType:
     type_map: dict[str, SAType] = {
         "text": SAType(expression="Text", imports=frozenset({"Text"})),
         "integer": SAType(expression="Integer", imports=frozenset({"Integer"})),
-        "bigint": SAType(
-            expression="BigInteger", imports=frozenset({"BigInteger"})
-        ),
-        "double precision": SAType(
-            expression="Double", imports=frozenset({"Double"})
-        ),
+        "bigint": SAType(expression="BigInteger", imports=frozenset({"BigInteger"})),
+        "double precision": SAType(expression="Double", imports=frozenset({"Double"})),
         "real": SAType(expression="Float", imports=frozenset({"Float"})),
         "date": SAType(expression="Date", imports=frozenset({"Date"})),
         "timestamp without time zone": SAType(
@@ -82,9 +80,7 @@ def _parse_yaml_type(yaml_type: str) -> SAType:
             imports=frozenset({"DateTime"}),
         ),
         "boolean": SAType(expression="Boolean", imports=frozenset({"Boolean"})),
-        "jsonb": SAType(
-            expression="JSONB", pg_imports=frozenset({"JSONB"})
-        ),
+        "jsonb": SAType(expression="JSONB", pg_imports=frozenset({"JSONB"})),
         "citext": SAType(
             expression="Text",
             imports=frozenset({"Text"}),
@@ -102,6 +98,7 @@ def _parse_yaml_type(yaml_type: str) -> SAType:
 # ---------------------------------------------------------------------------
 # YAML schema parsing
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True)
 class ColumnDef:
@@ -199,9 +196,7 @@ def _parse_schema(filepath: Path) -> SchemaDef:
     if skip_keywords is None:
         skip_keywords = []
 
-    tables = tuple(
-        _parse_table(table_raw) for table_raw in data.get("tables", [])
-    )
+    tables = tuple(_parse_table(table_raw) for table_raw in data.get("tables", []))
 
     return SchemaDef(
         schema_name=schema_name,
@@ -217,6 +212,7 @@ def _parse_schema(filepath: Path) -> SchemaDef:
 # ---------------------------------------------------------------------------
 # Code generation
 # ---------------------------------------------------------------------------
+
 
 def _sanitize_identifier(name: str) -> str:
     """Convert a table name to a valid Python identifier.
@@ -245,9 +241,7 @@ def _apply_type_overwrites(
         new_columns = []
         for col in table.columns:
             overwrite_key = f"{table.name}.{col.name}"
-            overwritten_type = schema.type_overwrites.get(
-                overwrite_key, col.yaml_type
-            )
+            overwritten_type = schema.type_overwrites.get(overwrite_key, col.yaml_type)
             new_columns.append(
                 ColumnDef(
                     name=col.name,
@@ -324,7 +318,7 @@ def _generate_table_code(
     lines: list[str] = []
     var_name = _sanitize_identifier(table.name)
 
-    lines.append(f'{var_name} = Table(')
+    lines.append(f"{var_name} = Table(")
     lines.append(f'    "{table.name}",')
     lines.append("    metadata,")
 
@@ -344,8 +338,7 @@ def _generate_table_code(
             info_str = ""
 
         lines.append(
-            f'    Column("{col.name}", {sa_type.expression}, '
-            f"nullable=True{info_str}),"
+            f'    Column("{col.name}", {sa_type.expression}, nullable=True{info_str}),'
         )
 
     # PrimaryKeyConstraint
@@ -360,12 +353,8 @@ def _generate_table_code(
             continue
         sa_imports.add("UniqueConstraint")
         uk_cols = ", ".join(f'"{c}"' for c in uk)
-        constraint_name = _generate_unique_constraint_name(
-            schema_name, table.name, uk
-        )
-        lines.append(
-            f'    UniqueConstraint({uk_cols}, name="{constraint_name}"),'
-        )
+        constraint_name = _generate_unique_constraint_name(schema_name, table.name, uk)
+        lines.append(f'    UniqueConstraint({uk_cols}, name="{constraint_name}"),')
 
     # Indexes
     for idx in table.indexes:
@@ -444,9 +433,7 @@ def _generate_file(schema: SchemaDef) -> str:
     all_pg_imports: set[str] = set()
 
     for table in tables:
-        code, sa_imports, pg_imports = _generate_table_code(
-            table, schema.schema_name
-        )
+        code, sa_imports, pg_imports = _generate_table_code(table, schema.schema_name)
         all_table_code.append(code)
         all_sa_imports.update(sa_imports)
         all_pg_imports.update(pg_imports)
@@ -477,9 +464,7 @@ def _generate_file(schema: SchemaDef) -> str:
     if all_pg_imports:
         sorted_pg = sorted(all_pg_imports)
         if len(sorted_pg) == 1:
-            parts.append(
-                f"from sqlalchemy.dialects.postgresql import {sorted_pg[0]}"
-            )
+            parts.append(f"from sqlalchemy.dialects.postgresql import {sorted_pg[0]}")
         else:
             parts.append("from sqlalchemy.dialects.postgresql import (")
             for imp in sorted_pg:
@@ -537,6 +522,7 @@ def _format_metadata_info(info: dict[str, Any]) -> str:
 # Main entry point
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
     """Read all YAML schema files and generate SQLAlchemy model files."""
     project_root = Path(__file__).resolve().parent.parent
@@ -552,9 +538,7 @@ def main() -> None:
     # Create __init__.py if it does not exist
     init_path = output_dir.joinpath("__init__.py")
     if not init_path.exists():
-        init_path.write_text(
-            '"""SQLAlchemy model definitions (auto-generated)."""\n'
-        )
+        init_path.write_text('"""SQLAlchemy model definitions (auto-generated)."""\n')
 
     generated_files: list[str] = []
 
@@ -564,8 +548,7 @@ def main() -> None:
 
         if not schema.schema_name:
             print(
-                f"  WARNING: No schema name found in {yaml_path.name}, "
-                f"skipping.",
+                f"  WARNING: No schema name found in {yaml_path.name}, skipping.",
                 file=sys.stderr,
             )
             continue
@@ -577,10 +560,7 @@ def main() -> None:
         output_path.write_text(source)
 
         table_count = len(schema.tables)
-        print(
-            f"  -> {output_path.relative_to(project_root)} "
-            f"({table_count} tables)"
-        )
+        print(f"  -> {output_path.relative_to(project_root)} ({table_count} tables)")
         generated_files.append(output_filename)
 
     print(f"\nGenerated {len(generated_files)} model files in {output_dir}:")

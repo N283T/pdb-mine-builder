@@ -1,6 +1,6 @@
 """SQLAlchemy model definitions registry.
 
-Auto-generated model modules are imported here and exposed via
+Model modules are imported here and exposed via
 ``ALL_METADATA`` and ``get_metadata()``.
 """
 
@@ -20,19 +20,6 @@ from mine2.models import (
     sifts,
     vrpt,
 )
-
-SCHEMA_NAMES: list[str] = [
-    "cc",
-    "ccmodel",
-    "contacts",
-    "emdb",
-    "ihm",
-    "pdbj",
-    "prd",
-    "prd_family",
-    "sifts",
-    "vrpt",
-]
 
 ALL_METADATA: dict[str, MetaData] = {
     "cc": cc.metadata,

@@ -27,7 +27,7 @@ _default_logger = logging.getLogger("mine2.loader")
 
 
 # =============================================================================
-# MetaData helper functions (replace SchemaDef/TableDef)
+# MetaData helper functions
 # =============================================================================
 
 
@@ -40,7 +40,15 @@ def get_entry_pk(meta: MetaData) -> str:
     Returns:
         The entry primary key column name (e.g. "pdbid", "comp_id").
     """
-    return meta.info["entry_pk"]
+    try:
+        return meta.info["entry_pk"]
+    except KeyError:
+        schema = meta.schema or "<unknown>"
+        msg = (
+            f"MetaData for schema {schema!r} is missing 'entry_pk' in info dict. "
+            f"Ensure the model module sets metadata.info = {{'entry_pk': '...'}}"
+        )
+        raise KeyError(msg) from None
 
 
 def get_table(meta: MetaData, table_name: str) -> Table:
@@ -60,7 +68,12 @@ def get_table(meta: MetaData, table_name: str) -> Table:
         KeyError: If the table is not found.
     """
     key = f"{meta.schema}.{table_name}" if meta.schema else table_name
-    return meta.tables[key]
+    try:
+        return meta.tables[key]
+    except KeyError:
+        available = ", ".join(sorted(t.name for t in meta.sorted_tables))
+        msg = f"Table {table_name!r} not found in schema {meta.schema!r}. Available: {available}"
+        raise KeyError(msg) from None
 
 
 def get_table_or_none(meta: MetaData, table_name: str) -> Table | None:
@@ -106,7 +119,7 @@ def get_column_names(table: Table) -> set[str]:
 # =============================================================================
 
 
-def _create_engine(conninfo: str):
+def _create_engine(conninfo: str) -> Any:
     """Create SQLAlchemy engine from psycopg conninfo string.
 
     Args:

@@ -7,6 +7,7 @@ environment variable or falls back to the default development URL.
 
 from __future__ import annotations
 
+import logging
 import os
 from logging.config import fileConfig
 
@@ -26,7 +27,13 @@ if config.config_file_name is not None:
 # -- Database URL -------------------------------------------------------------
 
 _DEFAULT_URL = "postgresql+psycopg://pdbj@localhost:5433/mine2"
-_db_url = os.environ.get("MINE2_DB_URL", _DEFAULT_URL)
+_db_url = os.environ.get("MINE2_DB_URL")
+if _db_url is None:
+    logging.getLogger("alembic.env").warning(
+        "MINE2_DB_URL not set, using default development URL: %s",
+        _DEFAULT_URL,
+    )
+    _db_url = _DEFAULT_URL
 config.set_main_option("sqlalchemy.url", _db_url)
 
 # -- Target metadata (combined from all schemas) ------------------------------

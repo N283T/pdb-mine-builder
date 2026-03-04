@@ -3,7 +3,12 @@
 import warnings
 
 
-from mine2.commands.update import AVAILABLE_PIPELINES, LEGACY_ALIASES
+from mine2.commands.update import (
+    AVAILABLE_PIPELINES,
+    LEGACY_ALIASES,
+    PIPELINE_SCHEMA_MAP,
+)
+from mine2.models import ALL_METADATA
 from mine2.commands.sync import LEGACY_SYNC_ALIASES, SYNC_TARGETS
 from mine2.commands.utils import resolve_legacy_aliases
 
@@ -124,6 +129,33 @@ class TestPipelineNamingConsistency:
             assert not name.endswith("-cif"), (
                 f"Pipeline '{name}' should not use -cif suffix; CIF is now the default"
             )
+
+
+class TestPipelineSchemaMap:
+    """Tests for PIPELINE_SCHEMA_MAP consistency."""
+
+    def test_all_pipelines_have_schema_mapping(self) -> None:
+        """Every available pipeline must have a schema mapping."""
+        for p in AVAILABLE_PIPELINES:
+            assert p in PIPELINE_SCHEMA_MAP, (
+                f"Pipeline {p!r} missing from PIPELINE_SCHEMA_MAP"
+            )
+
+    def test_all_schema_values_are_valid(self) -> None:
+        """All schema names in the map must exist in ALL_METADATA."""
+        for pipeline, schema in PIPELINE_SCHEMA_MAP.items():
+            assert schema in ALL_METADATA, (
+                f"Pipeline {pipeline!r} maps to unknown schema {schema!r}"
+            )
+
+    def test_json_pipelines_share_schema_with_base(self) -> None:
+        """JSON pipelines should map to the same schema as their base."""
+        for name in AVAILABLE_PIPELINES:
+            if name.endswith("-json"):
+                base = name[:-5]
+                assert PIPELINE_SCHEMA_MAP[name] == PIPELINE_SCHEMA_MAP[base], (
+                    f"{name} and {base} should share the same schema"
+                )
 
 
 class TestSyncTargetNamingConsistency:
