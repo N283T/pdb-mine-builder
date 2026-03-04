@@ -630,3 +630,110 @@ def fetch_entry_data(
                     result[table_name] = []
 
     return result
+
+
+def entry_exists(
+    conninfo: str,
+    schema: str,
+    entry_id: str,
+    pk_column: str,
+) -> bool:
+    """Check if an entry exists in brief_summary.
+
+    Args:
+        conninfo: Database connection string
+        schema: Schema name
+        entry_id: Entry identifier
+        pk_column: Primary key column name
+
+    Returns:
+        True if the entry exists
+    """
+    with psycopg.connect(conninfo) as conn:
+        with conn.cursor() as cur:
+            table = sql.Identifier(schema, "brief_summary")
+            pk_col = sql.Identifier(pk_column)
+            query = sql.SQL("SELECT 1 FROM {} WHERE {} = %s LIMIT 1").format(
+                table, pk_col
+            )
+            try:
+                cur.execute(query, (entry_id,))
+                return cur.fetchone() is not None
+            except psycopg.errors.UndefinedTable:
+                conn.rollback()
+                return False
+
+
+def insert_new_entry(
+    conninfo: str,
+    schema: str,
+    entry_id: str,
+    pk_column: str,
+    table_rows: dict[str, list[dict[str, Any]]],
+) -> int:
+    """Fast-path insert for a new entry (no delta sync needed).
+
+    Inserts all rows directly in a single transaction.
+    brief_summary is inserted first to satisfy foreign key constraints.
+
+    Args:
+        conninfo: Database connection string
+        schema: Schema name
+        entry_id: Entry identifier
+        pk_column: Primary key column name
+        table_rows: Dict mapping table names to lists of row dicts
+
+    Returns:
+        Total number of rows inserted
+    """
+    # Filter to tables with actual data
+    tables_with_data = {k: v for k, v in table_rows.items() if v}
+    if not tables_with_data:
+        return 0
+
+    total_inserted = 0
+
+    # Order: brief_summary first
+    table_names = list(tables_with_data.keys())
+    if "brief_summary" in table_names:
+        table_names.remove("brief_summary")
+        table_names.insert(0, "brief_summary")
+
+    with psycopg.connect(conninfo) as conn:
+        try:
+            with conn.cursor() as cur:
+                for table_name in table_names:
+                    rows = tables_with_data[table_name]
+                    if not rows:
+                        continue
+
+                    # Get columns from first row, prepend pk_column
+                    sample_row = rows[0]
+                    columns = [pk_column] + [
+                        c for c in sample_row.keys() if c != pk_column
+                    ]
+
+                    col_names = sql.SQL(", ").join(sql.Identifier(c) for c in columns)
+                    placeholders = sql.SQL(", ").join(
+                        sql.Placeholder() for _ in columns
+                    )
+                    table = sql.Identifier(schema, table_name)
+
+                    query = sql.SQL("INSERT INTO {} ({}) VALUES ({})").format(
+                        table, col_names, placeholders
+                    )
+
+                    values_list = [
+                        tuple([entry_id] + [row.get(c) for c in columns[1:]])
+                        for row in rows
+                    ]
+
+                    cur.executemany(query, values_list)
+                    total_inserted += len(values_list)
+
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+    return total_inserted
