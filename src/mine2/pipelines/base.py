@@ -365,19 +365,13 @@ def sync_entry_tables(
         if table_name in new_data:
             new_data[table_name] = rows
 
-    # Only fetch tables that have new data or might need deletion
-    tables_with_new_data = [name for name in all_table_names if new_data[name]]
     db_data = fetch_entry_data(
         conninfo=conninfo,
         schema=meta.schema,
         entry_id=entry_id,
         pk_column=pk_column,
-        tables=tables_with_new_data,
+        tables=all_table_names,
     )
-    # Tables not fetched are assumed empty in DB
-    for name in all_table_names:
-        if name not in db_data:
-            db_data[name] = []
 
     table_pk_columns: dict[str, list[str]] = {}
     table_columns: dict[str, list[str]] = {}
