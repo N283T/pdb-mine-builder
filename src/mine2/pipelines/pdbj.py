@@ -40,16 +40,36 @@ def _resolve_plus_path(directory: Path | None, entry_id: str) -> Path | None:
     """Return the plus file path for an entry if it exists, otherwise None."""
     if directory is None:
         return None
-    candidate = directory / f"{entry_id}-plus.json.gz"
+    candidate = directory.joinpath(f"{entry_id}-plus.json.gz")
     return candidate if candidate.exists() else None
 
 
+def _validate_plus_dir(label: str, directory: Path | None) -> Path | None:
+    """Validate a plus directory exists, warning and returning None if not."""
+    if directory is None:
+        return None
+    if not directory.exists():
+        console.print(
+            f"  [yellow]Warning: {label} directory not found: {directory}[/yellow]"
+        )
+        _default_logger.warning(
+            "Configured %s directory does not exist: %s", label, directory
+        )
+        return None
+    return directory
+
+
 def _merge_extra_paths(data: dict[str, Any], job: Job) -> dict[str, Any]:
-    """Merge all extra plus files from job.extra into data, in order."""
+    """Merge all extra plus files from job.extra into data, in order.
+
+    Files are merged sequentially (plus_path first, then nextgen_plus_path),
+    so later sources take precedence for overlapping categories via merge_data.
+    """
     extra = job.extra or {}
     for key in ("plus_path", "nextgen_plus_path"):
         path = extra.get(key)
-        if path:
+        if path is not None:
+            _default_logger.debug("Merging %s: %s", key, path)
             data = merge_data(data, parse_mmjson_file(path))
     return data
 
@@ -205,13 +225,17 @@ class PdbjPipeline(BasePipeline):
         return name
 
     def find_jobs(self, limit: int | None = None) -> list[Job]:
-        """Find mmJSON files and pair with plus data if available."""
+        """Find mmJSON files and pair with plus/nextgen-plus data if available."""
         data_dir = Path(self.config.data)
-        plus_dir = Path(self.config.data_plus) if self.config.data_plus else None
-        nextgen_plus_dir = (
+        plus_dir = _validate_plus_dir(
+            "plus",
+            Path(self.config.data_plus) if self.config.data_plus else None,
+        )
+        nextgen_plus_dir = _validate_plus_dir(
+            "nextgen-plus",
             Path(self.config.data_nextgen_plus)
             if self.config.data_nextgen_plus
-            else None
+            else None,
         )
 
         if not data_dir.exists():
@@ -236,6 +260,14 @@ class PdbjPipeline(BasePipeline):
 
             if limit and len(jobs) >= limit:
                 break
+
+        if plus_dir:
+            count = sum(1 for j in jobs if j.extra.get("plus_path") is not None)
+            console.print(f"  Plus data matched: {count}/{len(jobs)}")
+        if nextgen_plus_dir:
+            count = sum(1 for j in jobs if j.extra.get("nextgen_plus_path") is not None)
+            console.print(f"  Nextgen-plus (SIFTS) matched: {count}/{len(jobs)}")
+
         return jobs
 
     def process_job(
@@ -299,7 +331,8 @@ def _parse_cif_entry(
     Shared by both update (process_job) and load (_process_cif_load) modes.
 
     Args:
-        job: Job with filepath and optional plus_path in extra.
+        job: Job with filepath. extra may contain 'plus_path' and/or
+            'nextgen_plus_path' pointing to supplementary mmJSON files.
 
     Returns:
         Parsed and patched data dict.
@@ -372,11 +405,15 @@ class PdbjCifPipeline(BasePipeline):
         if not data_dir.exists():
             return
 
-        plus_dir = Path(self.config.data_plus) if self.config.data_plus else None
-        nextgen_plus_dir = (
+        plus_dir = _validate_plus_dir(
+            "plus",
+            Path(self.config.data_plus) if self.config.data_plus else None,
+        )
+        nextgen_plus_dir = _validate_plus_dir(
+            "nextgen-plus",
             Path(self.config.data_nextgen_plus)
             if self.config.data_nextgen_plus
-            else None
+            else None,
         )
 
         for filepath_str in gemmi.CifWalk(str(data_dir)):

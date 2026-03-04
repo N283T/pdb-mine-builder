@@ -120,17 +120,27 @@ def parse_cif_file(filepath: Path | str) -> dict[str, Any]:
 # =============================================================================
 
 
+_MAX_MMJSON_DECOMPRESSED_SIZE = 500 * 1024 * 1024  # 500 MB safety limit
+
+
 def _read_mmjson_gz(filepath: Path | str) -> gemmi.cif.Document:
     """Read an mmJSON file, handling gzip decompression in Python.
 
-    gemmi's built-in gz reader rejects files with high compression ratios
-    (>100x) as a zip-bomb safety check. We bypass this by decompressing
-    in Python and passing the string to gemmi.
+    gemmi's built-in gz reader rejects files with compression ratios
+    exceeding ~100x (see gemmi src/gz.cpp estimate_uncompressed_size).
+    We bypass this by decompressing in Python and passing the string
+    to gemmi.
     """
     filepath = Path(filepath)
     if filepath.suffix == ".gz":
         with gzip.open(filepath, "rt", encoding="utf-8") as f:
-            return gemmi.cif.read_mmjson_string(f.read())
+            content = f.read(_MAX_MMJSON_DECOMPRESSED_SIZE + 1)
+            if len(content) > _MAX_MMJSON_DECOMPRESSED_SIZE:
+                raise ValueError(
+                    f"Decompressed size of {filepath} exceeds "
+                    f"{_MAX_MMJSON_DECOMPRESSED_SIZE} bytes safety limit"
+                )
+            return gemmi.cif.read_mmjson_string(content)
     return gemmi.cif.read_mmjson(str(filepath))
 
 
