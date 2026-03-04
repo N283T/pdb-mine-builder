@@ -190,6 +190,11 @@ class PdbjPipeline(BasePipeline):
         """Find mmJSON files and pair with plus data if available."""
         data_dir = Path(self.config.data)
         plus_dir = Path(self.config.data_plus) if self.config.data_plus else None
+        nextgen_plus_dir = (
+            Path(self.config.data_nextgen_plus)
+            if self.config.data_nextgen_plus
+            else None
+        )
 
         if not data_dir.exists():
             console.print(f"  [red]Data directory not found: {data_dir}[/red]")
@@ -206,11 +211,21 @@ class PdbjPipeline(BasePipeline):
                 if candidate.exists():
                     plus_path = candidate
 
+            # Look for nextgen-plus file (SIFTS data)
+            nextgen_plus_path = None
+            if nextgen_plus_dir:
+                candidate = nextgen_plus_dir / f"{entry_id}-plus.json.gz"
+                if candidate.exists():
+                    nextgen_plus_path = candidate
+
             jobs.append(
                 Job(
                     entry_id=entry_id,
                     filepath=filepath,
-                    extra={"plus_path": plus_path},
+                    extra={
+                        "plus_path": plus_path,
+                        "nextgen_plus_path": nextgen_plus_path,
+                    },
                 )
             )
 
@@ -238,6 +253,12 @@ class PdbjPipeline(BasePipeline):
             if plus_path:
                 plus_data = parse_mmjson_file(plus_path)
                 data = merge_data(data, plus_data)
+
+            # Merge with nextgen-plus data (SIFTS) if available
+            nextgen_plus_path = job.extra.get("nextgen_plus_path")
+            if nextgen_plus_path:
+                nextgen_plus_data = parse_mmjson_file(nextgen_plus_path)
+                data = merge_data(data, nextgen_plus_data)
 
             # Apply entry-specific patches
             apply_patches(job.entry_id, data)
@@ -295,6 +316,12 @@ def _parse_cif_entry(
     if plus_path:
         plus_data = parse_mmjson_file(plus_path)
         data = merge_data(data, plus_data)
+
+    # Merge with nextgen-plus data (SIFTS) if available
+    nextgen_plus_path = job.extra.get("nextgen_plus_path") if job.extra else None
+    if nextgen_plus_path:
+        nextgen_plus_data = parse_mmjson_file(nextgen_plus_path)
+        data = merge_data(data, nextgen_plus_data)
 
     apply_patches(job.entry_id, data)
 
@@ -363,6 +390,11 @@ class PdbjCifPipeline(BasePipeline):
             return
 
         plus_dir = Path(self.config.data_plus) if self.config.data_plus else None
+        nextgen_plus_dir = (
+            Path(self.config.data_nextgen_plus)
+            if self.config.data_nextgen_plus
+            else None
+        )
 
         for filepath_str in gemmi.CifWalk(str(data_dir)):
             filepath = Path(filepath_str)
@@ -374,10 +406,19 @@ class PdbjCifPipeline(BasePipeline):
                 if candidate.exists():
                     plus_path = candidate
 
+            nextgen_plus_path = None
+            if nextgen_plus_dir:
+                candidate = nextgen_plus_dir / f"{entry_id}-plus.json.gz"
+                if candidate.exists():
+                    nextgen_plus_path = candidate
+
             yield Job(
                 entry_id=entry_id,
                 filepath=filepath,
-                extra={"plus_path": plus_path},
+                extra={
+                    "plus_path": plus_path,
+                    "nextgen_plus_path": nextgen_plus_path,
+                },
             )
 
     def find_jobs(self, limit: int | None = None) -> list[Job]:

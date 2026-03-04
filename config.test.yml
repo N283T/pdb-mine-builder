@@ -7,9 +7,11 @@ pipelines:
   pdbj:
     data: ${CWD}/data/mmjson-noatom/
     data-plus: ${CWD}/data/plus/
+    data-nextgen-plus: ${CWD}/data/nextgen-plus/
   pdbj-json:
     data: ${CWD}/data/mmjson-noatom/
     data-plus: ${CWD}/data/plus/
+    data-nextgen-plus: ${CWD}/data/nextgen-plus/
   cc:
     data: ${CWD}/data/cc/
   cc-json:

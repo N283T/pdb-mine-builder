@@ -48,6 +48,11 @@ class PipelineConfig(BaseModel):
     data_plus: str | None = Field(
         default=None, alias="data-plus", description="Additional data directory"
     )
+    data_nextgen_plus: str | None = Field(
+        default=None,
+        alias="data-nextgen-plus",
+        description="Nextgen plus data directory (SIFTS)",
+    )
 
     model_config = {"populate_by_name": True}
 
