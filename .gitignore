@@ -19,3 +19,9 @@ setup-db.sh
 config.yml
 dist
 .cursor
+
+# Build artifacts
+*.egg-info/
+
+# Lock files (pixi manages dependencies)
+uv.lock

@@ -1,0 +1,17 @@
+services:
+  postgres-test:
+    image: mcs07/postgres-rdkit:latest
+    container_name: mine2-postgres-test
+    environment:
+      POSTGRES_USER: pdbj
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: mine2_test
+    ports:
+      - "15433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pdbj -d mine2_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - ./init:/docker-entrypoint-initdb.d:ro

@@ -80,11 +80,6 @@ SYNC_TARGETS: dict[str, dict] = {
         "dest": "schemas/",
         "options": ["-avz", "--delete"],
     },
-    "dictionaries": {
-        "source": "rsync.pdbj.org::ftp_data/dictionaries/",
-        "dest": "data/dictionaries/",
-        "options": ["-avz", "--delete"],
-    },
     "sifts": {
         "source": "data.pdbj.org::rsync/pdbjplus/data/sifts/rdf/",
         "dest": "pdbj/pdbjplus/data/sifts/rdf/",
