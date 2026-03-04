@@ -1,6 +1,5 @@
 """Tests for mmJSON utilities."""
 
-
 from mine2.parsers.mmjson import (
     clean_array,
     get_object_value,

@@ -1,6 +1,5 @@
 """Tests for assembly utilities."""
 
-
 from mine2.utils.assembly import (
     CHAIN_TYPE_MAPPING,
     EXPTL_METHOD_MAPPING,
