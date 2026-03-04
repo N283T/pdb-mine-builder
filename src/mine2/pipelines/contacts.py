@@ -20,7 +20,13 @@ from rich.console import Console
 from sqlalchemy import MetaData
 
 from mine2.config import PipelineConfig, Settings
-from mine2.db.loader import Job, LoaderResult
+from mine2.db.loader import (
+    Job,
+    LoaderResult,
+    bulk_copy_entry,
+    get_entry_pk,
+    run_loader_streaming,
+)
 from mine2.pipelines.base import BasePipeline, sync_entry_tables
 
 console = Console()
@@ -205,3 +211,91 @@ def run(
     """Run the contacts pipeline."""
     pipeline = ContactsPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)
+
+
+# =============================================================================
+# Load mode (COPY protocol, no delta sync)
+# =============================================================================
+
+_default_logger = logging.getLogger("mine2.pipelines.contacts")
+
+
+def _process_contacts_load(
+    job: Job,
+    schema_name: str,
+    conninfo: str,
+) -> LoaderResult:
+    """Worker: load JSON -> transform -> bulk_copy_entry."""
+    try:
+        from mine2.models import get_metadata
+
+        meta = get_metadata(schema_name)
+        pipeline_instance = ContactsPipeline.__new__(ContactsPipeline)
+
+        # Load and transform
+        data = pipeline_instance._load_contacts_file(job.filepath)
+        table_rows: dict[str, list[dict[str, Any]]] = {}
+
+        table_rows["brief_summary"] = [{"pdbid": job.entry_id}]
+
+        contact_rows = pipeline_instance._transform_contacts(data, job.entry_id)
+        if contact_rows:
+            table_rows["list"] = contact_rows
+
+        inserted = bulk_copy_entry(
+            conninfo=conninfo,
+            schema=meta.schema,
+            entry_id=job.entry_id,
+            pk_column=get_entry_pk(meta),
+            table_rows=table_rows,
+        )
+
+        return LoaderResult(
+            entry_id=job.entry_id,
+            success=True,
+            rows_inserted=inserted,
+        )
+
+    except Exception as e:
+        error_msg = f"{e}\n{traceback.format_exc()}"
+        return LoaderResult(
+            entry_id=job.entry_id,
+            success=False,
+            error=error_msg,
+        )
+
+
+def run_cif_load(
+    settings: Settings,
+    config: PipelineConfig,
+    meta: MetaData,
+    limit: int | None = None,
+    logger: logging.Logger | None = None,
+) -> list[LoaderResult]:
+    """Run contacts pipeline in load mode (COPY, no delta sync)."""
+    if logger is None:
+        logger = _default_logger
+
+    console.print(f"  Data dir: {config.data}")
+
+    pipeline = ContactsPipeline(settings, config, meta)
+
+    data_dir = Path(config.data)
+    if not data_dir.exists():
+        console.print(f"  [red]Data directory not found: {data_dir}[/red]")
+        return []
+
+    def _iter_jobs():
+        for filepath in sorted(data_dir.rglob(pipeline.file_pattern)):
+            entry_id = pipeline.extract_entry_id(filepath)
+            yield Job(entry_id=entry_id, filepath=filepath)
+
+    return run_loader_streaming(
+        settings=settings,
+        schema_name=meta.schema,
+        jobs_iter=_iter_jobs(),
+        process_func=_process_contacts_load,
+        max_workers=settings.rdb.get_workers(),
+        limit=limit,
+        logger=logger,
+    )

@@ -16,7 +16,7 @@ console = Console()
 
 # Pipelines supported by load command (CIF only).
 # For these pipelines, schema name matches pipeline name.
-LOAD_PIPELINES = ["pdbj", "cc", "ccmodel", "prd"]
+LOAD_PIPELINES = ["pdbj", "cc", "ccmodel", "prd", "vrpt", "contacts", "sifts"]
 
 
 def run_load(
