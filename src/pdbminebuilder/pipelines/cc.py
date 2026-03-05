@@ -11,6 +11,7 @@ import psycopg
 from ccd2rdmol import read_ccd_block
 from rdkit import Chem
 from rich.console import Console
+from rich.prompt import Confirm
 from rich.progress import (
     BarColumn,
     Progress,
@@ -577,12 +578,15 @@ def _ensure_rdkit_setup(conninfo: str) -> None:
             try:
                 cur.execute("CREATE EXTENSION IF NOT EXISTS rdkit")
             except psycopg.errors.InsufficientPrivilege:
-                msg = (
-                    "Cannot create RDKit extension (insufficient privileges). "
-                    "Run 'CREATE EXTENSION rdkit' as superuser."
-                )
+                conn.rollback()
+                msg = "Cannot create RDKit extension (insufficient privileges)."
                 logger.warning(msg)
                 console.print(f"  [yellow]{msg}[/yellow]")
+                console.print(
+                    "  Run: psql -U <superuser> -d <dbname> -c 'CREATE EXTENSION rdkit'"
+                )
+                if not Confirm.ask("  Continue without RDKit?", default=False):
+                    raise SystemExit(1)
                 return
 
             # Add mol column if table exists but column doesn't

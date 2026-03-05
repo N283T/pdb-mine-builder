@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import gemmi
 import psycopg
+import pytest
 from sqlalchemy import Column, MetaData, PrimaryKeyConstraint, Table, Text
 
 from pdbminebuilder.config import PipelineConfig, RdbConfig, Settings
@@ -286,7 +287,9 @@ class TestEnsureRdkitSetup:
         mock_conn.__enter__ = MagicMock(return_value=mock_conn)
         mock_conn.__exit__ = MagicMock(return_value=False)
 
-        with patch("pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn):
+        with patch(
+            "pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn
+        ):
             _ensure_rdkit_setup("test_conninfo")
 
         # Verify extension creation was attempted
@@ -294,8 +297,8 @@ class TestEnsureRdkitSetup:
         # Verify commit was called
         mock_conn.commit.assert_called_once()
 
-    def test_handles_insufficient_privilege(self) -> None:
-        """Handles InsufficientPrivilege exception gracefully."""
+    def test_handles_insufficient_privilege_continue(self) -> None:
+        """Continues without RDKit when user confirms."""
         mock_cursor = MagicMock()
         mock_cursor.execute.side_effect = psycopg.errors.InsufficientPrivilege(
             "permission denied"
@@ -306,12 +309,37 @@ class TestEnsureRdkitSetup:
         mock_conn.__enter__ = MagicMock(return_value=mock_conn)
         mock_conn.__exit__ = MagicMock(return_value=False)
 
-        with patch("pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn):
-            # Should not raise - logs warning and returns early
+        with (
+            patch(
+                "pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn
+            ),
+            patch("pdbminebuilder.pipelines.cc.Confirm.ask", return_value=True),
+        ):
             _ensure_rdkit_setup("test_conninfo")
 
-        # Commit should not be called when privilege error occurs
+        mock_conn.rollback.assert_called_once()
         mock_conn.commit.assert_not_called()
+
+    def test_handles_insufficient_privilege_abort(self) -> None:
+        """Aborts when user declines to continue without RDKit."""
+        mock_cursor = MagicMock()
+        mock_cursor.execute.side_effect = psycopg.errors.InsufficientPrivilege(
+            "permission denied"
+        )
+        mock_conn = MagicMock()
+        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+
+        with (
+            patch(
+                "pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn
+            ),
+            patch("pdbminebuilder.pipelines.cc.Confirm.ask", return_value=False),
+            pytest.raises(SystemExit),
+        ):
+            _ensure_rdkit_setup("test_conninfo")
 
     def test_executes_mol_column_ddl(self) -> None:
         """Executes DDL for mol column creation."""
@@ -322,7 +350,9 @@ class TestEnsureRdkitSetup:
         mock_conn.__enter__ = MagicMock(return_value=mock_conn)
         mock_conn.__exit__ = MagicMock(return_value=False)
 
-        with patch("pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn):
+        with patch(
+            "pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn
+        ):
             _ensure_rdkit_setup("test_conninfo")
 
         # Verify at least 3 execute calls: extension + mol column DDL + functions
@@ -342,7 +372,9 @@ class TestEnsureRdkitSetup:
         mock_conn.__enter__ = MagicMock(return_value=mock_conn)
         mock_conn.__exit__ = MagicMock(return_value=False)
 
-        with patch("pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn):
+        with patch(
+            "pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn
+        ):
             # Call twice - should not raise
             _ensure_rdkit_setup("test_conninfo")
             _ensure_rdkit_setup("test_conninfo")
@@ -360,7 +392,9 @@ class TestEnsureRdkitSetup:
         mock_conn.__enter__ = MagicMock(return_value=mock_conn)
         mock_conn.__exit__ = MagicMock(return_value=False)
 
-        with patch("pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn):
+        with patch(
+            "pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn
+        ):
             _ensure_rdkit_setup("test_conninfo")
 
         # Last call should be the functions SQL file
@@ -381,7 +415,9 @@ class TestEnsureRdkitSetup:
         mock_conn.__enter__ = MagicMock(return_value=mock_conn)
         mock_conn.__exit__ = MagicMock(return_value=False)
 
-        with patch("pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn):
+        with patch(
+            "pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn
+        ):
             _ensure_rdkit_setup("test_conninfo")
 
         # Collect all executed SQL
