@@ -490,7 +490,7 @@ def run_cif(
     limit: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
-    """Run the prd-cif pipeline (CIF version)."""
+    """Run the prd pipeline in CIF mode."""
     pipeline = PrdCifPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)
 

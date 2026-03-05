@@ -94,7 +94,8 @@ pipelines:
 
 Legacy pipeline names (`pdbj-cif`, `cc-cif`, `pdbj-json`, `cc-json`, etc.)
 are still accepted but deprecated. They emit a warning and resolve to the
-base pipeline name.
+base pipeline name. Note: `-json` aliases resolve to the base name but do NOT
+change the `format` config — users must set `format: mmjson` in config.yml.
 
 ## Key Patterns
 

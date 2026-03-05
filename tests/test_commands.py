@@ -3,7 +3,9 @@
 import warnings
 
 import pytest
+from pydantic import ValidationError
 
+from mine2.commands.load import LOAD_PIPELINES
 from mine2.commands.update import (
     AVAILABLE_PIPELINES,
     DUAL_FORMAT_PIPELINES,
@@ -224,9 +226,34 @@ class TestPipelineConfigFormat:
         assert config.format == "mmjson"
 
     def test_invalid_format_rejected(self) -> None:
-        """Invalid format should be rejected."""
-        with pytest.raises(Exception):
+        """Invalid format should be rejected with ValidationError."""
+        with pytest.raises(ValidationError):
             PipelineConfig(data="/tmp", format="xml")
+
+
+class TestLoadPipelineConsistency:
+    """Tests for LOAD_PIPELINES consistency with AVAILABLE_PIPELINES."""
+
+    def test_all_load_pipelines_are_available(self) -> None:
+        """Every load pipeline must be in AVAILABLE_PIPELINES."""
+        for p in LOAD_PIPELINES:
+            assert p in AVAILABLE_PIPELINES, (
+                f"Load pipeline {p!r} is not in AVAILABLE_PIPELINES"
+            )
+
+    def test_dual_format_pipelines_are_loadable(self) -> None:
+        """All dual-format pipelines should be in LOAD_PIPELINES."""
+        for p in DUAL_FORMAT_PIPELINES:
+            assert p in LOAD_PIPELINES, (
+                f"Dual-format pipeline {p!r} should be in LOAD_PIPELINES"
+            )
+
+    def test_no_json_suffix_in_load_pipelines(self) -> None:
+        """Load pipelines should not have -json suffix."""
+        for name in LOAD_PIPELINES:
+            assert not name.endswith("-json"), (
+                f"Load pipeline '{name}' should not use -json suffix"
+            )
 
 
 class TestSyncTargetNamingConsistency:

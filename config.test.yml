@@ -3,7 +3,7 @@ rdb:
   constring: "host='127.0.0.1' dbname='mine2_test' user='pdbj' password='test_password' port=15433"
 
 pipelines:
-  # pdbj: test data uses CIF fixtures
+  # pdbj: test data uses mmJSON fixtures (format controls pipeline logic)
   pdbj:
     format: cif
     data: ${CWD}/data/mmjson-noatom/

@@ -499,7 +499,7 @@ def run_cif(
     limit: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
-    """Run the pdbj-cif pipeline (CIF version)."""
+    """Run the pdbj pipeline in CIF mode."""
     if logger is None:
         logger = _default_logger
     pipeline = PdbjCifPipeline(settings, config, meta)

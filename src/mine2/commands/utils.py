@@ -26,9 +26,16 @@ def resolve_legacy_aliases(
     for item in items:
         if item in aliases:
             new_name = aliases[item]
-            console.print(
-                f"[yellow]Warning: '{item}' is deprecated. Use '{new_name}' instead.[/yellow]"
-            )
+            # For -json aliases, remind user that format is now config-driven
+            if item.endswith("-json"):
+                console.print(
+                    f"[yellow]Warning: '{item}' is deprecated. Use '{new_name}' instead. "
+                    f"Format is now controlled by the 'format' field in config.yml.[/yellow]"
+                )
+            else:
+                console.print(
+                    f"[yellow]Warning: '{item}' is deprecated. Use '{new_name}' instead.[/yellow]"
+                )
             warnings.warn(
                 f"{item_type} '{item}' is deprecated. Use '{new_name}' instead.",
                 DeprecationWarning,

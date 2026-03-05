@@ -403,7 +403,7 @@ def run_cif(
     limit: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
-    """Run the ccmodel-cif pipeline (single CIF version)."""
+    """Run the ccmodel pipeline in CIF mode (single-file batch)."""
     pipeline = CcmodelCifPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)
 

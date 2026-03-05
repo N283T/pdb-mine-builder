@@ -706,7 +706,7 @@ def run_cif(
     limit: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
-    """Run the cc-cif pipeline (single CIF version)."""
+    """Run the cc pipeline in CIF mode (single-file batch)."""
     _ensure_rdkit_setup(settings.rdb.constring)
     pipeline = CcCifPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)
