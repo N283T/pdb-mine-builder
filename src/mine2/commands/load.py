@@ -6,6 +6,7 @@ from typing import Any
 import typer
 from rich.console import Console
 
+from mine2.commands.update import DUAL_FORMAT_PIPELINES
 from mine2.config import Settings
 from mine2.db.connection import close_pool, init_pool
 from mine2.db.loader import ensure_schema, truncate_schema_tables
@@ -15,9 +16,28 @@ from mine2.models import get_metadata
 console = Console()
 
 # Pipelines supported by load command.
-# Each pipeline module must expose a run_cif_load() function.
+# Each pipeline module must expose run_cif_load() and optionally run_load().
 # For these pipelines, schema name matches pipeline name.
 LOAD_PIPELINES = ["pdbj", "cc", "ccmodel", "prd", "vrpt", "contacts", "sifts"]
+
+
+def _get_load_runner(pipeline_name: str, settings: Settings) -> Any:
+    """Get the load runner function for a pipeline.
+
+    For dual-format pipelines, reads format from config:
+      - format=cif    -> run_cif_load()
+      - format=mmjson -> run_load()
+
+    Other pipelines always use run_cif_load().
+    """
+    pipeline_module = importlib.import_module(f"mine2.pipelines.{pipeline_name}")
+
+    if pipeline_name in DUAL_FORMAT_PIPELINES:
+        pipeline_config = settings.pipelines.get(pipeline_name)
+        if pipeline_config and pipeline_config.format == "mmjson":
+            return getattr(pipeline_module, "run_load")
+
+    return getattr(pipeline_module, "run_cif_load")
 
 
 def run_load(
@@ -69,8 +89,7 @@ def run_load(
             )
             raise RuntimeError(msg)
 
-        pipeline_module = importlib.import_module(f"mine2.pipelines.{pipeline_name}")
-        runner = getattr(pipeline_module, "run_cif_load")
+        runner = _get_load_runner(pipeline_name, settings)
         meta = get_metadata(pipeline_name)
         pipeline_runners.append((pipeline_name, pipeline_config, meta, runner))
 

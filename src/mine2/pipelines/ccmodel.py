@@ -22,9 +22,11 @@ from mine2.config import PipelineConfig, Settings
 from mine2.db.loader import (
     Job,
     LoaderResult,
+    bulk_copy_entry,
     bulk_upsert,
     get_all_tables,
     get_entry_pk,
+    run_loader,
 )
 from mine2.parsers.cif import parse_block, parse_mmjson_file
 from mine2.parsers.mmjson import normalize_column_name
@@ -413,6 +415,94 @@ def run_cif_load(
     limit: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
-    """Run ccmodel pipeline in load mode (COPY, no delta sync)."""
+    """Run ccmodel pipeline in load mode (COPY, no delta sync) - CIF version."""
     pipeline = CcmodelCifPipeline(settings, config, meta)
     return pipeline.run_load(limit, logger=logger)
+
+
+def _process_ccmodel_mmjson_load(
+    job: Job,
+    schema_name: str,
+    conninfo: str,
+) -> LoaderResult:
+    """Worker: parse ccmodel mmJSON -> transform -> bulk_copy_entry."""
+    try:
+        from mine2.models import get_metadata
+
+        meta = get_metadata(schema_name)
+        entry_pk = get_entry_pk(meta)
+
+        data = parse_mmjson_file(job.filepath)
+        table_rows: dict[str, list[dict[str, Any]]] = {}
+
+        # Generate brief_summary
+        brief_rows_data = data.get("pdbx_chem_comp_model", [])
+        if brief_rows_data:
+            brief_rows = [
+                {"model_id": job.entry_id, "comp_id": row.get("comp_id")}
+                for row in brief_rows_data
+            ]
+        else:
+            brief_rows = [{"model_id": job.entry_id}]
+        table_rows["brief_summary"] = brief_rows
+
+        for table in get_all_tables(meta):
+            if table.name == "brief_summary":
+                continue
+            rows = data.get(table.name, [])
+            category_rows = transform_category(
+                rows, table, job.entry_id, entry_pk, normalize_column_name
+            )
+            if category_rows:
+                table_rows[table.name] = category_rows
+
+        inserted = bulk_copy_entry(
+            conninfo=conninfo,
+            schema=meta.schema,
+            entry_id=job.entry_id,
+            pk_column=entry_pk,
+            table_rows=table_rows,
+        )
+
+        return LoaderResult(
+            entry_id=job.entry_id,
+            success=True,
+            rows_inserted=inserted,
+        )
+
+    except Exception as e:
+        error_msg = f"{e}\n{traceback.format_exc()}"
+        return LoaderResult(
+            entry_id=job.entry_id,
+            success=False,
+            error=error_msg,
+        )
+
+
+def run_load(
+    settings: Settings,
+    config: PipelineConfig,
+    meta: MetaData,
+    limit: int | None = None,
+    logger: logging.Logger | None = None,
+) -> list[LoaderResult]:
+    """Run ccmodel pipeline in load mode (COPY, no delta sync) - mmJSON version."""
+    pipeline = CcmodelPipeline(settings, config, meta)
+    jobs = pipeline.find_jobs(limit)
+
+    if not jobs:
+        console.print("  [yellow]No files to process[/yellow]")
+        return []
+
+    console.print(f"  Found {len(jobs)} entries")
+
+    results = run_loader(
+        settings=settings,
+        schema_name=meta.schema,
+        jobs=jobs,
+        process_func=_process_ccmodel_mmjson_load,
+        max_workers=settings.rdb.get_workers(),
+        logger=logger,
+    )
+
+    return results

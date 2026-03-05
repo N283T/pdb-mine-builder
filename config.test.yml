@@ -3,26 +3,20 @@ rdb:
   constring: "host='127.0.0.1' dbname='mine2_test' user='pdbj' password='test_password' port=15433"
 
 pipelines:
-  # pdbj: test data uses mmJSON fixtures
+  # pdbj: test data uses CIF fixtures
   pdbj:
-    data: ${CWD}/data/mmjson-noatom/
-    data-plus: ${CWD}/data/plus/
-    data-nextgen-plus: ${CWD}/data/nextgen-plus/
-  pdbj-json:
+    format: cif
     data: ${CWD}/data/mmjson-noatom/
     data-plus: ${CWD}/data/plus/
     data-nextgen-plus: ${CWD}/data/nextgen-plus/
   cc:
-    data: ${CWD}/data/cc/
-  cc-json:
+    format: cif
     data: ${CWD}/data/cc/
   ccmodel:
-    data: ${CWD}/data/ccmodel/
-  ccmodel-json:
+    format: cif
     data: ${CWD}/data/ccmodel/
   prd:
-    data: ${CWD}/data/prd/
-  prd-json:
+    format: cif
     data: ${CWD}/data/prd/
   vrpt:
     data: ${CWD}/data/vrpt-json/*

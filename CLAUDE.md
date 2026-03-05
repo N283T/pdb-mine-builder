@@ -64,34 +64,37 @@ docs/                   # Architecture docs
 
 ## Pipelines
 
-### CIF Pipelines (Default)
+### Pipeline List
 
-CIF is the default format for dual-format pipelines:
+| Pipeline | Default Format | Notes |
+|----------|---------------|-------|
+| pdbj | CIF | File-based (~248k files), atom_site skipped |
+| cc | CIF | Single file (components.cif.gz), ~40k blocks |
+| ccmodel | CIF | Single file (chem_comp_model.cif.gz) |
+| prd | CIF | Dual file (prd-all.cif.gz + prdcc-all.cif.gz) |
+| vrpt | CIF | Uses gemmi.CifWalk for nested directory structure |
+| contacts | JSON | Array format, not mmJSON |
+| sifts | TTL | SIFTS cross-references |
+| emdb | XML | EMDB data |
+| ihm | mmJSON | IHM data |
 
-| Pipeline | Source | Notes |
-|----------|--------|-------|
-| pdbj | `divided/mmCIF/*.cif.gz` | File-based (~248k files), atom_site skipped |
-| cc | `components.cif.gz` | Single file, ~40k blocks |
-| ccmodel | `chem_comp_model.cif.gz` | Single file |
-| prd | `prd-all.cif.gz` + `prdcc-all.cif.gz` | Dual file (PRD + PRDCC) |
-| vrpt | `validation_reports/**/*.cif.gz` | Uses gemmi.CifWalk for nested directory structure |
-| contacts | `contacts/**/*.json` | Array format, not mmJSON |
+### Format Selection (Dual-Format Pipelines)
 
-### mmJSON Pipelines (Optional)
+Pipelines pdbj, cc, ccmodel, prd support both CIF and mmJSON.
+Format is selected via `format` field in `config.yml`:
 
-For users who prefer mmJSON format, use the `-json` suffix:
-
-| Pipeline | Format | Notes |
-|----------|--------|-------|
-| pdbj-json | mmJSON | Merges noatom + plus files via merge_data() |
-| cc-json | mmJSON | Chemical component dictionary |
-| ccmodel-json | mmJSON | Component 3D models |
-| prd-json | mmJSON | Has TWO data blocks (PRD + PRDCC) |
+```yaml
+pipelines:
+  pdbj:
+    format: cif          # "cif" (default) or "mmjson"
+    data: /path/to/data/
+```
 
 ### Backward Compatibility
 
-Legacy pipeline names (`pdbj-cif`, `cc-cif`, etc.) are still accepted but deprecated.
-They emit a warning and run the corresponding CIF pipeline.
+Legacy pipeline names (`pdbj-cif`, `cc-cif`, `pdbj-json`, `cc-json`, etc.)
+are still accepted but deprecated. They emit a warning and resolve to the
+base pipeline name.
 
 ## Key Patterns
 
@@ -163,7 +166,7 @@ Note: The SMILES in `pdbx_chem_comp_descriptor` is NOT used. SMILES is always
 generated from the molecular structure for consistency and quality.
 
 ### RDKit PostgreSQL Cartridge
-Chemical searches use RDKit extension (auto-configured on `cc`/`cc-json` pipeline run):
+Chemical searches use RDKit extension (auto-configured on `cc` pipeline run):
 ```sql
 -- Substructure search
 SELECT * FROM cc.brief_summary WHERE mol @> 'c1ccccc1'::mol;

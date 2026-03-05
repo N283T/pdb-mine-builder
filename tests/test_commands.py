@@ -2,13 +2,16 @@
 
 import warnings
 
+import pytest
 
 from mine2.commands.update import (
     AVAILABLE_PIPELINES,
+    DUAL_FORMAT_PIPELINES,
     LEGACY_ALIASES,
     PIPELINE_SCHEMA_MAP,
     _get_pipeline_runner,
 )
+from mine2.config import PipelineConfig
 from mine2.models import ALL_METADATA
 from mine2.commands.sync import LEGACY_SYNC_ALIASES, SYNC_TARGETS
 from mine2.commands.utils import resolve_legacy_aliases
@@ -31,12 +34,15 @@ class TestLegacyAliases:
                 f"Legacy alias '{legacy}' maps to invalid sync target '{new_name}'"
             )
 
-    def test_legacy_aliases_follow_naming_pattern(self) -> None:
-        """Legacy aliases should follow the -cif suffix pattern."""
-        for legacy in LEGACY_ALIASES:
-            assert legacy.endswith("-cif"), (
-                f"Legacy alias '{legacy}' should end with '-cif'"
-            )
+    def test_legacy_aliases_include_cif_suffix(self) -> None:
+        """Legacy aliases should include -cif suffix entries."""
+        cif_aliases = {k for k in LEGACY_ALIASES if k.endswith("-cif")}
+        assert len(cif_aliases) > 0, "Should have -cif legacy aliases"
+
+    def test_legacy_aliases_include_json_suffix(self) -> None:
+        """Legacy aliases should include -json suffix entries."""
+        json_aliases = {k for k in LEGACY_ALIASES if k.endswith("-json")}
+        assert len(json_aliases) > 0, "Should have -json legacy aliases"
 
     def test_sync_legacy_aliases_follow_naming_pattern(self) -> None:
         """Sync legacy aliases should follow the -cif suffix pattern."""
@@ -106,29 +112,26 @@ class TestResolveLegacyAliases:
 class TestPipelineNamingConsistency:
     """Tests for pipeline naming consistency."""
 
-    def test_cif_pipelines_have_json_counterparts(self) -> None:
-        """Each CIF default pipeline should have a -json counterpart."""
-        cif_defaults = {"pdbj", "cc", "ccmodel", "prd"}
-        for name in cif_defaults:
-            json_name = f"{name}-json"
-            assert json_name in AVAILABLE_PIPELINES, (
-                f"CIF pipeline '{name}' missing -json counterpart '{json_name}'"
+    def test_no_json_suffix_in_available_pipelines(self) -> None:
+        """Available pipelines should not have -json suffix (format via config)."""
+        for name in AVAILABLE_PIPELINES:
+            assert not name.endswith("-json"), (
+                f"Pipeline '{name}' should not use -json suffix; "
+                "format is now configured via config"
             )
 
-    def test_json_pipelines_have_cif_defaults(self) -> None:
-        """Each -json pipeline should have a CIF default counterpart."""
-        for name in AVAILABLE_PIPELINES:
-            if name.endswith("-json"):
-                base_name = name[:-5]  # Remove '-json' suffix
-                assert base_name in AVAILABLE_PIPELINES, (
-                    f"JSON pipeline '{name}' missing CIF default '{base_name}'"
-                )
-
     def test_no_cif_suffix_in_available_pipelines(self) -> None:
-        """Available pipelines should not have -cif suffix (use legacy aliases)."""
+        """Available pipelines should not have -cif suffix."""
         for name in AVAILABLE_PIPELINES:
             assert not name.endswith("-cif"), (
-                f"Pipeline '{name}' should not use -cif suffix; CIF is now the default"
+                f"Pipeline '{name}' should not use -cif suffix"
+            )
+
+    def test_dual_format_pipelines_are_available(self) -> None:
+        """All dual-format pipelines should be in AVAILABLE_PIPELINES."""
+        for name in DUAL_FORMAT_PIPELINES:
+            assert name in AVAILABLE_PIPELINES, (
+                f"Dual-format pipeline '{name}' should be in AVAILABLE_PIPELINES"
             )
 
 
@@ -149,48 +152,43 @@ class TestPipelineSchemaMap:
                 f"Pipeline {pipeline!r} maps to unknown schema {schema!r}"
             )
 
-    def test_json_pipelines_share_schema_with_base(self) -> None:
-        """JSON pipelines should map to the same schema as their base."""
-        for name in AVAILABLE_PIPELINES:
-            if name.endswith("-json"):
-                base = name[:-5]
-                assert PIPELINE_SCHEMA_MAP[name] == PIPELINE_SCHEMA_MAP[base], (
-                    f"{name} and {base} should share the same schema"
-                )
+    def test_no_json_suffix_in_schema_map(self) -> None:
+        """Schema map should not have -json suffix keys."""
+        for name in PIPELINE_SCHEMA_MAP:
+            assert not name.endswith("-json"), (
+                f"Schema map key '{name}' should not use -json suffix"
+            )
 
 
 class TestGetPipelineRunner:
     """Tests for _get_pipeline_runner dispatch logic."""
 
-    def test_json_pipelines_dispatch_to_run(self) -> None:
-        """JSON pipelines should dispatch to base module's run()."""
-        json_cases = {
-            "pdbj-json": ("pdbj", "run"),
-            "cc-json": ("cc", "run"),
-            "ccmodel-json": ("ccmodel", "run"),
-            "prd-json": ("prd", "run"),
-        }
-        for pipeline_name, expected in json_cases.items():
-            result = _get_pipeline_runner(pipeline_name)
-            assert result == expected, (
-                f"{pipeline_name} should dispatch to {expected}, got {result}"
-            )
-
-    def test_cif_defaults_dispatch_to_run_cif(self) -> None:
-        """CIF default pipelines should dispatch to run_cif()."""
-        cif_cases = {"pdbj", "cc", "ccmodel", "prd"}
-        for pipeline_name in cif_cases:
-            module_name, func_name = _get_pipeline_runner(pipeline_name)
+    def test_dual_format_cif_dispatches_to_run_cif(self) -> None:
+        """Dual-format pipelines with format=cif should dispatch to run_cif()."""
+        config = PipelineConfig(data="/tmp", format="cif")
+        for pipeline_name in DUAL_FORMAT_PIPELINES:
+            module_name, func_name = _get_pipeline_runner(pipeline_name, config)
             assert module_name == pipeline_name
             assert func_name == "run_cif", (
-                f"{pipeline_name} should dispatch to run_cif, got {func_name}"
+                f"{pipeline_name} with format=cif should dispatch to run_cif, got {func_name}"
+            )
+
+    def test_dual_format_mmjson_dispatches_to_run(self) -> None:
+        """Dual-format pipelines with format=mmjson should dispatch to run()."""
+        config = PipelineConfig(data="/tmp", format="mmjson")
+        for pipeline_name in DUAL_FORMAT_PIPELINES:
+            module_name, func_name = _get_pipeline_runner(pipeline_name, config)
+            assert module_name == pipeline_name
+            assert func_name == "run", (
+                f"{pipeline_name} with format=mmjson should dispatch to run, got {func_name}"
             )
 
     def test_other_pipelines_dispatch_to_run(self) -> None:
         """Other pipelines (vrpt, contacts, sifts, etc.) dispatch to run()."""
+        config = PipelineConfig(data="/tmp")
         other_cases = {"vrpt", "contacts", "sifts", "emdb", "ihm"}
         for pipeline_name in other_cases:
-            module_name, func_name = _get_pipeline_runner(pipeline_name)
+            module_name, func_name = _get_pipeline_runner(pipeline_name, config)
             assert module_name == pipeline_name
             assert func_name == "run", (
                 f"{pipeline_name} should dispatch to run, got {func_name}"
@@ -198,12 +196,37 @@ class TestGetPipelineRunner:
 
     def test_all_available_pipelines_have_runner(self) -> None:
         """Every available pipeline should have a valid runner dispatch."""
+        config = PipelineConfig(data="/tmp")
         for pipeline_name in AVAILABLE_PIPELINES:
-            module_name, func_name = _get_pipeline_runner(pipeline_name)
+            module_name, func_name = _get_pipeline_runner(pipeline_name, config)
             assert module_name, f"{pipeline_name} returned empty module name"
             assert func_name in ("run", "run_cif"), (
                 f"{pipeline_name} returned unexpected func {func_name}"
             )
+
+
+class TestPipelineConfigFormat:
+    """Tests for PipelineConfig format field."""
+
+    def test_default_format_is_cif(self) -> None:
+        """Default format should be 'cif'."""
+        config = PipelineConfig(data="/tmp")
+        assert config.format == "cif"
+
+    def test_format_cif_accepted(self) -> None:
+        """Format 'cif' should be accepted."""
+        config = PipelineConfig(data="/tmp", format="cif")
+        assert config.format == "cif"
+
+    def test_format_mmjson_accepted(self) -> None:
+        """Format 'mmjson' should be accepted."""
+        config = PipelineConfig(data="/tmp", format="mmjson")
+        assert config.format == "mmjson"
+
+    def test_invalid_format_rejected(self) -> None:
+        """Invalid format should be rejected."""
+        with pytest.raises(Exception):
+            PipelineConfig(data="/tmp", format="xml")
 
 
 class TestSyncTargetNamingConsistency:

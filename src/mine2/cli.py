@@ -77,7 +77,7 @@ def sync(
     targets: Annotated[
         Optional[list[str]],
         typer.Argument(
-            help="Sync targets: pdbj (CIF), pdbj-json (mmJSON), cc, cc-json, ccmodel, ccmodel-json, prd, prd-json, vrpt, contacts, sifts, schemas"
+            help="Sync targets: pdbj, pdbj-json, cc, cc-json, ccmodel, ccmodel-json, prd, prd-json, vrpt, contacts, sifts, schemas"
         ),
     ] = None,
     config: Annotated[
@@ -103,7 +103,7 @@ def update(
     pipelines: Annotated[
         Optional[list[str]],
         typer.Argument(
-            help="Pipelines: pdbj, cc, ccmodel, prd, vrpt, contacts, sifts. JSON variants: pdbj-json, cc-json, ccmodel-json, prd-json. Other: emdb (XML), ihm (mmJSON)"
+            help="Pipelines: pdbj, cc, ccmodel, prd, vrpt, contacts, sifts, emdb, ihm (format via config)"
         ),
     ] = None,
     config: Annotated[
@@ -269,7 +269,7 @@ def setup_rdkit(
     Creates RDKit extension, mol column on cc.brief_summary,
     and loads chemical search functions (similar_compounds, substructure_search, etc.).
 
-    This is automatically run by cc/cc-json pipelines, but can be run
+    This is automatically run by the cc pipeline, but can be run
     independently to add functions to an existing database.
     """
     from mine2.pipelines.cc import _ensure_rdkit_setup
