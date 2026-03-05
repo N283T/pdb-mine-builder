@@ -32,7 +32,11 @@ from pdbminebuilder.parsers.mmjson import (
     normalize_column_name,
     remove_null,
 )
-from pdbminebuilder.pipelines.base import BasePipeline, sync_entry_tables, transform_category
+from pdbminebuilder.pipelines.base import (
+    BasePipeline,
+    sync_entry_tables,
+    transform_category,
+)
 from pdbminebuilder.utils.assembly import (
     CHAIN_TYPE_MAPPING,
     EXPTL_METHOD_MAPPING,

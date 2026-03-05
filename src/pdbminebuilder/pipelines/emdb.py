@@ -24,7 +24,11 @@ from pdbminebuilder.db.loader import (
     LoaderResult,
     get_all_tables,
 )
-from pdbminebuilder.pipelines.base import BasePipeline, sync_entry_tables, transform_category
+from pdbminebuilder.pipelines.base import (
+    BasePipeline,
+    sync_entry_tables,
+    transform_category,
+)
 
 console = Console()
 
