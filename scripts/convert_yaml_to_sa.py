@@ -7,7 +7,7 @@
 # ///
 """One-time converter: YAML schema definitions to SQLAlchemy Table definitions.
 
-Originally used to generate src/mine2/models/*.py from schemas/*.def.yml files.
+Originally used to generate src/pdbminebuilder/models/*.py from schemas/*.def.yml files.
 The YAML files have been removed; models are now the source of truth.
 Kept for reference in case similar conversions are needed.
 """
@@ -527,7 +527,7 @@ def main() -> None:
     """Read all YAML schema files and generate SQLAlchemy model files."""
     project_root = Path(__file__).resolve().parent.parent
     schemas_dir = project_root.joinpath("schemas")
-    output_dir = project_root.joinpath("src", "mine2", "models")
+    output_dir = project_root.joinpath("src", "pdbminebuilder", "models")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     yaml_files = sorted(schemas_dir.glob("*.def.yml"))

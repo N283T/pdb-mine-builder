@@ -6,9 +6,9 @@ from pathlib import Path
 import gemmi
 from sqlalchemy import Column, MetaData, PrimaryKeyConstraint, Table, Text
 
-from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.parsers.cif import parse_cif_file
-from mine2.pipelines.ccmodel import (
+from pdbminebuilder.config import PipelineConfig, RdbConfig, Settings
+from pdbminebuilder.parsers.cif import parse_cif_file
+from pdbminebuilder.pipelines.ccmodel import (
     CcmodelCifPipeline,
     _generate_brief_summary,
     _process_ccmodel_cif_block,

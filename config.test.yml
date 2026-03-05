@@ -1,6 +1,6 @@
 rdb:
   # nworkers: auto-detected (use --workers to override)
-  constring: "host='127.0.0.1' dbname='mine2_test' user='pdbj' password='test_password' port=15433"
+  constring: "host='127.0.0.1' dbname='pmb_test' user='pdbj' password='test_password' port=15433"
 
 pipelines:
   # pdbj: test data uses mmJSON fixtures (format controls pipeline logic)

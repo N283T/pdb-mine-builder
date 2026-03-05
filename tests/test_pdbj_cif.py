@@ -18,11 +18,11 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
-from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import Job
-from mine2.parsers.cif import parse_cif_file
-from mine2.pipelines.pdbj import PdbjCifPipeline
-from mine2.utils.assembly import hex_sha256
+from pdbminebuilder.config import PipelineConfig, RdbConfig, Settings
+from pdbminebuilder.db.loader import Job
+from pdbminebuilder.parsers.cif import parse_cif_file
+from pdbminebuilder.pipelines.pdbj import PdbjCifPipeline
+from pdbminebuilder.utils.assembly import hex_sha256
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "pdbj"
 
@@ -419,7 +419,7 @@ class TestTransformEntry:
 
     def test_with_entry_data(self) -> None:
         """Transform entry with data."""
-        from mine2.pipelines.pdbj import _transform_entry
+        from pdbminebuilder.pipelines.pdbj import _transform_entry
 
         data = {"entry": [{"id": "100D"}]}
         result = _transform_entry(data, "100d")
@@ -430,7 +430,7 @@ class TestTransformEntry:
 
     def test_without_entry_data(self) -> None:
         """Transform entry creates fallback when no data."""
-        from mine2.pipelines.pdbj import _transform_entry
+        from pdbminebuilder.pipelines.pdbj import _transform_entry
 
         data = {}
         result = _transform_entry(data, "100d")
@@ -717,7 +717,7 @@ class TestProcessJobWithPlusData:
         )
 
         # Mock bulk_upsert to capture what gets loaded
-        with patch("mine2.pipelines.pdbj.sync_entry_tables") as mock_sync_entry_tables:
+        with patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables") as mock_sync_entry_tables:
             mock_sync_entry_tables.return_value = (1, 0, 0)
             result = pipeline.process_job(job, "pdbj", "test_conninfo")
 
@@ -748,7 +748,7 @@ class TestProcessJobWithPlusData:
         )
 
         # Mock bulk_upsert
-        with patch("mine2.pipelines.pdbj.sync_entry_tables") as mock_sync_entry_tables:
+        with patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables") as mock_sync_entry_tables:
             mock_sync_entry_tables.return_value = (1, 0, 0)
             result = pipeline.process_job(job, "pdbj", "test_conninfo")
 
@@ -766,7 +766,7 @@ class TestProcessJobWithPlusData:
 class TestCifHashAsymIdList:
     """Tests for _hash_asym_id_list computation in CIF pipeline."""
 
-    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables")
     def test_hash_added_to_assembly_gen_cif(self, mock_sync_entry_tables, tmp_path):
         """Test that _hash_asym_id_list is computed for CIF data."""
         cif_dir = tmp_path / "mmCIF"
@@ -802,7 +802,7 @@ class TestCifHashAsymIdList:
             expected_hash = hex_sha256(row["asym_id_list"])
             assert row["_hash_asym_id_list"] == expected_hash
 
-    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables")
     def test_hash_is_sha256_cif(self, mock_sync_entry_tables, tmp_path):
         """Test that the hash is SHA256 (64 hex chars) for CIF data."""
         cif_dir = tmp_path / "mmCIF"
@@ -836,7 +836,7 @@ class TestCifHashAsymIdList:
 class TestCifBuMwCalculation:
     """Tests for bu_mw calculation in CIF pipeline."""
 
-    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables")
     def test_bu_mw_in_plus_fields_cif(self, mock_sync_entry_tables, tmp_path):
         """Test that bu_mw is calculated and added to plus_fields for CIF."""
         cif_dir = tmp_path / "mmCIF"
@@ -878,7 +878,7 @@ class TestCifBuMwCalculation:
             assert "bu_mw" in plus_fields
             assert plus_fields["bu_mw"] == 1000.0
 
-    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables")
     def test_bu_mw_zero_when_no_assembly_cif(self, mock_sync_entry_tables, tmp_path):
         """Test that bu_mw is 0 when no assembly data in CIF."""
         cif_dir = tmp_path / "mmCIF"
@@ -930,7 +930,7 @@ class TestCifPatchApplication:
 
     def test_patches_applied_to_cif_data(self):
         """Test that entry-specific patches are applied to CIF data."""
-        from mine2.utils.patches import apply_patches
+        from pdbminebuilder.utils.patches import apply_patches
 
         # Test that patches work with CIF-like data structure
         data = {"entry": [{"id": "7ED1"}]}
@@ -943,7 +943,7 @@ class TestCifPatchApplication:
 
     def test_patches_not_applied_to_non_matching_entry(self):
         """Test that patches are not applied to non-matching entries."""
-        from mine2.utils.patches import apply_patches
+        from pdbminebuilder.utils.patches import apply_patches
 
         data = {"entry": [{"id": "100D"}]}
         result = apply_patches("100d", data)
@@ -1045,7 +1045,7 @@ class TestFindJobsWithNextgenPlusData:
 class TestProcessJobWithNextgenPlusData:
     """Tests for PdbjCifPipeline.process_job() with nextgen-plus data merging."""
 
-    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables")
     def test_merges_nextgen_plus_data(self, mock_sync, tmp_path: Path) -> None:
         """Nextgen-plus SIFTS categories are merged into CIF data."""
         cif_dir = tmp_path / "mmCIF"
@@ -1095,7 +1095,7 @@ class TestProcessJobWithNextgenPlusData:
         assert "pdbx_sifts_xref_db" in table_rows
         assert table_rows["pdbx_sifts_xref_db"][0]["xref_db_acc"] == "P12345"
 
-    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables")
     def test_merges_both_plus_and_nextgen_plus(self, mock_sync, tmp_path: Path) -> None:
         """Both old plus and nextgen-plus data are merged."""
         cif_dir = tmp_path / "mmCIF"
@@ -1153,7 +1153,7 @@ class TestProcessJobWithNextgenPlusData:
         # Nextgen-plus SIFTS data
         assert "pdbx_sifts_xref_db" in table_rows
 
-    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables")
     def test_works_without_nextgen_plus(self, mock_sync, tmp_path: Path) -> None:
         """Process job works when nextgen_plus_path is None."""
         cif_dir = tmp_path / "mmCIF"

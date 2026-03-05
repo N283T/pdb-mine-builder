@@ -59,9 +59,7 @@ def test_conninfo() -> str:
     This connects to the Docker PostgreSQL container started by
     `pixi run test-db-up`.
     """
-    return (
-        "host=localhost port=15433 dbname=mine2_test user=pdbj password=test_password"
-    )
+    return "host=localhost port=15433 dbname=pmb_test user=pdbj password=test_password"
 
 
 @pytest.fixture(scope="session")
@@ -89,7 +87,7 @@ def db_connection(test_conninfo: str):
 @pytest.fixture(scope="session")
 def pdbj_metadata():
     """Load the pdbj schema metadata."""
-    from mine2.models import get_metadata
+    from pdbminebuilder.models import get_metadata
 
     return get_metadata("pdbj")
 
@@ -97,7 +95,7 @@ def pdbj_metadata():
 @pytest.fixture(scope="session")
 def cc_metadata():
     """Load the cc schema metadata."""
-    from mine2.models import get_metadata
+    from pdbminebuilder.models import get_metadata
 
     return get_metadata("cc")
 
@@ -105,7 +103,7 @@ def cc_metadata():
 @pytest.fixture(scope="session")
 def ccmodel_metadata():
     """Load the ccmodel schema metadata."""
-    from mine2.models import get_metadata
+    from pdbminebuilder.models import get_metadata
 
     return get_metadata("ccmodel")
 
@@ -113,7 +111,7 @@ def ccmodel_metadata():
 @pytest.fixture(scope="session")
 def prd_metadata():
     """Load the prd schema metadata."""
-    from mine2.models import get_metadata
+    from pdbminebuilder.models import get_metadata
 
     return get_metadata("prd")
 
@@ -124,7 +122,7 @@ def pdbj_schema(db_connection: str, pdbj_metadata):
     import psycopg
     from psycopg import sql
 
-    from mine2.db.loader import ensure_schema, get_all_tables
+    from pdbminebuilder.db.loader import ensure_schema, get_all_tables
 
     # Create schema and tables
     ensure_schema(pdbj_metadata, db_connection)
@@ -152,7 +150,7 @@ def cc_schema(db_connection: str, cc_metadata):
     import psycopg
     from psycopg import sql
 
-    from mine2.db.loader import ensure_schema, get_all_tables
+    from pdbminebuilder.db.loader import ensure_schema, get_all_tables
 
     # Create schema and tables
     ensure_schema(cc_metadata, db_connection)
@@ -178,7 +176,7 @@ def ccmodel_schema(db_connection: str, ccmodel_metadata):
     import psycopg
     from psycopg import sql
 
-    from mine2.db.loader import ensure_schema, get_all_tables
+    from pdbminebuilder.db.loader import ensure_schema, get_all_tables
 
     # Create schema and tables
     ensure_schema(ccmodel_metadata, db_connection)
@@ -204,7 +202,7 @@ def prd_schema(db_connection: str, prd_metadata):
     import psycopg
     from psycopg import sql
 
-    from mine2.db.loader import ensure_schema, get_all_tables
+    from pdbminebuilder.db.loader import ensure_schema, get_all_tables
 
     # Create schema and tables
     ensure_schema(prd_metadata, db_connection)

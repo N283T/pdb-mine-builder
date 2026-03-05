@@ -22,10 +22,10 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
-from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import Job
-from mine2.pipelines.pdbj import PdbjCifPipeline, PdbjPipeline
-from mine2.utils.assembly import hex_sha256
+from pdbminebuilder.config import PipelineConfig, RdbConfig, Settings
+from pdbminebuilder.db.loader import Job
+from pdbminebuilder.pipelines.pdbj import PdbjCifPipeline, PdbjPipeline
+from pdbminebuilder.utils.assembly import hex_sha256
 
 
 def create_test_settings(data_dir: Path) -> Settings:
@@ -185,7 +185,7 @@ def create_cif_file(path: Path, entry_id: str, data: dict[str, list[dict]]) -> N
 class TestHashAsymIdListParity:
     """Test that _hash_asym_id_list is computed identically for CIF and mmJSON."""
 
-    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables")
     def test_same_hash_for_same_asym_id_list(self, mock_sync_entry_tables, tmp_path):
         """Both formats produce the same hash for identical asym_id_list."""
         entry_id = "100d"
@@ -256,7 +256,7 @@ class TestHashAsymIdListParity:
 class TestBuMwParity:
     """Test that bu_mw is calculated identically for CIF and mmJSON."""
 
-    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables")
     def test_same_bu_mw_for_same_data(self, mock_sync_entry_tables, tmp_path):
         """Both formats produce the same bu_mw for identical assembly data."""
         entry_id = "100d"
@@ -336,7 +336,7 @@ class TestPatchParity:
 
     def test_7ed1_patch_applied_to_both_formats(self):
         """7ed1 patch is applied identically to both formats."""
-        from mine2.utils.patches import apply_patches
+        from pdbminebuilder.utils.patches import apply_patches
 
         # CIF-like data (plain column names)
         cif_data = {"entry": [{"id": "7ED1"}]}

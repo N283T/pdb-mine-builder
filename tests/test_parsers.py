@@ -1,12 +1,12 @@
 """Tests for parsers module."""
 
-from mine2.parsers.cif import (
+from pdbminebuilder.parsers.cif import (
     _normalize_cif_value,
     parse_cif,
     parse_mmjson,
     parse_mmjson_blocks,
 )
-from mine2.parsers.mmjson import merge_data, normalize_column_name
+from pdbminebuilder.parsers.mmjson import merge_data, normalize_column_name
 
 
 class TestNormalizeCifValue:

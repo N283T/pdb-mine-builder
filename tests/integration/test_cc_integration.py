@@ -7,9 +7,9 @@ import pytest
 from psycopg import sql
 from psycopg.rows import dict_row
 
-from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import Job
-from mine2.pipelines.cc import (
+from pdbminebuilder.config import PipelineConfig, RdbConfig, Settings
+from pdbminebuilder.db.loader import Job
+from pdbminebuilder.pipelines.cc import (
     CcPipeline,
     _generate_canonical_smiles,
     _read_mmjson_block,

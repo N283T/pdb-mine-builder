@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from mine2.pipelines.sifts import TTL_FILES, parse_ttl_file, load_ttl_file, run
+from pdbminebuilder.pipelines.sifts import TTL_FILES, parse_ttl_file, load_ttl_file, run
 
 
 class TestParseTtlFile:
@@ -241,7 +241,7 @@ class TestLoadTtlFile:
 
         config = TTL_FILES["pdb_chain_pfam.ttl.gz"]
 
-        with patch("mine2.pipelines.sifts.bulk_upsert") as mock_upsert:
+        with patch("pdbminebuilder.pipelines.sifts.bulk_upsert") as mock_upsert:
             mock_upsert.return_value = (2, 0)
 
             inserted, updated = load_ttl_file(
@@ -280,7 +280,7 @@ pdbr:101D dcterms:references pubmed:7711020 .
 
         config = TTL_FILES["pdb_pubmed.ttl.gz"]
 
-        with patch("mine2.pipelines.sifts.bulk_upsert") as mock_upsert:
+        with patch("pdbminebuilder.pipelines.sifts.bulk_upsert") as mock_upsert:
             mock_upsert.return_value = (2, 0)
 
             inserted, updated = load_ttl_file(
@@ -312,7 +312,7 @@ pdbr:101D dcterms:references pubmed:7711020 .
 
         config = TTL_FILES["pdb_chain_pfam.ttl.gz"]
 
-        with patch("mine2.pipelines.sifts.bulk_upsert") as mock_upsert:
+        with patch("pdbminebuilder.pipelines.sifts.bulk_upsert") as mock_upsert:
             mock_upsert.return_value = (10, 0)
 
             inserted, updated = load_ttl_file(
@@ -403,7 +403,7 @@ class TestRun:
         mock_schema_def = MagicMock()
         mock_schema_def.schema_name = "sifts"
 
-        with patch("mine2.pipelines.sifts.bulk_upsert") as mock_upsert:
+        with patch("pdbminebuilder.pipelines.sifts.bulk_upsert") as mock_upsert:
             mock_upsert.return_value = (1, 0)
 
             results = run(mock_settings, mock_config, mock_schema_def)
@@ -439,7 +439,7 @@ class TestRun:
         mock_schema_def = MagicMock()
         mock_schema_def.schema_name = "sifts"
 
-        with patch("mine2.pipelines.sifts.bulk_upsert") as mock_upsert:
+        with patch("pdbminebuilder.pipelines.sifts.bulk_upsert") as mock_upsert:
             mock_upsert.return_value = (1, 0)
 
             # Only process pdb_pfam table

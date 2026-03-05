@@ -15,7 +15,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
-from mine2.pipelines.base import (
+from pdbminebuilder.pipelines.base import (
     _coerce_boolean,
     _coerce_date,
     _coerce_float,

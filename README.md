@@ -1,6 +1,6 @@
-# MINE2 Updater
+# pdb-mine-builder
 
-RDB updater for MINE2 database. Synchronizes structural biology data from PDBj (Protein Data Bank Japan) via rsync and loads it into PostgreSQL.
+Build a MINE-schema database from PDB data. Synchronizes structural biology data from PDBj (Protein Data Bank Japan) via rsync and loads it into PostgreSQL.
 
 ## Features
 
@@ -42,7 +42,7 @@ Copy and edit `config.yml`:
 ```yaml
 rdb:
   nworkers: 8
-  constring: "dbname='mine2' user='pdbj' port=5433"
+  constring: "dbname='pmb' user='pdbj' port=5433"
 
 pipelines:
   pdbj:
@@ -60,43 +60,43 @@ pipelines:
 
 ```bash
 # Show help
-pixi run mine2 --help
+pixi run pmb --help
 
 # Sync data from PDBj
-pixi run mine2 sync [targets...]
+pixi run pmb sync [targets...]
 # Targets: pdbj (CIF), pdbj-json (mmJSON), pdbj-plus, cc, cc-json,
 #          ccmodel, ccmodel-json, prd, prd-json, vrpt, contacts,
 #          sifts, schemas
 
 # Update database
-pixi run mine2 update [pipelines...]
+pixi run pmb update [pipelines...]
 # Pipelines: pdbj (CIF), pdbj-json (mmJSON), cc, cc-json, ccmodel,
 #            ccmodel-json, prd, prd-json, vrpt, contacts, sifts
 
 # Full update (sync + update)
-pixi run mine2 all
+pixi run pmb all
 
 # Test with limited data
-pixi run mine2 test -p pdbj,cc -n 10
+pixi run pmb test -p pdbj,cc -n 10
 ```
 
 ### Examples
 
 ```bash
 # Sync all data
-pixi run mine2 sync
+pixi run pmb sync
 
 # Sync specific targets
-pixi run mine2 sync pdbj cc prd
+pixi run pmb sync pdbj cc prd
 
 # Update all pipelines
-pixi run mine2 update
+pixi run pmb update
 
 # Update specific pipelines
-pixi run mine2 update pdbj cc
+pixi run pmb update pdbj cc
 
 # Update with entry limit
-pixi run mine2 update pdbj --limit 100
+pixi run pmb update pdbj --limit 100
 ```
 
 ## Pipelines
@@ -170,7 +170,7 @@ The following feature from the original mine2updater is **not included**:
 
 | Feature | Reason |
 |---------|--------|
-| `dictionaries` sync target | CIF dictionary files were used for type conversion during parsing. In mine2updater-ng, type information is defined in YAML schema files and gemmi handles CIF parsing internally, making the dictionaries unnecessary. |
+| `dictionaries` sync target | CIF dictionary files were used for type conversion during parsing. In pdb-mine-builder, type information is defined in YAML schema files and gemmi handles CIF parsing internally, making the dictionaries unnecessary. |
 
 ## Database Management
 
@@ -191,11 +191,11 @@ RDKit extension, mol column, and SQL functions are **automatically configured** 
 To setup RDKit functions independently (without running the full pipeline):
 
 ```bash
-pixi run mine2 setup-rdkit
+pixi run pmb setup-rdkit
 ```
 
 > **Note**: Requires superuser privileges for initial `CREATE EXTENSION rdkit`.
-> If auto-setup fails, run manually: `psql -d mine2 -f scripts/init_rdkit.sql`
+> If auto-setup fails, run manually: `psql -d pmb -f scripts/init_rdkit.sql`
 
 ### Chemical Search Functions
 
@@ -263,7 +263,7 @@ WHERE mol @> 'C(=O)O'::qmol;  -- Carboxylic acid substructure
 The SIFTS pipeline provides cross-references from PDB entries to external databases.
 Data is sourced from [SIFTS (PDBe)](https://www.ebi.ac.uk/pdbe/docs/sifts/) via PDBj RDF/TTL files.
 
-> **Note**: This is a mine2updater-ng specific feature. PDBj's original MINE2 database
+> **Note**: This is a pdb-mine-builder specific feature. PDBj's original MINE2 database
 > does not include SIFTS tables. We load the RDF/TTL data into PostgreSQL for convenient
 > SQL access and JOINs with other pdbj tables.
 
@@ -329,8 +329,8 @@ pixi run check
 ## Project Structure
 
 ```
-mine2updater-ng/
-├── src/mine2/
+pdb-mine-builder/
+├── src/pdbminebuilder/
 │   ├── __main__.py      # CLI entry point
 │   ├── cli.py           # Typer CLI commands
 │   ├── config.py        # Configuration (Pydantic)

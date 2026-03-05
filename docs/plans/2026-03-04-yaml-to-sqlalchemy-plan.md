@@ -1,5 +1,9 @@
 # YAML to SQLAlchemy Schema Migration - Implementation Plan
 
+> **Note:** This plan was written when the project was named `mine2`. References
+> to `mine2`, `src/mine2/`, and `from mine2.` now correspond to `pdbminebuilder`,
+> `src/pdbminebuilder/`, and `from pdbminebuilder.` respectively.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Replace custom YAML schema definitions with SQLAlchemy Core Table objects and Alembic migrations.

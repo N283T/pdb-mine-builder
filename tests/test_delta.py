@@ -3,7 +3,7 @@
 from datetime import date, datetime
 
 
-from mine2.db.delta import (
+from pdbminebuilder.db.delta import (
     DeltaResult,
     RowDelta,
     TableDelta,

@@ -19,9 +19,9 @@ from tqdm import tqdm
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from mine2.config import load_config
-from mine2.db.loader import Job, load_schema_def
-from mine2.pipelines.pdbj import PdbjCifPipeline
+from pdbminebuilder.config import load_config
+from pdbminebuilder.db.loader import Job, load_schema_def
+from pdbminebuilder.pipelines.pdbj import PdbjCifPipeline
 
 
 def recreate_primary_key(conninfo: str, schema: str = "pdbj") -> None:

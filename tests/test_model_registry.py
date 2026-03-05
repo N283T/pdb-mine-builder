@@ -1,16 +1,16 @@
-"""Tests for mine2.models registry and mine2.db.loader SA helpers."""
+"""Tests for pdbminebuilder.models registry and pdbminebuilder.db.loader SA helpers."""
 
 import pytest
 from sqlalchemy import Column, MetaData, PrimaryKeyConstraint, Table, Text
 
-from mine2.db.loader import (
+from pdbminebuilder.db.loader import (
     get_all_tables,
     get_column_names,
     get_entry_pk,
     get_table,
     get_table_or_none,
 )
-from mine2.models import ALL_METADATA, get_metadata
+from pdbminebuilder.models import ALL_METADATA, get_metadata
 
 
 # =============================================================================

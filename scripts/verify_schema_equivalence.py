@@ -26,7 +26,7 @@ sys.path.insert(0, str(project_root.joinpath("src")))
 import yaml  # noqa: E402
 from sqlalchemy import ARRAY, MetaData  # noqa: E402
 
-from mine2.models import ALL_METADATA  # noqa: E402
+from pdbminebuilder.models import ALL_METADATA  # noqa: E402
 
 
 # ---------------------------------------------------------------------------
