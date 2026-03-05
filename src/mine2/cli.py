@@ -103,7 +103,7 @@ def update(
     pipelines: Annotated[
         Optional[list[str]],
         typer.Argument(
-            help="Pipelines: pdbj (CIF), pdbj-json (mmJSON), cc, cc-json, ccmodel, ccmodel-json, prd, prd-json, vrpt, contacts, sifts, emdb (XML), ihm (mmJSON)"
+            help="Pipelines: pdbj, cc, ccmodel, prd, vrpt, contacts, sifts. JSON variants: pdbj-json, cc-json, ccmodel-json, prd-json. Other: emdb (XML), ihm (mmJSON)"
         ),
     ] = None,
     config: Annotated[
@@ -171,7 +171,7 @@ def update(
 def load(
     pipelines: Annotated[
         Optional[list[str]],
-        typer.Argument(help="Pipelines: pdbj, cc, ccmodel, prd"),
+        typer.Argument(help="Pipelines: pdbj, cc, ccmodel, prd, vrpt, contacts, sifts"),
     ] = None,
     config: Annotated[
         Path,
