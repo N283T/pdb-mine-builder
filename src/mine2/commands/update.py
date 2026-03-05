@@ -8,7 +8,11 @@ from mine2.commands.utils import resolve_legacy_aliases
 from mine2.config import PipelineConfig, Settings
 from mine2.db.connection import close_pool, init_pool
 from mine2.db.loader import ensure_schema
-from mine2.db.metadata import ensure_metadata_table, update_pipeline_metadata
+from mine2.db.metadata import (
+    ensure_entry_metadata_table,
+    ensure_metadata_table,
+    update_pipeline_metadata,
+)
 from mine2.models import get_metadata
 
 console = Console()
@@ -54,6 +58,9 @@ PIPELINE_SCHEMA_MAP = {
 # Pipelines that support dual format (CIF and mmJSON)
 DUAL_FORMAT_PIPELINES = {"pdbj", "cc", "ccmodel", "prd"}
 
+# Pipelines that support --force (file-per-entry with mtime tracking)
+FORCE_PIPELINES = {"pdbj", "vrpt", "contacts"}
+
 
 def _get_schema_name(pipeline_name: str) -> str:
     """Resolve pipeline name to database schema name.
@@ -80,6 +87,7 @@ def run_update(
     pipelines: list[str],
     limit: int | None = None,
     tables: list[str] | None = None,
+    force: bool = False,
 ) -> None:
     """Run database update pipelines.
 
@@ -88,6 +96,7 @@ def run_update(
         pipelines: List of pipeline names to run (empty = all)
         limit: Optional limit on number of entries to process per pipeline
         tables: Optional list of tables for SIFTS pipeline (default: all)
+        force: If True, reprocess all entries ignoring cached mtimes
     """
     # If no pipelines specified, run all
     if not pipelines:
@@ -108,8 +117,9 @@ def run_update(
     # Initialize connection pool
     init_pool(settings.rdb.constring, max_size=settings.rdb.get_workers() + 2)
 
-    # Ensure metadata table exists
+    # Ensure metadata tables exist
     ensure_metadata_table(settings.rdb.constring)
+    ensure_entry_metadata_table(settings.rdb.constring)
 
     try:
         for pipeline_name in pipelines:
@@ -141,17 +151,14 @@ def run_update(
                 )
                 pipeline_module = _import_pipeline(module_name)
                 runner = getattr(pipeline_module, run_func)
-                # SIFTS pipeline accepts tables parameter
+                # Build kwargs for the runner
+                runner_kwargs: dict = {"limit": limit}
                 if pipeline_name == "sifts" and tables:
-                    results = runner(
-                        settings,
-                        pipeline_config,
-                        meta,
-                        limit=limit,
-                        tables=tables,
-                    )
-                else:
-                    results = runner(settings, pipeline_config, meta, limit=limit)
+                    runner_kwargs["tables"] = tables
+                if pipeline_name in FORCE_PIPELINES:
+                    runner_kwargs["force"] = force
+
+                results = runner(settings, pipeline_config, meta, **runner_kwargs)
 
                 # Update pipeline metadata with timestamp
                 success_count = (

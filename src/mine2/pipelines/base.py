@@ -28,6 +28,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import TypeEngine
 
 from mine2.config import PipelineConfig, Settings
+from mine2.db.metadata import fetch_entry_mtimes
 from mine2.db.delta import (
     apply_delta,
     compute_delta,
@@ -414,6 +415,29 @@ def sync_entry_tables(
     )
 
 
+def compute_effective_mtime(
+    filepath: Path, extra_paths: list[Path | None] | None = None
+) -> float:
+    """Return max mtime across primary file and optional extra files.
+
+    For pipelines with supplementary files (e.g., pdbj with plus data),
+    any file change should trigger reprocessing.
+
+    Args:
+        filepath: Primary data file path.
+        extra_paths: Optional list of supplementary file paths (None entries skipped).
+
+    Returns:
+        Maximum modification time (epoch seconds) across all files.
+    """
+    mtime = filepath.stat().st_mtime
+    if extra_paths:
+        for p in extra_paths:
+            if p is not None and p.exists():
+                mtime = max(mtime, p.stat().st_mtime)
+    return mtime
+
+
 class BasePipeline(ABC):
     """Base class for data loading pipelines."""
 
@@ -425,10 +449,12 @@ class BasePipeline(ABC):
         settings: Settings,
         config: PipelineConfig,
         meta: MetaData,
+        force: bool = False,
     ):
         self.settings = settings
         self.config = config
         self.meta = meta
+        self.force = force
 
     def run(
         self, limit: int | None = None, logger: logging.Logger | None = None
@@ -468,20 +494,48 @@ class BasePipeline(ABC):
         return results
 
     def find_jobs(self, limit: int | None = None) -> list[Job]:
-        """Find data files and create jobs."""
+        """Find data files and create jobs, skipping unchanged entries."""
         data_dir = Path(self.config.data)
 
         if not data_dir.exists():
             console.print(f"  [red]Data directory not found: {data_dir}[/red]")
             return []
 
+        # Fetch stored mtimes for skip optimization
+        stored_mtimes: dict[str, float] = {}
+        if not self.force:
+            stored_mtimes = fetch_entry_mtimes(
+                self.settings.rdb.constring, self.meta.schema
+            )
+
         jobs = []
+        skipped = 0
         for filepath in data_dir.rglob(self.file_pattern):
             entry_id = self.extract_entry_id(filepath)
-            jobs.append(Job(entry_id=entry_id, filepath=filepath))
+            current_mtime = compute_effective_mtime(filepath)
+
+            # Skip unchanged entries
+            if not self.force and entry_id in stored_mtimes:
+                if current_mtime <= stored_mtimes[entry_id]:
+                    skipped += 1
+                    continue
+
+            jobs.append(
+                Job(
+                    entry_id=entry_id,
+                    filepath=filepath,
+                    extra={"file_mtime": current_mtime},
+                )
+            )
 
             if limit and len(jobs) >= limit:
                 break
+
+        if skipped > 0:
+            console.print(
+                f"  [dim]Skipped {skipped} unchanged entries (use --force to reprocess)[/dim]"
+            )
+
         return jobs
 
     def extract_entry_id(self, filepath: Path) -> str:

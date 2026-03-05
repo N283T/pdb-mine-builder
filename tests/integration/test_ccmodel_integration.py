@@ -30,7 +30,7 @@ class TestCcmodelCifPipelineIntegration:
 
         result = _process_ccmodel_cif_block(
             block=block,
-            schema_def=ccmodel_schema,
+            schema_name=ccmodel_schema.schema,
             conninfo=db_connection,
         )
 
@@ -52,7 +52,7 @@ class TestCcmodelCifPipelineIntegration:
 
         result = _process_ccmodel_cif_block(
             block=block,
-            schema_def=ccmodel_schema,
+            schema_name=ccmodel_schema.schema,
             conninfo=db_connection,
         )
 
@@ -74,7 +74,7 @@ class TestCcmodelCifPipelineIntegration:
 
         result = _process_ccmodel_cif_block(
             block=block,
-            schema_def=ccmodel_schema,
+            schema_name=ccmodel_schema.schema,
             conninfo=db_connection,
         )
 
@@ -96,7 +96,7 @@ class TestCcmodelCifPipelineIntegration:
 
         result = _process_ccmodel_cif_block(
             block=block,
-            schema_def=ccmodel_schema,
+            schema_name=ccmodel_schema.schema,
             conninfo=db_connection,
         )
 
@@ -116,7 +116,7 @@ class TestCcmodelCifPipelineIntegration:
 
         result = _process_ccmodel_cif_block(
             block=block,
-            schema_def=ccmodel_schema,
+            schema_name=ccmodel_schema.schema,
             conninfo=db_connection,
         )
         assert result.success
@@ -127,7 +127,7 @@ class TestCcmodelCifPipelineIntegration:
                 cur.execute(
                     sql.SQL(
                         "SELECT id, comp_id FROM {}.pdbx_chem_comp_model WHERE id = %s"
-                    ).format(sql.Identifier(ccmodel_schema.schema_name)),
+                    ).format(sql.Identifier(ccmodel_schema.schema)),
                     ("M_DAL_00001",),
                 )
                 row = cur.fetchone()
@@ -157,7 +157,7 @@ class TestCcmodelCifPipelineIntegration:
                 block = doc[0]
                 result = _process_ccmodel_cif_block(
                     block=block,
-                    schema_def=ccmodel_schema,
+                    schema_name=ccmodel_schema.schema,
                     conninfo=db_connection,
                 )
                 assert result.success, f"Processing {entry_id} failed: {result.error}"
@@ -168,7 +168,7 @@ class TestCcmodelCifPipelineIntegration:
                 cur.execute(
                     sql.SQL(
                         "SELECT COUNT(*) as count FROM {}.pdbx_chem_comp_model"
-                    ).format(sql.Identifier(ccmodel_schema.schema_name))
+                    ).format(sql.Identifier(ccmodel_schema.schema))
                 )
                 row = cur.fetchone()
 
@@ -188,12 +188,12 @@ class TestCcmodelCifPipelineIntegration:
         # Process twice
         result1 = _process_ccmodel_cif_block(
             block=block,
-            schema_def=ccmodel_schema,
+            schema_name=ccmodel_schema.schema,
             conninfo=db_connection,
         )
         result2 = _process_ccmodel_cif_block(
             block=block,
-            schema_def=ccmodel_schema,
+            schema_name=ccmodel_schema.schema,
             conninfo=db_connection,
         )
 
@@ -207,7 +207,7 @@ class TestCcmodelCifPipelineIntegration:
                     sql.SQL(
                         "SELECT COUNT(*) as count FROM {}.pdbx_chem_comp_model "
                         "WHERE id = %s"
-                    ).format(sql.Identifier(ccmodel_schema.schema_name)),
+                    ).format(sql.Identifier(ccmodel_schema.schema)),
                     ("M_DAL_00001",),
                 )
                 row = cur.fetchone()

@@ -370,7 +370,7 @@ class TestPdbjCifPipelineRun:
         config = settings.pipelines["pdbj"]
         meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, meta)
+        pipeline = PdbjCifPipeline(settings, config, meta, force=True)
         results = pipeline.run()
 
         assert results == []
@@ -388,7 +388,7 @@ class TestPdbjCifPipelineRun:
         config = settings.pipelines["pdbj"]
         meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, meta)
+        pipeline = PdbjCifPipeline(settings, config, meta, force=True)
         results = pipeline.run()
 
         assert len(results) == 2
@@ -408,7 +408,7 @@ class TestPdbjCifPipelineRun:
         config = settings.pipelines["pdbj"]
         meta = create_test_meta()
 
-        pipeline = PdbjCifPipeline(settings, config, meta)
+        pipeline = PdbjCifPipeline(settings, config, meta, force=True)
         results = pipeline.run(limit=5)
 
         assert len(results) == 5

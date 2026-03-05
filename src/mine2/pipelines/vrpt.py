@@ -19,7 +19,13 @@ from mine2.db.loader import (
     run_loader_streaming,
 )
 from mine2.parsers.cif import parse_cif_file
-from mine2.pipelines.base import BasePipeline, sync_entry_tables, transform_category
+from mine2.db.metadata import fetch_entry_mtimes
+from mine2.pipelines.base import (
+    BasePipeline,
+    compute_effective_mtime,
+    sync_entry_tables,
+    transform_category,
+)
 
 console = Console()
 
@@ -71,16 +77,44 @@ class VrptPipeline(BasePipeline):
             console.print(f"  [red]Data directory not found: {data_dir}[/red]")
             return []
 
+        # Fetch stored mtimes for skip optimization
+        stored_mtimes: dict[str, float] = {}
+        if not self.force:
+            stored_mtimes = fetch_entry_mtimes(
+                self.settings.rdb.constring, self.meta.schema
+            )
+
         jobs = []
-        for filepath in gemmi.CifWalk(str(data_dir)):
-            if not self._is_validation_file(filepath):
+        skipped = 0
+        for filepath_str in gemmi.CifWalk(str(data_dir)):
+            if not self._is_validation_file(filepath_str):
                 continue
 
+            filepath = Path(filepath_str)
             entry_id = self.extract_entry_id(filepath)
-            jobs.append(Job(entry_id=entry_id, filepath=Path(filepath)))
+            current_mtime = compute_effective_mtime(filepath)
+
+            # Skip unchanged entries
+            if not self.force and entry_id in stored_mtimes:
+                if current_mtime <= stored_mtimes[entry_id]:
+                    skipped += 1
+                    continue
+
+            jobs.append(
+                Job(
+                    entry_id=entry_id,
+                    filepath=filepath,
+                    extra={"file_mtime": current_mtime},
+                )
+            )
 
             if limit and len(jobs) >= limit:
                 break
+
+        if skipped > 0:
+            console.print(
+                f"  [dim]Skipped {skipped} unchanged entries (use --force to reprocess)[/dim]"
+            )
 
         return jobs
 
@@ -124,6 +158,13 @@ class VrptPipeline(BasePipeline):
                 table_rows=table_rows,
             )
 
+            # Record file mtime on success
+            file_mtime = (job.extra or {}).get("file_mtime")
+            if file_mtime is not None:
+                from mine2.db.metadata import upsert_entry_mtime
+
+                upsert_entry_mtime(conninfo, schema_name, job.entry_id, file_mtime)
+
             return LoaderResult(
                 entry_id=job.entry_id,
                 success=True,
@@ -161,9 +202,10 @@ def run(
     config: PipelineConfig,
     meta: MetaData,
     limit: int | None = None,
+    force: bool = False,
 ) -> list[LoaderResult]:
     """Run the vrpt pipeline."""
-    pipeline = VrptPipeline(settings, config, meta)
+    pipeline = VrptPipeline(settings, config, meta, force=force)
     return pipeline.run(limit)
 
 
@@ -217,6 +259,13 @@ def _process_vrpt_load(
             pk_column=get_entry_pk(meta),
             table_rows=table_rows,
         )
+
+        # Record file mtime on success
+        from mine2.db.metadata import upsert_entry_mtime
+        from mine2.pipelines.base import compute_effective_mtime
+
+        file_mtime = compute_effective_mtime(job.filepath)
+        upsert_entry_mtime(conninfo, schema_name, job.entry_id, file_mtime)
 
         return LoaderResult(
             entry_id=job.entry_id,

@@ -345,7 +345,7 @@ class TestFindJobs:
         config = settings.pipelines["pdbj"]
         meta = create_test_meta()
 
-        pipeline = PdbjPipeline(settings, config, meta)
+        pipeline = PdbjPipeline(settings, config, meta, force=True)
         jobs = pipeline.find_jobs()
 
         assert len(jobs) == 1
@@ -360,7 +360,7 @@ class TestFindJobs:
         config = settings.pipelines["pdbj"]
         meta = create_test_meta()
 
-        pipeline = PdbjPipeline(settings, config, meta)
+        pipeline = PdbjPipeline(settings, config, meta, force=True)
         jobs = pipeline.find_jobs()
 
         assert jobs == []
@@ -404,7 +404,7 @@ class TestFindJobsWithNextgenPlusData:
         config = settings.pipelines["pdbj"]
         meta = create_test_meta()
 
-        pipeline = PdbjPipeline(settings, config, meta)
+        pipeline = PdbjPipeline(settings, config, meta, force=True)
         jobs = pipeline.find_jobs()
 
         assert len(jobs) == 1
@@ -425,7 +425,7 @@ class TestFindJobsWithNextgenPlusData:
         config = settings.pipelines["pdbj"]
         meta = create_test_meta()
 
-        pipeline = PdbjPipeline(settings, config, meta)
+        pipeline = PdbjPipeline(settings, config, meta, force=True)
         jobs = pipeline.find_jobs()
 
         assert len(jobs) == 1
@@ -443,7 +443,7 @@ class TestFindJobsWithNextgenPlusData:
         config = settings.pipelines["pdbj"]
         meta = create_test_meta()
 
-        pipeline = PdbjPipeline(settings, config, meta)
+        pipeline = PdbjPipeline(settings, config, meta, force=True)
         jobs = pipeline.find_jobs()
 
         assert len(jobs) == 1
