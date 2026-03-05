@@ -3,9 +3,12 @@
 Tracks when each pipeline was last updated and per-entry file mtimes.
 """
 
+import logging
 from datetime import datetime, timezone
 
 import psycopg
+
+logger = logging.getLogger("mine2.db.metadata")
 
 
 # =============================================================================
@@ -144,6 +147,11 @@ def fetch_entry_mtimes(conninfo: str, schema_name: str) -> dict[str, float]:
             """)
             result = cur.fetchone()
             if not result or not result[0]:
+                logger.warning(
+                    "entry_metadata table does not exist; "
+                    "mtime skip optimization disabled for schema %r",
+                    schema_name,
+                )
                 return {}
 
             cur.execute(

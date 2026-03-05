@@ -504,9 +504,17 @@ class BasePipeline(ABC):
         # Fetch stored mtimes for skip optimization
         stored_mtimes: dict[str, float] = {}
         if not self.force:
-            stored_mtimes = fetch_entry_mtimes(
-                self.settings.rdb.constring, self.meta.schema
-            )
+            try:
+                stored_mtimes = fetch_entry_mtimes(
+                    self.settings.rdb.constring, self.meta.schema
+                )
+            except Exception as e:
+                _default_logger.warning(
+                    "Failed to fetch entry mtimes for %s; "
+                    "all entries will be processed: %s",
+                    self.meta.schema,
+                    e,
+                )
 
         jobs = []
         skipped = 0

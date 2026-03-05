@@ -28,6 +28,7 @@ from mine2.pipelines.base import (
 )
 
 console = Console()
+_default_logger = logging.getLogger("mine2.pipelines.vrpt")
 
 
 class VrptPipeline(BasePipeline):
@@ -80,9 +81,17 @@ class VrptPipeline(BasePipeline):
         # Fetch stored mtimes for skip optimization
         stored_mtimes: dict[str, float] = {}
         if not self.force:
-            stored_mtimes = fetch_entry_mtimes(
-                self.settings.rdb.constring, self.meta.schema
-            )
+            try:
+                stored_mtimes = fetch_entry_mtimes(
+                    self.settings.rdb.constring, self.meta.schema
+                )
+            except Exception as e:
+                _default_logger.warning(
+                    "Failed to fetch entry mtimes for %s; "
+                    "all entries will be processed: %s",
+                    self.meta.schema,
+                    e,
+                )
 
         jobs = []
         skipped = 0
@@ -158,12 +167,19 @@ class VrptPipeline(BasePipeline):
                 table_rows=table_rows,
             )
 
-            # Record file mtime on success
+            # Record file mtime on success (non-critical)
             file_mtime = (job.extra or {}).get("file_mtime")
             if file_mtime is not None:
-                from mine2.db.metadata import upsert_entry_mtime
+                try:
+                    from mine2.db.metadata import upsert_entry_mtime
 
-                upsert_entry_mtime(conninfo, schema_name, job.entry_id, file_mtime)
+                    upsert_entry_mtime(conninfo, schema_name, job.entry_id, file_mtime)
+                except Exception as mtime_err:
+                    _default_logger.warning(
+                        "Failed to record mtime for %s: %s",
+                        job.entry_id,
+                        mtime_err,
+                    )
 
             return LoaderResult(
                 entry_id=job.entry_id,
@@ -213,8 +229,6 @@ def run(
 # Load mode (COPY protocol, no delta sync)
 # =============================================================================
 
-_default_logger = logging.getLogger("mine2.pipelines.vrpt")
-
 
 def _build_vrpt_table_rows(
     job: Job,
@@ -260,12 +274,19 @@ def _process_vrpt_load(
             table_rows=table_rows,
         )
 
-        # Record file mtime on success
-        from mine2.db.metadata import upsert_entry_mtime
-        from mine2.pipelines.base import compute_effective_mtime
+        # Record file mtime on success (non-critical)
+        try:
+            from mine2.db.metadata import upsert_entry_mtime
+            from mine2.pipelines.base import compute_effective_mtime
 
-        file_mtime = compute_effective_mtime(job.filepath)
-        upsert_entry_mtime(conninfo, schema_name, job.entry_id, file_mtime)
+            file_mtime = compute_effective_mtime(job.filepath)
+            upsert_entry_mtime(conninfo, schema_name, job.entry_id, file_mtime)
+        except Exception as mtime_err:
+            logging.getLogger("mine2.pipelines.vrpt").warning(
+                "Failed to record mtime for %s: %s",
+                job.entry_id,
+                mtime_err,
+            )
 
         return LoaderResult(
             entry_id=job.entry_id,

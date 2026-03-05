@@ -142,7 +142,9 @@ def update(
     force: Annotated[
         bool,
         typer.Option(
-            "--force", "-f", help="Reprocess all entries, ignoring cached mtimes"
+            "--force",
+            "-f",
+            help="Reprocess all entries ignoring cached mtimes (pdbj, vrpt, contacts only)",
         ),
     ] = False,
 ) -> None:
