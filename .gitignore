@@ -20,6 +20,9 @@ config.yml
 dist
 .cursor
 
+# Claude Code
+CLAUDE.md
+
 # Build artifacts
 *.egg-info/
 
