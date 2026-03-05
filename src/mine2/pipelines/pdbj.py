@@ -499,7 +499,7 @@ def run_cif(
     limit: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
-    """Run the pdbj-cif pipeline (CIF version)."""
+    """Run the pdbj pipeline in CIF mode."""
     if logger is None:
         logger = _default_logger
     pipeline = PdbjCifPipeline(settings, config, meta)
@@ -560,7 +560,7 @@ def run_cif_load(
     limit: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
-    """Run pdbj pipeline in load mode (COPY, no delta sync)."""
+    """Run pdbj pipeline in load mode (COPY, no delta sync) - CIF version."""
     if logger is None:
         logger = _default_logger
 
@@ -580,6 +580,94 @@ def run_cif_load(
         process_func=_process_cif_load,
         max_workers=settings.rdb.get_workers(),
         limit=limit,
+        logger=logger,
+    )
+
+    return results
+
+
+def _process_mmjson_load(
+    job: Job,
+    schema_name: str,
+    conninfo: str,
+) -> LoaderResult:
+    """Worker: parse mmJSON -> transform -> bulk_copy_entry (no delta sync)."""
+    try:
+        from mine2.models import get_metadata
+
+        meta = get_metadata(schema_name)
+
+        data = parse_mmjson_file(job.filepath)
+        data = _merge_extra_paths(data, job)
+        apply_patches(job.entry_id, data)
+
+        if "pdbx_struct_assembly_gen" in data:
+            for row in data["pdbx_struct_assembly_gen"]:
+                row["_hash_asym_id_list"] = hex_sha256(row.get("asym_id_list", ""))
+                row["_hash_oper_expression"] = hex_sha256(
+                    row.get("oper_expression", "")
+                )
+
+        table_rows = _transform_pdbj_data(
+            data=data,
+            entry_id=job.entry_id,
+            meta=meta,
+            normalize_fn=normalize_column_name,
+        )
+
+        inserted = bulk_copy_entry(
+            conninfo=conninfo,
+            schema=meta.schema,
+            entry_id=job.entry_id,
+            pk_column=get_entry_pk(meta),
+            table_rows=table_rows,
+        )
+
+        return LoaderResult(
+            entry_id=job.entry_id,
+            success=True,
+            rows_inserted=inserted,
+        )
+
+    except Exception as e:
+        error_msg = f"{e}\n{traceback.format_exc()}"
+        return LoaderResult(
+            entry_id=job.entry_id,
+            success=False,
+            error=error_msg,
+        )
+
+
+def run_load(
+    settings: Settings,
+    config: PipelineConfig,
+    meta: MetaData,
+    limit: int | None = None,
+    logger: logging.Logger | None = None,
+) -> list[LoaderResult]:
+    """Run pdbj pipeline in load mode (COPY, no delta sync) - mmJSON version."""
+    if logger is None:
+        logger = _default_logger
+
+    console.print(f"  Data dir: {config.data}")
+
+    pipeline = PdbjPipeline(settings, config, meta)
+    jobs = pipeline.find_jobs(limit)
+
+    if not jobs:
+        console.print("  [yellow]No files to process[/yellow]")
+        return []
+
+    console.print(f"  Found {len(jobs)} entries")
+
+    from mine2.db.loader import run_loader
+
+    results = run_loader(
+        settings=settings,
+        schema_name=meta.schema,
+        jobs=jobs,
+        process_func=_process_mmjson_load,
+        max_workers=settings.rdb.get_workers(),
         logger=logger,
     )
 

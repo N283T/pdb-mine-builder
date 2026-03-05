@@ -3,7 +3,7 @@
 import os
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 from pydantic import BaseModel, Field
@@ -40,6 +40,10 @@ class SyncTarget(BaseModel):
 class PipelineConfig(BaseModel):
     """Pipeline configuration."""
 
+    format: Literal["cif", "mmjson"] = Field(
+        default="cif",
+        description="Data format: 'cif' (default) or 'mmjson'",
+    )
     deffile: str | None = Field(
         default=None,
         description="Schema definition file path (deprecated: schemas are now defined in SQLAlchemy models)",

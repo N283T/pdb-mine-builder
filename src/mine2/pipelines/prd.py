@@ -22,9 +22,11 @@ from mine2.config import PipelineConfig, Settings
 from mine2.db.loader import (
     Job,
     LoaderResult,
+    bulk_copy_entry,
     bulk_upsert,
     get_all_tables,
     get_entry_pk,
+    run_loader,
 )
 from mine2.parsers.cif import parse_block, parse_mmjson_file_blocks
 from mine2.parsers.mmjson import normalize_column_name
@@ -488,7 +490,7 @@ def run_cif(
     limit: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
-    """Run the prd-cif pipeline (CIF version)."""
+    """Run the prd pipeline in CIF mode."""
     pipeline = PrdCifPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)
 
@@ -500,7 +502,7 @@ def run_cif_load(
     limit: int | None = None,
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
-    """Run prd pipeline in load mode (COPY, no delta sync)."""
+    """Run prd pipeline in load mode (COPY, no delta sync) - CIF version."""
     pipeline = PrdCifPipeline(settings, config, meta)
 
     block_pairs = pipeline._load_block_pairs(limit)
@@ -517,4 +519,101 @@ def run_cif_load(
     results = pipeline._batch_copy_insert(parsed_results, conninfo)
 
     pipeline._print_summary(results, logger)
+    return results
+
+
+def _process_prd_mmjson_load(
+    job: Job,
+    schema_name: str,
+    conninfo: str,
+) -> LoaderResult:
+    """Worker: parse prd mmJSON -> transform -> bulk_copy_entry."""
+    try:
+        from mine2.models import get_metadata
+
+        meta = get_metadata(schema_name)
+        entry_pk = get_entry_pk(meta)
+
+        all_blocks = parse_mmjson_file_blocks(job.filepath)
+        table_rows: dict[str, list[dict[str, Any]]] = {}
+
+        prd_data = all_blocks.get(job.entry_id, {})
+        prdcc_id = job.entry_id.replace("PRD_", "PRDCC_")
+        prdcc_data = all_blocks.get(prdcc_id, {})
+
+        # Generate brief_summary
+        ref_rows = prd_data.get("pdbx_reference_molecule", [])
+        if ref_rows:
+            brief_rows = [
+                {
+                    "prd_id": job.entry_id,
+                    "name": row.get("name"),
+                    "formula": row.get("formula"),
+                    "description": row.get("description"),
+                }
+                for row in ref_rows
+            ]
+            table_rows["brief_summary"] = brief_rows
+
+        for table in get_all_tables(meta):
+            if table.name == "brief_summary":
+                continue
+
+            data = prdcc_data if table.name in PRDCC_TABLES else prd_data
+            rows = data.get(table.name, [])
+            category_rows = transform_category(
+                rows, table, job.entry_id, entry_pk, normalize_column_name
+            )
+            if category_rows:
+                table_rows[table.name] = category_rows
+
+        inserted = bulk_copy_entry(
+            conninfo=conninfo,
+            schema=meta.schema,
+            entry_id=job.entry_id,
+            pk_column=entry_pk,
+            table_rows=table_rows,
+        )
+
+        return LoaderResult(
+            entry_id=job.entry_id,
+            success=True,
+            rows_inserted=inserted,
+        )
+
+    except Exception as e:
+        error_msg = f"{e}\n{traceback.format_exc()}"
+        return LoaderResult(
+            entry_id=job.entry_id,
+            success=False,
+            error=error_msg,
+        )
+
+
+def run_load(
+    settings: Settings,
+    config: PipelineConfig,
+    meta: MetaData,
+    limit: int | None = None,
+    logger: logging.Logger | None = None,
+) -> list[LoaderResult]:
+    """Run prd pipeline in load mode (COPY, no delta sync) - mmJSON version."""
+    pipeline = PrdPipeline(settings, config, meta)
+    jobs = pipeline.find_jobs(limit)
+
+    if not jobs:
+        console.print("  [yellow]No files to process[/yellow]")
+        return []
+
+    console.print(f"  Found {len(jobs)} entries")
+
+    results = run_loader(
+        settings=settings,
+        schema_name=meta.schema,
+        jobs=jobs,
+        process_func=_process_prd_mmjson_load,
+        max_workers=settings.rdb.get_workers(),
+        logger=logger,
+    )
+
     return results

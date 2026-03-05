@@ -1,23 +1,73 @@
 """Load command - bulk load data using COPY protocol."""
 
 import importlib
-from typing import Any
+from typing import Any, Callable
 
 import typer
 from rich.console import Console
 
+from mine2.commands.update import DUAL_FORMAT_PIPELINES, LEGACY_ALIASES
+from mine2.commands.utils import resolve_legacy_aliases
 from mine2.config import Settings
 from mine2.db.connection import close_pool, init_pool
-from mine2.db.loader import ensure_schema, truncate_schema_tables
+from mine2.db.loader import LoaderResult, ensure_schema, truncate_schema_tables
 from mine2.db.metadata import ensure_metadata_table, update_pipeline_metadata
 from mine2.models import get_metadata
 
 console = Console()
 
 # Pipelines supported by load command.
-# Each pipeline module must expose a run_cif_load() function.
-# For these pipelines, schema name matches pipeline name.
+# Each pipeline module must expose run_cif_load() for CIF format.
+# Dual-format pipelines (DUAL_FORMAT_PIPELINES) must also expose
+# run_load() for mmJSON format.
 LOAD_PIPELINES = ["pdbj", "cc", "ccmodel", "prd", "vrpt", "contacts", "sifts"]
+
+
+def _get_load_runner(
+    pipeline_name: str, settings: Settings
+) -> Callable[..., list[LoaderResult]]:
+    """Get the load runner function for a pipeline.
+
+    For dual-format pipelines, reads format from config:
+      - format=cif    -> run_cif_load()
+      - format=mmjson -> run_load()
+
+    Other pipelines always use run_cif_load().
+
+    Returns:
+        Callable with signature (settings, config, meta, limit=...) -> list[LoaderResult]
+
+    Raises:
+        RuntimeError: If the pipeline module cannot be imported or the
+            required load function is missing.
+    """
+    try:
+        pipeline_module = importlib.import_module(f"mine2.pipelines.{pipeline_name}")
+    except ImportError as e:
+        raise RuntimeError(
+            f"Failed to import pipeline module 'mine2.pipelines.{pipeline_name}': {e}. "
+            f"Check that all required dependencies are installed."
+        ) from e
+
+    if pipeline_name in DUAL_FORMAT_PIPELINES:
+        pipeline_config = settings.pipelines.get(pipeline_name)
+        if pipeline_config and pipeline_config.format == "mmjson":
+            runner = getattr(pipeline_module, "run_load", None)
+            if runner is None:
+                raise RuntimeError(
+                    f"Pipeline '{pipeline_name}' does not support mmJSON load mode "
+                    f"(missing run_load in mine2.pipelines.{pipeline_name}). "
+                    f"Set format='cif' in config.yml or implement run_load()."
+                )
+            return runner
+
+    runner = getattr(pipeline_module, "run_cif_load", None)
+    if runner is None:
+        raise RuntimeError(
+            f"Pipeline '{pipeline_name}' does not support load mode "
+            f"(missing run_cif_load in mine2.pipelines.{pipeline_name})."
+        )
+    return runner
 
 
 def run_load(
@@ -38,6 +88,9 @@ def run_load(
         console.print("[red]No pipelines specified.[/red]")
         console.print(f"[dim]Available: {', '.join(LOAD_PIPELINES)}[/dim]")
         return
+
+    # Resolve legacy aliases with deprecation warnings
+    pipelines = resolve_legacy_aliases(pipelines, LEGACY_ALIASES, "Pipeline")
 
     invalid = [p for p in pipelines if p not in LOAD_PIPELINES]
     if invalid:
@@ -69,8 +122,7 @@ def run_load(
             )
             raise RuntimeError(msg)
 
-        pipeline_module = importlib.import_module(f"mine2.pipelines.{pipeline_name}")
-        runner = getattr(pipeline_module, "run_cif_load")
+        runner = _get_load_runner(pipeline_name, settings)
         meta = get_metadata(pipeline_name)
         pipeline_runners.append((pipeline_name, pipeline_config, meta, runner))
 

@@ -5,7 +5,7 @@ import logging
 from rich.console import Console
 
 from mine2.commands.utils import resolve_legacy_aliases
-from mine2.config import Settings
+from mine2.config import PipelineConfig, Settings
 from mine2.db.connection import close_pool, init_pool
 from mine2.db.loader import ensure_schema
 from mine2.db.metadata import ensure_metadata_table, update_pipeline_metadata
@@ -13,21 +13,17 @@ from mine2.models import get_metadata
 
 console = Console()
 
-# Available pipelines (CIF is default, -json suffix for mmJSON)
+# Available pipelines (format selected via config, not pipeline name)
 AVAILABLE_PIPELINES = [
-    "pdbj",  # CIF (default)
-    "pdbj-json",  # mmJSON (requires suffix)
-    "cc",  # CIF (default)
-    "cc-json",  # mmJSON (requires suffix)
-    "ccmodel",  # CIF (default)
-    "ccmodel-json",  # mmJSON (requires suffix)
-    "prd",  # CIF (default)
-    "prd-json",  # mmJSON (requires suffix)
+    "pdbj",
+    "cc",
+    "ccmodel",
+    "prd",
     "vrpt",
     "contacts",
-    "sifts",  # SIFTS cross-references (TTL)
-    "emdb",  # EMDB (XML)
-    "ihm",  # IHM (mmJSON)
+    "sifts",
+    "emdb",
+    "ihm",
 ]
 
 # Legacy aliases for backward compatibility (deprecated)
@@ -36,24 +32,27 @@ LEGACY_ALIASES = {
     "cc-cif": "cc",
     "ccmodel-cif": "ccmodel",
     "prd-cif": "prd",
+    "pdbj-json": "pdbj",
+    "cc-json": "cc",
+    "ccmodel-json": "ccmodel",
+    "prd-json": "prd",
 }
 
 # Pipeline name -> schema name mapping
 PIPELINE_SCHEMA_MAP = {
     "pdbj": "pdbj",
-    "pdbj-json": "pdbj",
     "cc": "cc",
-    "cc-json": "cc",
     "ccmodel": "ccmodel",
-    "ccmodel-json": "ccmodel",
     "prd": "prd",
-    "prd-json": "prd",
     "vrpt": "vrpt",
     "contacts": "contacts",
     "sifts": "sifts",
     "emdb": "emdb",
     "ihm": "ihm",
 }
+
+# Pipelines that support dual format (CIF and mmJSON)
+DUAL_FORMAT_PIPELINES = {"pdbj", "cc", "ccmodel", "prd"}
 
 
 def _get_schema_name(pipeline_name: str) -> str:
@@ -137,7 +136,9 @@ def run_update(
 
             # Import and run pipeline
             try:
-                module_name, run_func = _get_pipeline_runner(pipeline_name)
+                module_name, run_func = _get_pipeline_runner(
+                    pipeline_name, pipeline_config
+                )
                 pipeline_module = _import_pipeline(module_name)
                 runner = getattr(pipeline_module, run_func)
                 # SIFTS pipeline accepts tables parameter
@@ -173,28 +174,25 @@ def run_update(
     console.print("\n[bold green]Update completed![/bold green]")
 
 
-def _get_pipeline_runner(pipeline_name: str) -> tuple[str, str]:
+def _get_pipeline_runner(pipeline_name: str, config: PipelineConfig) -> tuple[str, str]:
     """Get module name and run function for a pipeline.
+
+    For dual-format pipelines (pdbj, cc, ccmodel, prd), the format is read
+    from the pipeline config to determine the run function:
+      - format=cif    -> run_cif()
+      - format=mmjson -> run()
+
+    Other pipelines always use run().
 
     Returns:
         Tuple of (module_name, function_name)
     """
-    # mmJSON pipelines require -json suffix, dispatch to run()
-    json_pipelines = {
-        "pdbj-json": ("pdbj", "run"),
-        "cc-json": ("cc", "run"),
-        "ccmodel-json": ("ccmodel", "run"),
-        "prd-json": ("prd", "run"),
-    }
-    if pipeline_name in json_pipelines:
-        return json_pipelines[pipeline_name]
-
-    # Base names now use CIF (run_cif) as default
-    cif_defaults = {"pdbj", "cc", "ccmodel", "prd"}
-    if pipeline_name in cif_defaults:
+    if pipeline_name in DUAL_FORMAT_PIPELINES:
+        if config.format == "mmjson":
+            return (pipeline_name, "run")
         return (pipeline_name, "run_cif")
 
-    # Other pipelines (vrpt, contacts) use their standard run()
+    # Other pipelines (vrpt, contacts, sifts, emdb, ihm) use run()
     return (pipeline_name, "run")
 
 
