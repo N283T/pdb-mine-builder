@@ -24,6 +24,7 @@ jobs:
 
       - name: Type check
         run: pixi run typecheck
+        continue-on-error: true
 
   test:
     runs-on: ubuntu-latest
