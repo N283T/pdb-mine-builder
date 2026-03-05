@@ -2,7 +2,7 @@
 authors = ["nagaet"]
 channels = ["conda-forge"]
 name = "pdb-mine-builder"
-platforms = ["linux-64"]
+platforms = ["linux-64", "osx-arm64"]
 version = "0.2.0"
 
 [tasks]
