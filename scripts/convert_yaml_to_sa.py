@@ -7,7 +7,7 @@
 # ///
 """One-time converter: YAML schema definitions to SQLAlchemy Table definitions.
 
-Originally used to generate src/mine2/models/*.py from schemas/*.def.yml files.
+Originally used to generate src/pdbminebuilder/models/*.py from schemas/*.def.yml files.
 The YAML files have been removed; models are now the source of truth.
 Kept for reference in case similar conversions are needed.
 """

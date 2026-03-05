@@ -1,7 +1,7 @@
 """Alembic environment configuration for multi-schema migrations.
 
-Combines all MINE2 schema MetaData objects into a single target for
-autogenerate support. Connection URL is resolved from the PMB_DB_URL
+Combines all pdb-mine-builder schema MetaData objects into a single target
+for autogenerate support. Connection URL is resolved from the PMB_DB_URL
 environment variable or falls back to the default development URL.
 """
 
@@ -55,7 +55,7 @@ def include_name(
     type_: str,
     parent_names: dict[str, str | None],
 ) -> bool:
-    """Filter objects to only include MINE2-managed schemas."""
+    """Filter objects to only include PMB-managed schemas."""
     if type_ == "schema":
         return name in PMB_SCHEMAS
     return True

@@ -1,5 +1,8 @@
 # YAML to SQLAlchemy Schema Migration Design
 
+> **Note:** This document was written when the project was named `mine2`.
+> References to `mine2` now correspond to `pdbminebuilder`.
+
 Date: 2026-03-04
 
 ## Goal

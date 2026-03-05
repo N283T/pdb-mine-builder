@@ -189,7 +189,7 @@ row["_hash_asym_id_list"] = hex_sha256(row.get("asym_id_list", ""))
 row["_hash_oper_expression"] = hex_sha256(row.get("oper_expression", ""))
 ```
 
-This pattern is also used in the original mine2updater (dynamically replaces
+This pattern is also used in PDBj's original mine2updater tool (dynamically replaces
 primary key columns with `_hash_` prefixed versions at runtime).
 
 ## Tips
