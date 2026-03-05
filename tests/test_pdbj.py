@@ -16,10 +16,10 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
-from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import Job
-from mine2.pipelines.pdbj import PdbjPipeline
-from mine2.utils.assembly import hex_sha256
+from pdbminebuilder.config import PipelineConfig, RdbConfig, Settings
+from pdbminebuilder.db.loader import Job
+from pdbminebuilder.pipelines.pdbj import PdbjPipeline
+from pdbminebuilder.utils.assembly import hex_sha256
 
 
 def create_test_mmjson_file(
@@ -131,7 +131,7 @@ def create_test_meta() -> MetaData:
 class TestHashAsymIdList:
     """Tests for _hash_asym_id_list computation."""
 
-    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables")
     def test_hash_added_to_assembly_gen(self, mock_sync_entry_tables, tmp_path):
         """Test that _hash_asym_id_list is computed."""
         data_dir = tmp_path / "pdbj"
@@ -173,7 +173,7 @@ class TestHashAsymIdList:
             expected_hash = hex_sha256(row["asym_id_list"])
             assert row["_hash_asym_id_list"] == expected_hash
 
-    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables")
     def test_hash_is_sha256(self, mock_sync_entry_tables, tmp_path):
         """Test that the hash is SHA256."""
         data_dir = tmp_path / "pdbj"
@@ -217,7 +217,7 @@ class TestHashAsymIdList:
 class TestBuMwCalculation:
     """Tests for bu_mw calculation in brief_summary."""
 
-    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables")
     def test_bu_mw_in_plus_fields(self, mock_sync_entry_tables, tmp_path):
         """Test that bu_mw is calculated and added to plus_fields."""
         data_dir = tmp_path / "pdbj"
@@ -265,7 +265,7 @@ class TestBuMwCalculation:
             assert "bu_mw" in plus_fields
             assert plus_fields["bu_mw"] == 1000.0
 
-    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables")
     def test_bu_mw_zero_when_no_assembly(self, mock_sync_entry_tables, tmp_path):
         """Test that bu_mw is 0 when no assembly data."""
         data_dir = tmp_path / "pdbj"
@@ -453,7 +453,7 @@ class TestFindJobsWithNextgenPlusData:
 class TestProcessJobWithNextgenPlusData:
     """Tests for PdbjPipeline.process_job() with nextgen-plus data merging."""
 
-    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables")
     def test_merges_nextgen_plus_data(self, mock_sync, tmp_path):
         """Nextgen-plus SIFTS categories are merged into mmJSON data."""
         data_dir = tmp_path / "pdbj"
@@ -500,7 +500,7 @@ class TestProcessJobWithNextgenPlusData:
         assert "pdbx_sifts_xref_db" in table_rows
         assert table_rows["pdbx_sifts_xref_db"][0]["xref_db_acc"] == "P12345"
 
-    @patch("mine2.pipelines.pdbj.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables")
     def test_works_without_nextgen_plus(self, mock_sync, tmp_path):
         """Process job works when nextgen_plus_path is None."""
         data_dir = tmp_path / "pdbj"

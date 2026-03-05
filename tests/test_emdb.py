@@ -16,8 +16,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
-from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.pipelines.emdb import (
+from pdbminebuilder.config import PipelineConfig, RdbConfig, Settings
+from pdbminebuilder.pipelines.emdb import (
     EmdbPipeline,
     _ensure_list,
     _get_nested,
@@ -342,7 +342,7 @@ class TestTransformBriefSummary:
 class TestProcessJob:
     """Tests for process_job method."""
 
-    @patch("mine2.pipelines.emdb.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.emdb.sync_entry_tables")
     def test_process_job_success(self, mock_bulk_upsert, tmp_path):
         """Test successful job processing."""
         data_dir = tmp_path / "emdb"
@@ -360,7 +360,7 @@ class TestProcessJob:
         # Mock bulk_upsert to return success
         mock_bulk_upsert.return_value = (1, 0, 0)
 
-        from mine2.db.loader import Job
+        from pdbminebuilder.db.loader import Job
 
         job = Job(entry_id="EMD-1234", filepath=xml_file, extra={})
 
@@ -379,7 +379,7 @@ class TestProcessJob:
         meta = create_test_meta()
         pipeline = EmdbPipeline(settings, config, meta)
 
-        from mine2.db.loader import Job
+        from pdbminebuilder.db.loader import Job
 
         job = Job(
             entry_id="EMD-9999",

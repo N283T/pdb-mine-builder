@@ -1,21 +1,21 @@
 [workspace]
 authors = ["nagaet"]
 channels = ["conda-forge"]
-name = "mine2updater"
+name = "pdb-mine-builder"
 platforms = ["linux-64"]
 version = "0.2.0"
 
 [tasks]
 # Development
-lint = "ruff check src/mine2"
-format = "ruff format src/mine2"
-typecheck = "ty check src/mine2"
+lint = "ruff check src/pdbminebuilder"
+format = "ruff format src/pdbminebuilder"
+typecheck = "ty check src/pdbminebuilder"
 check = { depends-on = ["lint", "format-check", "typecheck"] }
-format-check = "ruff format --check src/mine2"
+format-check = "ruff format --check src/pdbminebuilder"
 test = "pytest tests -v"
 
-# Run (also available as 'mine2' command in pixi shell)
-mine2 = "python -m mine2"
+# Run (also available as 'pmb' command in pixi shell)
+pmb = "python -m pdbminebuilder"
 
 # Database (local development)
 db-init = "initdb -D $PGDATA"
@@ -48,7 +48,7 @@ python = ">=3.12"
 rdkit-postgresql = ">=2024.09.0"
 
 [pypi-dependencies]
-mine2 = { path = ".", editable = true }
+pdbminebuilder = { path = ".", editable = true }
 ccd2rdmol = ">=0.2.0"
 defusedxml = ">=0.7.0"
 gemmi = ">=0.7.0"
@@ -70,4 +70,4 @@ PGPORT = "5433"
 PGHOST = "localhost"
 PGDATA = "postgres_data_5433"
 PGUSER = "pdbj"
-PGDATABASE = "mine2"
+PGDATABASE = "pmb"

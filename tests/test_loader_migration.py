@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, patch
 
 from sqlalchemy import Column, Integer, MetaData, PrimaryKeyConstraint, Table, Text
 
-from mine2.db.loader import LoaderResult
-from mine2.pipelines.base import BaseCifBatchPipeline
+from pdbminebuilder.db.loader import LoaderResult
+from pdbminebuilder.pipelines.base import BaseCifBatchPipeline
 
 
 # =============================================================================
@@ -37,9 +37,9 @@ class TestDeleteMissingEntries:
         mock_conn, mock_cur = _mock_psycopg_connect()
         mock_connect.return_value = mock_conn
 
-        from mine2.db.loader import delete_missing_entries
+        from pdbminebuilder.db.loader import delete_missing_entries
 
-        with caplog.at_level(logging.WARNING, logger="mine2.loader"):
+        with caplog.at_level(logging.WARNING, logger="pdbminebuilder.loader"):
             delete_missing_entries(
                 conninfo="postgresql://test",
                 schema="test",
@@ -56,7 +56,7 @@ class TestDeleteMissingEntries:
         mock_conn, _ = _mock_psycopg_connect()
         mock_connect.return_value = mock_conn
 
-        from mine2.db.loader import delete_missing_entries
+        from pdbminebuilder.db.loader import delete_missing_entries
 
         result = delete_missing_entries(
             conninfo="postgresql://test",
@@ -118,7 +118,7 @@ class TestPruneStaleRows:
         captured = capsys.readouterr()
         assert "failed entries" in captured.out
 
-    @patch("mine2.pipelines.base.delete_missing_entries", return_value=3)
+    @patch("pdbminebuilder.pipelines.base.delete_missing_entries", return_value=3)
     def test_all_success_calls_prune(self, mock_delete, capsys):
         """All success with no limit should actually prune."""
         pipeline = _make_pipeline()

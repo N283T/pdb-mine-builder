@@ -1,1 +1,1 @@
-"""Tests for mine2updater-ng."""
+"""Tests for pdb-mine-builder."""

@@ -5,8 +5,8 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from mine2.db.loader import Job
-from mine2.pipelines.base import compute_effective_mtime
+from pdbminebuilder.db.loader import Job
+from pdbminebuilder.pipelines.base import compute_effective_mtime
 
 
 class TestComputeEffectiveMtime:
@@ -71,7 +71,7 @@ class TestBasePipelineFindJobsMtimeFiltering:
 
     def _make_pipeline(self, tmp_path, force=False, stored_mtimes=None):
         """Create a minimal concrete pipeline for testing."""
-        from mine2.pipelines.contacts import ContactsPipeline
+        from pdbminebuilder.pipelines.contacts import ContactsPipeline
 
         settings = MagicMock()
         settings.rdb.constring = "host=localhost dbname=test"
@@ -87,7 +87,7 @@ class TestBasePipelineFindJobsMtimeFiltering:
         self._stored_mtimes = stored_mtimes or {}
         return pipeline
 
-    @patch("mine2.pipelines.base.fetch_entry_mtimes")
+    @patch("pdbminebuilder.pipelines.base.fetch_entry_mtimes")
     def test_skips_unchanged_entries(self, mock_fetch, tmp_path):
         """Unchanged entries are skipped when mtime matches."""
         # Create test files
@@ -108,7 +108,7 @@ class TestBasePipelineFindJobsMtimeFiltering:
         assert "200l" in entry_ids
         assert "100d" not in entry_ids
 
-    @patch("mine2.pipelines.base.fetch_entry_mtimes")
+    @patch("pdbminebuilder.pipelines.base.fetch_entry_mtimes")
     def test_processes_changed_entries(self, mock_fetch, tmp_path):
         """Changed entries (newer mtime) are included."""
         f1 = tmp_path / "100d.json.gz"
@@ -123,7 +123,7 @@ class TestBasePipelineFindJobsMtimeFiltering:
         entry_ids = [j.entry_id for j in jobs]
         assert "100d" in entry_ids
 
-    @patch("mine2.pipelines.base.fetch_entry_mtimes")
+    @patch("pdbminebuilder.pipelines.base.fetch_entry_mtimes")
     def test_force_bypasses_skip(self, mock_fetch, tmp_path):
         """Force mode processes all entries regardless of mtime."""
         f1 = tmp_path / "100d.json.gz"
@@ -140,7 +140,7 @@ class TestBasePipelineFindJobsMtimeFiltering:
         # fetch_entry_mtimes should not be called in force mode
         mock_fetch.assert_not_called()
 
-    @patch("mine2.pipelines.base.fetch_entry_mtimes")
+    @patch("pdbminebuilder.pipelines.base.fetch_entry_mtimes")
     def test_file_mtime_stored_in_job_extra(self, mock_fetch, tmp_path):
         """Jobs include file_mtime in extra dict."""
         f1 = tmp_path / "100d.json.gz"
@@ -155,7 +155,7 @@ class TestBasePipelineFindJobsMtimeFiltering:
         assert "file_mtime" in jobs[0].extra
         assert jobs[0].extra["file_mtime"] == f1.stat().st_mtime
 
-    @patch("mine2.pipelines.base.fetch_entry_mtimes")
+    @patch("pdbminebuilder.pipelines.base.fetch_entry_mtimes")
     def test_new_entries_always_processed(self, mock_fetch, tmp_path):
         """Entries not in stored mtimes are always processed."""
         f1 = tmp_path / "new_entry.json.gz"

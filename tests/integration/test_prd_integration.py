@@ -8,7 +8,7 @@ import pytest
 from psycopg import sql
 from psycopg.rows import dict_row
 
-from mine2.pipelines.prd import _process_prd_cif_block
+from pdbminebuilder.pipelines.prd import _process_prd_cif_block
 
 
 @pytest.mark.integration

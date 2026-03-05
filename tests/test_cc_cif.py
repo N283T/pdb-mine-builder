@@ -8,8 +8,8 @@ import gemmi
 import psycopg
 from sqlalchemy import Column, MetaData, PrimaryKeyConstraint, Table, Text
 
-from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.pipelines.cc import (
+from pdbminebuilder.config import PipelineConfig, RdbConfig, Settings
+from pdbminebuilder.pipelines.cc import (
     CcCifPipeline,
     _add_rdkit_descriptor_columns,
     _ensure_rdkit_setup,
@@ -286,7 +286,7 @@ class TestEnsureRdkitSetup:
         mock_conn.__enter__ = MagicMock(return_value=mock_conn)
         mock_conn.__exit__ = MagicMock(return_value=False)
 
-        with patch("mine2.pipelines.cc.psycopg.connect", return_value=mock_conn):
+        with patch("pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn):
             _ensure_rdkit_setup("test_conninfo")
 
         # Verify extension creation was attempted
@@ -306,7 +306,7 @@ class TestEnsureRdkitSetup:
         mock_conn.__enter__ = MagicMock(return_value=mock_conn)
         mock_conn.__exit__ = MagicMock(return_value=False)
 
-        with patch("mine2.pipelines.cc.psycopg.connect", return_value=mock_conn):
+        with patch("pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn):
             # Should not raise - logs warning and returns early
             _ensure_rdkit_setup("test_conninfo")
 
@@ -322,7 +322,7 @@ class TestEnsureRdkitSetup:
         mock_conn.__enter__ = MagicMock(return_value=mock_conn)
         mock_conn.__exit__ = MagicMock(return_value=False)
 
-        with patch("mine2.pipelines.cc.psycopg.connect", return_value=mock_conn):
+        with patch("pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn):
             _ensure_rdkit_setup("test_conninfo")
 
         # Verify at least 3 execute calls: extension + mol column DDL + functions
@@ -342,7 +342,7 @@ class TestEnsureRdkitSetup:
         mock_conn.__enter__ = MagicMock(return_value=mock_conn)
         mock_conn.__exit__ = MagicMock(return_value=False)
 
-        with patch("mine2.pipelines.cc.psycopg.connect", return_value=mock_conn):
+        with patch("pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn):
             # Call twice - should not raise
             _ensure_rdkit_setup("test_conninfo")
             _ensure_rdkit_setup("test_conninfo")
@@ -360,7 +360,7 @@ class TestEnsureRdkitSetup:
         mock_conn.__enter__ = MagicMock(return_value=mock_conn)
         mock_conn.__exit__ = MagicMock(return_value=False)
 
-        with patch("mine2.pipelines.cc.psycopg.connect", return_value=mock_conn):
+        with patch("pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn):
             _ensure_rdkit_setup("test_conninfo")
 
         # Last call should be the functions SQL file
@@ -381,7 +381,7 @@ class TestEnsureRdkitSetup:
         mock_conn.__enter__ = MagicMock(return_value=mock_conn)
         mock_conn.__exit__ = MagicMock(return_value=False)
 
-        with patch("mine2.pipelines.cc.psycopg.connect", return_value=mock_conn):
+        with patch("pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn):
             _ensure_rdkit_setup("test_conninfo")
 
         # Collect all executed SQL

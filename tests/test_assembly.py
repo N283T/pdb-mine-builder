@@ -1,6 +1,6 @@
 """Tests for assembly utilities."""
 
-from mine2.utils.assembly import (
+from pdbminebuilder.utils.assembly import (
     CHAIN_TYPE_MAPPING,
     EXPTL_METHOD_MAPPING,
     calculate_mw_for_bu,

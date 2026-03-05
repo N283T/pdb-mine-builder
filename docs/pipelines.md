@@ -37,7 +37,7 @@ pipelines:
 
 ### 3. Create Pipeline Module
 
-Create `src/mine2/pipelines/mydata.py`:
+Create `src/pdbminebuilder/pipelines/mydata.py`:
 
 ```python
 """My data pipeline."""
@@ -48,11 +48,11 @@ from typing import Any
 
 from rich.console import Console
 
-from mine2.config import PipelineConfig, Settings
-from mine2.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
-from mine2.parsers.cif import parse_mmjson_file
-from mine2.parsers.mmjson import normalize_column_name
-from mine2.pipelines.base import BasePipeline, transform_category
+from pdbminebuilder.config import PipelineConfig, Settings
+from pdbminebuilder.db.loader import Job, LoaderResult, SchemaDef, TableDef, bulk_upsert
+from pdbminebuilder.parsers.cif import parse_mmjson_file
+from pdbminebuilder.parsers.mmjson import normalize_column_name
+from pdbminebuilder.pipelines.base import BasePipeline, transform_category
 
 console = Console()
 
@@ -159,7 +159,7 @@ def run(
 
 ### 4. Register Pipeline
 
-Edit `src/mine2/cli.py` to add the pipeline name to `PIPELINES` list.
+Edit `src/pdbminebuilder/cli.py` to add the pipeline name to `PIPELINES` list.
 
 ## Pipeline Patterns
 
@@ -189,8 +189,8 @@ transform_category(rows, table, pk, pk_col, None)
 Use for most PDBj data:
 
 ```python
-from mine2.parsers.cif import parse_mmjson_file
-from mine2.parsers.mmjson import normalize_column_name
+from pdbminebuilder.parsers.cif import parse_mmjson_file
+from pdbminebuilder.parsers.mmjson import normalize_column_name
 
 data = parse_mmjson_file(filepath)  # Row-oriented dict
 rows = data.get("category_name", [])
@@ -201,7 +201,7 @@ rows = data.get("category_name", [])
 Use for pdbj-cif (individual CIF files):
 
 ```python
-from mine2.parsers.cif import parse_cif_file
+from pdbminebuilder.parsers.cif import parse_cif_file
 
 data = parse_cif_file(filepath)  # Row-oriented dict (same format as mmJSON)
 rows = data.get("category_name", [])
@@ -244,7 +244,7 @@ with gzip.open(filepath, "rt") as f:
 For mmJSON files with multiple data blocks (like PRD):
 
 ```python
-from mine2.parsers.cif import parse_mmjson_file_blocks
+from pdbminebuilder.parsers.cif import parse_mmjson_file_blocks
 
 blocks = parse_mmjson_file_blocks(filepath)
 # Returns: {"PRD_000001": {...}, "PRDCC_000001": {...}}
@@ -300,7 +300,7 @@ Test your pipeline:
 
 ```bash
 # Test with 10 entries
-pixi run mine2 update mydata --limit 10
+pixi run pmb update mydata --limit 10
 
 # Check row counts
 pixi run psql -c "SELECT COUNT(*) FROM mydata.brief_summary;"
@@ -313,7 +313,7 @@ mmJSON uses bracket notation: `matrix[1][2]`
 Use `normalize_column_name()` to convert to schema names:
 
 ```python
-from mine2.parsers.mmjson import normalize_column_name
+from pdbminebuilder.parsers.mmjson import normalize_column_name
 
 # matrix[1][2] -> matrix12
 normalized = normalize_column_name(col_name)

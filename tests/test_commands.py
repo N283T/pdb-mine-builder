@@ -5,18 +5,18 @@ import warnings
 import pytest
 from pydantic import ValidationError
 
-from mine2.commands.load import LOAD_PIPELINES
-from mine2.commands.update import (
+from pdbminebuilder.commands.load import LOAD_PIPELINES
+from pdbminebuilder.commands.update import (
     AVAILABLE_PIPELINES,
     DUAL_FORMAT_PIPELINES,
     LEGACY_ALIASES,
     PIPELINE_SCHEMA_MAP,
     _get_pipeline_runner,
 )
-from mine2.config import PipelineConfig
-from mine2.models import ALL_METADATA
-from mine2.commands.sync import LEGACY_SYNC_ALIASES, SYNC_TARGETS
-from mine2.commands.utils import resolve_legacy_aliases
+from pdbminebuilder.config import PipelineConfig
+from pdbminebuilder.models import ALL_METADATA
+from pdbminebuilder.commands.sync import LEGACY_SYNC_ALIASES, SYNC_TARGETS
+from pdbminebuilder.commands.utils import resolve_legacy_aliases
 
 
 class TestLegacyAliases:

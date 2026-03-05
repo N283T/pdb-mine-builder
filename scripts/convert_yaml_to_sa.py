@@ -527,7 +527,7 @@ def main() -> None:
     """Read all YAML schema files and generate SQLAlchemy model files."""
     project_root = Path(__file__).resolve().parent.parent
     schemas_dir = project_root.joinpath("schemas")
-    output_dir = project_root.joinpath("src", "mine2", "models")
+    output_dir = project_root.joinpath("src", "pdbminebuilder", "models")
     output_dir.mkdir(parents=True, exist_ok=True)
 
     yaml_files = sorted(schemas_dir.glob("*.def.yml"))

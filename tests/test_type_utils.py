@@ -1,4 +1,4 @@
-"""Tests for mine2.db._type_utils module."""
+"""Tests for pdbminebuilder.db._type_utils module."""
 
 from sqlalchemy import (
     ARRAY,
@@ -14,7 +14,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
-from mine2.db._type_utils import sa_type_to_pg
+from pdbminebuilder.db._type_utils import sa_type_to_pg
 
 
 class TestSaTypeToPg:

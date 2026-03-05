@@ -1,6 +1,6 @@
 """Tests for entry-specific patches."""
 
-from mine2.utils.patches import apply_patches, _patch_7ed1_met
+from pdbminebuilder.utils.patches import apply_patches, _patch_7ed1_met
 
 
 class TestApplyPatches:

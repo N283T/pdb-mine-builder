@@ -1,7 +1,7 @@
 """Alembic environment configuration for multi-schema migrations.
 
-Combines all mine2 schema MetaData objects into a single target for
-autogenerate support. Connection URL is resolved from the MINE2_DB_URL
+Combines all MINE2 schema MetaData objects into a single target for
+autogenerate support. Connection URL is resolved from the PMB_DB_URL
 environment variable or falls back to the default development URL.
 """
 
@@ -14,7 +14,7 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import MetaData, engine_from_config, pool
 
-from mine2.models import ALL_METADATA
+from pdbminebuilder.models import ALL_METADATA
 
 # -- Alembic Config object ---------------------------------------------------
 
@@ -26,11 +26,11 @@ if config.config_file_name is not None:
 
 # -- Database URL -------------------------------------------------------------
 
-_DEFAULT_URL = "postgresql+psycopg://pdbj@localhost:5433/mine2"
-_db_url = os.environ.get("MINE2_DB_URL")
+_DEFAULT_URL = "postgresql+psycopg://pdbj@localhost:5433/pmb"
+_db_url = os.environ.get("PMB_DB_URL")
 if _db_url is None:
     logging.getLogger("alembic.env").warning(
-        "MINE2_DB_URL not set, using default development URL: %s",
+        "PMB_DB_URL not set, using default development URL: %s",
         _DEFAULT_URL,
     )
     _db_url = _DEFAULT_URL
@@ -45,7 +45,7 @@ for _schema_meta in ALL_METADATA.values():
 
 # -- Schema filter ------------------------------------------------------------
 
-MINE2_SCHEMAS: frozenset[str] = frozenset(
+PMB_SCHEMAS: frozenset[str] = frozenset(
     m.schema for m in ALL_METADATA.values() if m.schema is not None
 )
 
@@ -55,9 +55,9 @@ def include_name(
     type_: str,
     parent_names: dict[str, str | None],
 ) -> bool:
-    """Filter objects to only include mine2-managed schemas."""
+    """Filter objects to only include MINE2-managed schemas."""
     if type_ == "schema":
-        return name in MINE2_SCHEMAS
+        return name in PMB_SCHEMAS
     return True
 
 

@@ -7,10 +7,10 @@ import pytest
 from psycopg import sql
 from psycopg.rows import dict_row
 
-from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.db.loader import Job
-from mine2.parsers.cif import parse_cif_file
-from mine2.pipelines.pdbj import PdbjCifPipeline
+from pdbminebuilder.config import PipelineConfig, RdbConfig, Settings
+from pdbminebuilder.db.loader import Job
+from pdbminebuilder.parsers.cif import parse_cif_file
+from pdbminebuilder.pipelines.pdbj import PdbjCifPipeline
 
 
 def create_test_settings(data_dir: Path, conninfo: str) -> Settings:

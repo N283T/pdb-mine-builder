@@ -1,11 +1,11 @@
 [project]
-name = "mine2"
+name = "pdbminebuilder"
 version = "0.2.0"
 description = "PDBj data synchronization and database loading tool"
 requires-python = ">=3.12"
 
 [project.scripts]
-mine2 = "mine2.cli:app"
+pmb = "pdbminebuilder.cli:app"
 
 [tool.pytest.ini_options]
 markers = [

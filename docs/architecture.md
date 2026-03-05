@@ -2,7 +2,7 @@
 
 ## Overview
 
-mine2updater is a data loading system that synchronizes structural biology data from PDBj and loads it into PostgreSQL. The system is designed for high-throughput parallel processing.
+pdb-mine-builder is a data loading system that synchronizes structural biology data from PDBj and loads it into PostgreSQL. The system is designed for high-throughput parallel processing.
 
 ```
 PDBj Servers
@@ -46,7 +46,7 @@ Both CIF and mmJSON formats are parsed through gemmi, providing a unified row-or
 Uses gemmi library to parse both CIF and mmJSON files:
 
 ```python
-from mine2.parsers.cif import parse_cif_file, parse_mmjson_file
+from pdbminebuilder.parsers.cif import parse_cif_file, parse_mmjson_file
 
 # CIF files (supports .cif.gz automatically)
 data = parse_cif_file(filepath)

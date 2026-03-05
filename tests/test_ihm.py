@@ -18,8 +18,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 
-from mine2.config import PipelineConfig, RdbConfig, Settings
-from mine2.pipelines.ihm import (
+from pdbminebuilder.config import PipelineConfig, RdbConfig, Settings
+from pdbminebuilder.pipelines.ihm import (
     CHAIN_TYPE_MAPPING,
     EXPTL_METHOD_MAPPING,
     IhmPipeline,
@@ -439,7 +439,7 @@ class TestTransformBriefSummary:
 class TestHashAsymIdList:
     """Tests for _hash_asym_id_list computation."""
 
-    @patch("mine2.pipelines.ihm.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.ihm.sync_entry_tables")
     def test_hash_added_to_assembly_gen(self, mock_bulk_upsert, tmp_path):
         """Test that _hash_asym_id_list is computed."""
         data_dir = tmp_path / "ihm"
@@ -457,7 +457,7 @@ class TestHashAsymIdList:
         # Mock bulk_upsert
         mock_bulk_upsert.return_value = (1, 0, 0)
 
-        from mine2.db.loader import Job
+        from pdbminebuilder.db.loader import Job
 
         job = Job(
             entry_id="pdbdev_00000001",
@@ -500,7 +500,7 @@ class TestCalculateMwForBu:
 class TestProcessJob:
     """Tests for process_job method."""
 
-    @patch("mine2.pipelines.ihm.sync_entry_tables")
+    @patch("pdbminebuilder.pipelines.ihm.sync_entry_tables")
     def test_process_job_success(self, mock_bulk_upsert, tmp_path):
         """Test successful job processing."""
         data_dir = tmp_path / "ihm"
@@ -518,7 +518,7 @@ class TestProcessJob:
         # Mock bulk_upsert to return success
         mock_bulk_upsert.return_value = (1, 0, 0)
 
-        from mine2.db.loader import Job
+        from pdbminebuilder.db.loader import Job
 
         job = Job(
             entry_id="pdbdev_00000001",
@@ -541,7 +541,7 @@ class TestProcessJob:
         meta = create_test_meta()
         pipeline = IhmPipeline(settings, config, meta)
 
-        from mine2.db.loader import Job
+        from pdbminebuilder.db.loader import Job
 
         job = Job(
             entry_id="pdbdev_99999999",
