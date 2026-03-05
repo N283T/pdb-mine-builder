@@ -20,8 +20,8 @@ Build a MINE-schema database from PDB data. Synchronizes structural biology data
 ## Installation
 
 ```bash
-git clone https://github.com/N283T/mine2updater-ng.git
-cd mine2updater-ng
+git clone https://github.com/N283T/pdb-mine-builder.git
+cd pdb-mine-builder
 pixi install
 ```
 
