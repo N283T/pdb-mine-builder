@@ -35,7 +35,7 @@ class TestPrdCifPipelineIntegration:
         result = _process_prd_cif_block(
             prd_block=prd_block,
             prdcc_block=prdcc_block,
-            schema_def=prd_schema,
+            schema_name=prd_schema.schema,
             conninfo=db_connection,
         )
 
@@ -62,7 +62,7 @@ class TestPrdCifPipelineIntegration:
         result = _process_prd_cif_block(
             prd_block=prd_block,
             prdcc_block=prdcc_block,
-            schema_def=prd_schema,
+            schema_name=prd_schema.schema,
             conninfo=db_connection,
         )
 
@@ -89,7 +89,7 @@ class TestPrdCifPipelineIntegration:
         result = _process_prd_cif_block(
             prd_block=prd_block,
             prdcc_block=prdcc_block,
-            schema_def=prd_schema,
+            schema_name=prd_schema.schema,
             conninfo=db_connection,
         )
 
@@ -114,7 +114,7 @@ class TestPrdCifPipelineIntegration:
         result = _process_prd_cif_block(
             prd_block=prd_block,
             prdcc_block=prdcc_block,
-            schema_def=prd_schema,
+            schema_name=prd_schema.schema,
             conninfo=db_connection,
         )
         assert result.success
@@ -126,7 +126,7 @@ class TestPrdCifPipelineIntegration:
                     sql.SQL(
                         "SELECT prd_id, name FROM {}.pdbx_reference_molecule "
                         "WHERE prd_id = %s"
-                    ).format(sql.Identifier(prd_schema.schema_name)),
+                    ).format(sql.Identifier(prd_schema.schema)),
                     ("PRD_000001",),
                 )
                 row = cur.fetchone()
@@ -157,7 +157,7 @@ class TestPrdCifPipelineIntegration:
                 result = _process_prd_cif_block(
                     prd_block=prd_block,
                     prdcc_block=prdcc_block,
-                    schema_def=prd_schema,
+                    schema_name=prd_schema.schema,
                     conninfo=db_connection,
                 )
                 assert result.success, f"Processing {prd_id} failed: {result.error}"
@@ -168,7 +168,7 @@ class TestPrdCifPipelineIntegration:
                 cur.execute(
                     sql.SQL(
                         "SELECT COUNT(*) as count FROM {}.pdbx_reference_molecule"
-                    ).format(sql.Identifier(prd_schema.schema_name))
+                    ).format(sql.Identifier(prd_schema.schema))
                 )
                 row = cur.fetchone()
 
@@ -193,13 +193,13 @@ class TestPrdCifPipelineIntegration:
         result1 = _process_prd_cif_block(
             prd_block=prd_block,
             prdcc_block=prdcc_block,
-            schema_def=prd_schema,
+            schema_name=prd_schema.schema,
             conninfo=db_connection,
         )
         result2 = _process_prd_cif_block(
             prd_block=prd_block,
             prdcc_block=prdcc_block,
-            schema_def=prd_schema,
+            schema_name=prd_schema.schema,
             conninfo=db_connection,
         )
 
@@ -213,7 +213,7 @@ class TestPrdCifPipelineIntegration:
                     sql.SQL(
                         "SELECT COUNT(*) as count FROM {}.pdbx_reference_molecule "
                         "WHERE prd_id = %s"
-                    ).format(sql.Identifier(prd_schema.schema_name)),
+                    ).format(sql.Identifier(prd_schema.schema)),
                     ("PRD_000001",),
                 )
                 row = cur.fetchone()

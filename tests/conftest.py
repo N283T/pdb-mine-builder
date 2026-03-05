@@ -132,16 +132,18 @@ def pdbj_schema(db_connection: str, pdbj_metadata):
     yield pdbj_metadata
 
     # Cleanup: truncate all tables in the schema
-    with psycopg.connect(db_connection) as conn:
+    with psycopg.connect(db_connection, autocommit=True) as conn:
         with conn.cursor() as cur:
             for table in get_all_tables(pdbj_metadata):
                 table_name = table.name.lower()
-                cur.execute(
-                    sql.SQL("TRUNCATE TABLE {} CASCADE").format(
-                        sql.Identifier(pdbj_metadata.schema, table_name)
+                try:
+                    cur.execute(
+                        sql.SQL("TRUNCATE TABLE {} CASCADE").format(
+                            sql.Identifier(pdbj_metadata.schema, table_name)
+                        )
                     )
-                )
-        conn.commit()
+                except psycopg.errors.UndefinedTable:
+                    pass
 
 
 @pytest.fixture(scope="function")

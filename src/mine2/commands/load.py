@@ -11,7 +11,11 @@ from mine2.commands.utils import resolve_legacy_aliases
 from mine2.config import Settings
 from mine2.db.connection import close_pool, init_pool
 from mine2.db.loader import LoaderResult, ensure_schema, truncate_schema_tables
-from mine2.db.metadata import ensure_metadata_table, update_pipeline_metadata
+from mine2.db.metadata import (
+    ensure_entry_metadata_table,
+    ensure_metadata_table,
+    update_pipeline_metadata,
+)
 from mine2.models import get_metadata
 
 console = Console()
@@ -128,6 +132,7 @@ def run_load(
 
     init_pool(settings.rdb.constring, max_size=settings.rdb.get_workers() + 2)
     ensure_metadata_table(settings.rdb.constring)
+    ensure_entry_metadata_table(settings.rdb.constring)
 
     try:
         for pipeline_name, pipeline_config, meta, runner in pipeline_runners:

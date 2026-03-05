@@ -22,7 +22,13 @@ from mine2.db.loader import (
 )
 from mine2.parsers.cif import parse_cif_file, parse_mmjson_file
 from mine2.parsers.mmjson import merge_data, normalize_column_name
-from mine2.pipelines.base import BasePipeline, sync_entry_tables, transform_category
+from mine2.db.metadata import fetch_entry_mtimes
+from mine2.pipelines.base import (
+    BasePipeline,
+    compute_effective_mtime,
+    sync_entry_tables,
+    transform_category,
+)
 from mine2.utils.assembly import calculate_mw_for_bu, hex_sha256
 from mine2.utils.brief_summary import generate_brief_summary
 from mine2.utils.patches import apply_patches
@@ -242,18 +248,47 @@ class PdbjPipeline(BasePipeline):
             console.print(f"  [red]Data directory not found: {data_dir}[/red]")
             return []
 
+        # Fetch stored mtimes for skip optimization
+        stored_mtimes: dict[str, float] = {}
+        if not self.force:
+            try:
+                stored_mtimes = fetch_entry_mtimes(
+                    self.settings.rdb.constring, self.meta.schema
+                )
+            except Exception as e:
+                _default_logger.warning(
+                    "Failed to fetch entry mtimes for %s; "
+                    "all entries will be processed: %s",
+                    self.meta.schema,
+                    e,
+                )
+
         jobs = []
+        skipped = 0
         for filepath in data_dir.rglob(self.file_pattern):
             entry_id = self.extract_entry_id(filepath)
+            plus_path = _resolve_plus_path(plus_dir, entry_id)
+            nextgen_plus_path = _resolve_plus_path(nextgen_plus_dir, entry_id)
+
+            # Compute effective mtime across all related files
+            current_mtime = compute_effective_mtime(
+                filepath, [plus_path, nextgen_plus_path]
+            )
+
+            # Skip unchanged entries
+            if not self.force and entry_id in stored_mtimes:
+                if current_mtime <= stored_mtimes[entry_id]:
+                    skipped += 1
+                    continue
+
             jobs.append(
                 Job(
                     entry_id=entry_id,
                     filepath=filepath,
                     extra={
-                        "plus_path": _resolve_plus_path(plus_dir, entry_id),
-                        "nextgen_plus_path": _resolve_plus_path(
-                            nextgen_plus_dir, entry_id
-                        ),
+                        "plus_path": plus_path,
+                        "nextgen_plus_path": nextgen_plus_path,
+                        "file_mtime": current_mtime,
                     },
                 )
             )
@@ -261,6 +296,10 @@ class PdbjPipeline(BasePipeline):
             if limit and len(jobs) >= limit:
                 break
 
+        if skipped > 0:
+            console.print(
+                f"  [dim]Skipped {skipped} unchanged entries (use --force to reprocess)[/dim]"
+            )
         if plus_dir:
             count = sum(1 for j in jobs if j.extra.get("plus_path") is not None)
             console.print(f"  Plus data matched: {count}/{len(jobs)}")
@@ -305,6 +344,20 @@ class PdbjPipeline(BasePipeline):
                 conninfo=conninfo,
                 normalize_fn=normalize_column_name,
             )
+
+            # Record file mtime on success (non-critical)
+            file_mtime = (job.extra or {}).get("file_mtime")
+            if file_mtime is not None:
+                try:
+                    from mine2.db.metadata import upsert_entry_mtime
+
+                    upsert_entry_mtime(conninfo, schema_name, job.entry_id, file_mtime)
+                except Exception as mtime_err:
+                    _default_logger.warning(
+                        "Failed to record mtime for %s: %s",
+                        job.entry_id,
+                        mtime_err,
+                    )
 
             return LoaderResult(
                 entry_id=job.entry_id,
@@ -382,11 +435,26 @@ class PdbjCifPipeline(BasePipeline):
             console.print(f"  [red]Data directory not found: {data_dir}[/red]")
             return []
 
+        # Fetch stored mtimes before streaming
+        stored_mtimes: dict[str, float] = {}
+        if not self.force:
+            try:
+                stored_mtimes = fetch_entry_mtimes(
+                    self.settings.rdb.constring, self.meta.schema
+                )
+            except Exception as e:
+                _default_logger.warning(
+                    "Failed to fetch entry mtimes for %s; "
+                    "all entries will be processed: %s",
+                    self.meta.schema,
+                    e,
+                )
+
         # Use streaming loader - jobs submitted as discovered
         results = run_loader_streaming(
             settings=self.settings,
             schema_name=self.meta.schema,
-            jobs_iter=self._iter_jobs(),
+            jobs_iter=self._iter_jobs(stored_mtimes=stored_mtimes),
             process_func=self.process_job,
             max_workers=self.settings.rdb.get_workers(),
             limit=limit,
@@ -395,11 +463,15 @@ class PdbjCifPipeline(BasePipeline):
 
         return results
 
-    def _iter_jobs(self):
-        """Yield jobs as CifWalk discovers files.
+    def _iter_jobs(self, stored_mtimes: dict[str, float] | None = None):
+        """Yield jobs as CifWalk discovers files, skipping unchanged.
 
         This is a generator that yields Job objects immediately,
         allowing the streaming loader to submit them to workers.
+
+        Args:
+            stored_mtimes: Previously recorded mtimes. If None, all files
+                are yielded (no skip optimization).
         """
         data_dir = Path(self.config.data)
         if not data_dir.exists():
@@ -416,16 +488,36 @@ class PdbjCifPipeline(BasePipeline):
             else None,
         )
 
+        skipped = 0
         for filepath_str in gemmi.CifWalk(str(data_dir)):
             filepath = Path(filepath_str)
             entry_id = self.extract_entry_id(filepath)
+            plus_path = _resolve_plus_path(plus_dir, entry_id)
+            nextgen_plus_path = _resolve_plus_path(nextgen_plus_dir, entry_id)
+
+            current_mtime = compute_effective_mtime(
+                filepath, [plus_path, nextgen_plus_path]
+            )
+
+            # Skip unchanged entries
+            if stored_mtimes and entry_id in stored_mtimes:
+                if current_mtime <= stored_mtimes[entry_id]:
+                    skipped += 1
+                    continue
+
             yield Job(
                 entry_id=entry_id,
                 filepath=filepath,
                 extra={
-                    "plus_path": _resolve_plus_path(plus_dir, entry_id),
-                    "nextgen_plus_path": _resolve_plus_path(nextgen_plus_dir, entry_id),
+                    "plus_path": plus_path,
+                    "nextgen_plus_path": nextgen_plus_path,
+                    "file_mtime": current_mtime,
                 },
+            )
+
+        if skipped > 0:
+            console.print(
+                f"  [dim]Skipped {skipped} unchanged entries (use --force to reprocess)[/dim]"
             )
 
     def find_jobs(self, limit: int | None = None) -> list[Job]:
@@ -435,7 +527,7 @@ class PdbjCifPipeline(BasePipeline):
         but this method is provided for testing and compatibility.
         """
         jobs = []
-        for job in self._iter_jobs():
+        for job in self._iter_jobs(stored_mtimes={}):
             jobs.append(job)
             if limit and len(jobs) >= limit:
                 break
@@ -462,6 +554,20 @@ class PdbjCifPipeline(BasePipeline):
                 normalize_fn=None,
             )
 
+            # Record file mtime on success (non-critical)
+            file_mtime = (job.extra or {}).get("file_mtime")
+            if file_mtime is not None:
+                try:
+                    from mine2.db.metadata import upsert_entry_mtime
+
+                    upsert_entry_mtime(conninfo, schema_name, job.entry_id, file_mtime)
+                except Exception as mtime_err:
+                    _default_logger.warning(
+                        "Failed to record mtime for %s: %s",
+                        job.entry_id,
+                        mtime_err,
+                    )
+
             return LoaderResult(
                 entry_id=job.entry_id,
                 success=True,
@@ -484,11 +590,12 @@ def run(
     meta: MetaData,
     limit: int | None = None,
     logger: logging.Logger | None = None,
+    force: bool = False,
 ) -> list[LoaderResult]:
     """Run the pdbj pipeline (mmJSON version)."""
     if logger is None:
         logger = _default_logger
-    pipeline = PdbjPipeline(settings, config, meta)
+    pipeline = PdbjPipeline(settings, config, meta, force=force)
     return pipeline.run(limit, logger=logger)
 
 
@@ -498,11 +605,12 @@ def run_cif(
     meta: MetaData,
     limit: int | None = None,
     logger: logging.Logger | None = None,
+    force: bool = False,
 ) -> list[LoaderResult]:
     """Run the pdbj pipeline in CIF mode."""
     if logger is None:
         logger = _default_logger
-    pipeline = PdbjCifPipeline(settings, config, meta)
+    pipeline = PdbjCifPipeline(settings, config, meta, force=force)
     return pipeline.run(limit, logger=logger)
 
 
@@ -537,6 +645,25 @@ def _process_cif_load(
             pk_column=get_entry_pk(meta),
             table_rows=table_rows,
         )
+
+        # Record file mtime on success (non-critical)
+        try:
+            from mine2.db.metadata import upsert_entry_mtime
+            from mine2.pipelines.base import compute_effective_mtime
+
+            extra_paths = [
+                (job.extra or {}).get("plus_path"),
+                (job.extra or {}).get("nextgen_plus_path"),
+            ]
+            extra_paths = [Path(p) if p else None for p in extra_paths]
+            file_mtime = compute_effective_mtime(job.filepath, extra_paths)
+            upsert_entry_mtime(conninfo, schema_name, job.entry_id, file_mtime)
+        except Exception as mtime_err:
+            _default_logger.warning(
+                "Failed to record mtime for %s: %s",
+                job.entry_id,
+                mtime_err,
+            )
 
         return LoaderResult(
             entry_id=job.entry_id,
@@ -622,6 +749,25 @@ def _process_mmjson_load(
             pk_column=get_entry_pk(meta),
             table_rows=table_rows,
         )
+
+        # Record file mtime on success (non-critical)
+        try:
+            from mine2.db.metadata import upsert_entry_mtime
+            from mine2.pipelines.base import compute_effective_mtime
+
+            extra_paths = [
+                (job.extra or {}).get("plus_path"),
+                (job.extra or {}).get("nextgen_plus_path"),
+            ]
+            extra_paths = [Path(p) if p else None for p in extra_paths]
+            file_mtime = compute_effective_mtime(job.filepath, extra_paths)
+            upsert_entry_mtime(conninfo, schema_name, job.entry_id, file_mtime)
+        except Exception as mtime_err:
+            _default_logger.warning(
+                "Failed to record mtime for %s: %s",
+                job.entry_id,
+                mtime_err,
+            )
 
         return LoaderResult(
             entry_id=job.entry_id,

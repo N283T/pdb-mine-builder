@@ -48,7 +48,7 @@ class TestCcPipelineIntegration:
         pipeline = CcPipeline(settings, config, cc_schema)
         job = Job(entry_id="ATP", filepath=atp_path, extra={})
 
-        result = pipeline.process_job(job, cc_schema, db_connection)
+        result = pipeline.process_job(job, cc_schema.schema, db_connection)
 
         assert result.success, f"Processing failed: {result.error}"
         assert result.entry_id == "ATP"
@@ -69,7 +69,7 @@ class TestCcPipelineIntegration:
         pipeline = CcPipeline(settings, config, cc_schema)
         job = Job(entry_id="HOH", filepath=hoh_path, extra={})
 
-        result = pipeline.process_job(job, cc_schema, db_connection)
+        result = pipeline.process_job(job, cc_schema.schema, db_connection)
 
         assert result.success, f"Processing failed: {result.error}"
         assert result.entry_id == "HOH"
@@ -90,7 +90,7 @@ class TestCcPipelineIntegration:
         pipeline = CcPipeline(settings, config, cc_schema)
         job = Job(entry_id="EOH", filepath=eoh_path, extra={})
 
-        result = pipeline.process_job(job, cc_schema, db_connection)
+        result = pipeline.process_job(job, cc_schema.schema, db_connection)
 
         assert result.success, f"Processing failed: {result.error}"
         assert result.entry_id == "EOH"
@@ -109,7 +109,7 @@ class TestCcPipelineIntegration:
         pipeline = CcPipeline(settings, config, cc_schema)
         job = Job(entry_id="HOH", filepath=hoh_path, extra={})
 
-        result = pipeline.process_job(job, cc_schema, db_connection)
+        result = pipeline.process_job(job, cc_schema.schema, db_connection)
         assert result.success
 
         # Query the database
@@ -118,7 +118,7 @@ class TestCcPipelineIntegration:
                 cur.execute(
                     sql.SQL(
                         "SELECT id, name, type FROM {}.chem_comp WHERE id = %s"
-                    ).format(sql.Identifier(cc_schema.schema_name)),
+                    ).format(sql.Identifier(cc_schema.schema)),
                     ("HOH",),
                 )
                 row = cur.fetchone()
@@ -141,7 +141,7 @@ class TestCcPipelineIntegration:
         pipeline = CcPipeline(settings, config, cc_schema)
         job = Job(entry_id="EOH", filepath=eoh_path, extra={})
 
-        result = pipeline.process_job(job, cc_schema, db_connection)
+        result = pipeline.process_job(job, cc_schema.schema, db_connection)
         assert result.success
 
         # Query the database for SMILES
@@ -150,7 +150,7 @@ class TestCcPipelineIntegration:
                 cur.execute(
                     sql.SQL(
                         "SELECT comp_id, smiles FROM {}.brief_summary WHERE comp_id = %s"
-                    ).format(sql.Identifier(cc_schema.schema_name)),
+                    ).format(sql.Identifier(cc_schema.schema)),
                     ("EOH",),
                 )
                 row = cur.fetchone()
@@ -178,7 +178,7 @@ class TestCcPipelineIntegration:
             fixture_path = cc_fixtures_dir / f"{comp_id}.json.gz"
             if fixture_path.exists():
                 job = Job(entry_id=comp_id, filepath=fixture_path, extra={})
-                result = pipeline.process_job(job, cc_schema, db_connection)
+                result = pipeline.process_job(job, cc_schema.schema, db_connection)
                 assert result.success, f"Processing {comp_id} failed: {result.error}"
 
         # Verify all components exist
@@ -186,7 +186,7 @@ class TestCcPipelineIntegration:
             with conn.cursor(row_factory=dict_row) as cur:
                 cur.execute(
                     sql.SQL("SELECT COUNT(*) as count FROM {}.chem_comp").format(
-                        sql.Identifier(cc_schema.schema_name)
+                        sql.Identifier(cc_schema.schema)
                     )
                 )
                 row = cur.fetchone()

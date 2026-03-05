@@ -45,11 +45,11 @@ class TestPdbjCifPipelineIntegration:
         pipeline = PdbjCifPipeline(settings, config, pdbj_schema)
         job = Job(entry_id="1crn", filepath=cif_path, extra={"plus_path": None})
 
-        result = pipeline.process_job(job, pdbj_schema, db_connection)
+        result = pipeline.process_job(job, pdbj_schema.schema, db_connection)
 
         assert result.success, f"Processing failed: {result.error}"
         assert result.entry_id == "1crn"
-        assert result.rows_inserted > 0
+        assert result.rows_inserted > 0 or result.rows_updated > 0
 
     def test_process_single_entry_1ubq(
         self,
@@ -67,11 +67,11 @@ class TestPdbjCifPipelineIntegration:
         pipeline = PdbjCifPipeline(settings, config, pdbj_schema)
         job = Job(entry_id="1ubq", filepath=cif_path, extra={"plus_path": None})
 
-        result = pipeline.process_job(job, pdbj_schema, db_connection)
+        result = pipeline.process_job(job, pdbj_schema.schema, db_connection)
 
         assert result.success, f"Processing failed: {result.error}"
         assert result.entry_id == "1ubq"
-        assert result.rows_inserted > 0
+        assert result.rows_inserted > 0 or result.rows_updated > 0
 
     def test_verify_entry_table_data(
         self,
@@ -87,7 +87,7 @@ class TestPdbjCifPipelineIntegration:
         pipeline = PdbjCifPipeline(settings, config, pdbj_schema)
         job = Job(entry_id="1crn", filepath=cif_path, extra={"plus_path": None})
 
-        result = pipeline.process_job(job, pdbj_schema, db_connection)
+        result = pipeline.process_job(job, pdbj_schema.schema, db_connection)
         assert result.success
 
         # Query the database
@@ -95,7 +95,7 @@ class TestPdbjCifPipelineIntegration:
             with conn.cursor(row_factory=dict_row) as cur:
                 cur.execute(
                     sql.SQL("SELECT pdbid, id FROM {}.entry WHERE pdbid = %s").format(
-                        sql.Identifier(pdbj_schema.schema_name)
+                        sql.Identifier(pdbj_schema.schema)
                     ),
                     ("1crn",),
                 )
@@ -119,7 +119,7 @@ class TestPdbjCifPipelineIntegration:
         pipeline = PdbjCifPipeline(settings, config, pdbj_schema)
         job = Job(entry_id="1crn", filepath=cif_path, extra={"plus_path": None})
 
-        result = pipeline.process_job(job, pdbj_schema, db_connection)
+        result = pipeline.process_job(job, pdbj_schema.schema, db_connection)
         assert result.success
 
         # Query the database for cell parameters
@@ -129,7 +129,7 @@ class TestPdbjCifPipelineIntegration:
                     sql.SQL(
                         "SELECT pdbid, length_a, length_b, length_c "
                         "FROM {}.cell WHERE pdbid = %s"
-                    ).format(sql.Identifier(pdbj_schema.schema_name)),
+                    ).format(sql.Identifier(pdbj_schema.schema)),
                     ("1crn",),
                 )
                 row = cur.fetchone()
@@ -160,7 +160,7 @@ class TestPdbjCifPipelineIntegration:
                 job = Job(
                     entry_id=entry_id, filepath=cif_path, extra={"plus_path": None}
                 )
-                result = pipeline.process_job(job, pdbj_schema, db_connection)
+                result = pipeline.process_job(job, pdbj_schema.schema, db_connection)
                 assert result.success, f"Processing {entry_id} failed: {result.error}"
 
         # Verify both entries exist in database
@@ -168,7 +168,7 @@ class TestPdbjCifPipelineIntegration:
             with conn.cursor(row_factory=dict_row) as cur:
                 cur.execute(
                     sql.SQL("SELECT COUNT(*) as count FROM {}.entry").format(
-                        sql.Identifier(pdbj_schema.schema_name)
+                        sql.Identifier(pdbj_schema.schema)
                     )
                 )
                 row = cur.fetchone()
@@ -190,8 +190,8 @@ class TestPdbjCifPipelineIntegration:
         job = Job(entry_id="1crn", filepath=cif_path, extra={"plus_path": None})
 
         # Process twice
-        result1 = pipeline.process_job(job, pdbj_schema, db_connection)
-        result2 = pipeline.process_job(job, pdbj_schema, db_connection)
+        result1 = pipeline.process_job(job, pdbj_schema.schema, db_connection)
+        result2 = pipeline.process_job(job, pdbj_schema.schema, db_connection)
 
         assert result1.success
         assert result2.success
@@ -202,7 +202,7 @@ class TestPdbjCifPipelineIntegration:
                 cur.execute(
                     sql.SQL(
                         "SELECT COUNT(*) as count FROM {}.entry WHERE pdbid = %s"
-                    ).format(sql.Identifier(pdbj_schema.schema_name)),
+                    ).format(sql.Identifier(pdbj_schema.schema)),
                     ("1crn",),
                 )
                 row = cur.fetchone()

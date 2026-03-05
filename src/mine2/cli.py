@@ -139,6 +139,14 @@ def update(
         bool,
         typer.Option("--verbose", "-v", help="Enable verbose (DEBUG) logging"),
     ] = False,
+    force: Annotated[
+        bool,
+        typer.Option(
+            "--force",
+            "-f",
+            help="Reprocess all entries ignoring cached mtimes (pdbj, vrpt, contacts only)",
+        ),
+    ] = False,
 ) -> None:
     """Run database update pipelines."""
     from mine2.commands.update import run_update
@@ -163,7 +171,7 @@ def update(
         settings.rdb.nworkers = workers
 
     logger.info(f"Starting update: pipelines={pipelines or 'all'}, limit={limit}")
-    run_update(settings, pipelines or [], limit=limit, tables=tables)
+    run_update(settings, pipelines or [], limit=limit, tables=tables, force=force)
     logger.info("Update completed")
 
 
