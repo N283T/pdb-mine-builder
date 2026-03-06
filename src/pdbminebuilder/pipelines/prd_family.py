@@ -1,4 +1,8 @@
-"""PRD Family pipeline - BIRD family data."""
+"""PRD Family pipeline - loads BIRD family classification data from family-all.cif.gz.
+
+CIF-only (no mmJSON variant). Each CIF data block represents one family entry
+(e.g., FAM_000001).
+"""
 
 import logging
 import traceback
@@ -27,7 +31,8 @@ console = Console()
 
 
 # =============================================================================
-# Worker function for parallel CIF processing (must be at module level)
+# Worker function for parallel CIF processing.
+# Must be at module level to be picklable by ProcessPoolExecutor.
 # =============================================================================
 
 
@@ -81,7 +86,11 @@ def _parse_prd_family_cif_block(
 
 
 def _generate_brief_summary(data: dict[str, Any], family_prd_id: str) -> list[dict]:
-    """Generate brief_summary from pdbx_family_prd_audit and pdbx_reference_molecule_family."""
+    """Generate synthetic brief_summary row.
+
+    Extracts name from pdbx_reference_molecule_family and initial/modified
+    dates from pdbx_family_prd_audit.
+    """
     # Get name from pdbx_reference_molecule_family
     family_rows = data.get("pdbx_reference_molecule_family", [])
     name = family_rows[0].get("name") if family_rows else None
@@ -96,7 +105,7 @@ def _generate_brief_summary(data: dict[str, Any], family_prd_id: str) -> list[di
         if action == "Initial release":
             initial_date = date
         elif action == "Modify record":
-            # Keep the latest modify date
+            # Keep the latest modify date (ISO 8601 strings compare correctly)
             if modified_date is None or (date is not None and date > modified_date):
                 modified_date = date
 

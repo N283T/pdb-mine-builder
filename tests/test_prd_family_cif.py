@@ -1,13 +1,12 @@
 """Tests for prd_family pipeline (CIF format)."""
 
-import gzip
 from pathlib import Path
 
 import gemmi
-from sqlalchemy import Column, MetaData, PrimaryKeyConstraint, Table, Text
+from sqlalchemy import MetaData
 
 from pdbminebuilder.config import PipelineConfig, RdbConfig, Settings
-from pdbminebuilder.parsers.cif import parse_block, parse_cif_file
+from pdbminebuilder.parsers.cif import parse_block
 from pdbminebuilder.pipelines.prd_family import (
     PrdFamilyCifPipeline,
     _generate_brief_summary,
@@ -97,9 +96,7 @@ class TestParsePrdFamilyCifBlock:
         doc = gemmi.cif.read(str(fixture_path))
         block = doc[0]
 
-        family_id, table_rows, error = _parse_prd_family_cif_block(
-            block, "prd_family"
-        )
+        family_id, table_rows, error = _parse_prd_family_cif_block(block, "prd_family")
 
         assert error is None
         assert family_id == "FAM_000001"
@@ -129,9 +126,7 @@ class TestParsePrdFamilyCifBlock:
         doc = gemmi.cif.read(str(fixture_path))
         block = doc[1]
 
-        family_id, table_rows, error = _parse_prd_family_cif_block(
-            block, "prd_family"
-        )
+        family_id, table_rows, error = _parse_prd_family_cif_block(block, "prd_family")
 
         assert error is None
         assert family_id == "FAM_000003"
@@ -290,9 +285,7 @@ class TestRealFixtures:
         fixture_path = FIXTURES_DIR / "family-all.cif.gz"
         doc = gemmi.cif.read(str(fixture_path))
 
-        family_id, table_rows, error = _parse_prd_family_cif_block(
-            doc[0], "prd_family"
-        )
+        family_id, table_rows, error = _parse_prd_family_cif_block(doc[0], "prd_family")
 
         assert error is None
         # After transform, citation rows should have family_prd_id
