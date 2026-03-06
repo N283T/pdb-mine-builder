@@ -19,8 +19,14 @@ function HomepageHeader() {
         <div className={styles.buttons}>
           <Link
             className="button button--secondary button--lg"
-            to="/docs/">
-            Get Started
+            to="/docs/getting-started/installation">
+            Getting Started
+          </Link>
+          <Link
+            className="button button--secondary button--lg"
+            style={{marginLeft: '1rem'}}
+            to="/docs/database/overview">
+            Database Reference
           </Link>
         </div>
       </div>
@@ -32,10 +38,33 @@ export default function Home(): ReactNode {
   const {siteConfig} = useDocusaurusContext();
   return (
     <Layout
-      title={`${siteConfig.title}`}
-      description="PDBj data loader for PostgreSQL">
+      title="Home"
+      description="Build a MINE-schema database from PDB data">
       <HomepageHeader />
-      <main />
+      <main>
+        <section style={{padding: '2rem 0'}}>
+          <div className="container">
+            <div className="row">
+              <div className="col col--6">
+                <Heading as="h2">Getting Started</Heading>
+                <p>
+                  Install pdb-mine-builder, configure your environment,
+                  sync data from PDBj, and load it into PostgreSQL.
+                </p>
+                <Link to="/docs/getting-started/installation">Read the guide →</Link>
+              </div>
+              <div className="col col--6">
+                <Heading as="h2">Database Reference</Heading>
+                <p>
+                  Explore the database schemas, table definitions,
+                  and SQL query examples for structural biology data.
+                </p>
+                <Link to="/docs/database/overview">Browse schemas →</Link>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
     </Layout>
   );
 }
