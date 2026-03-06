@@ -17,7 +17,6 @@ from pdbminebuilder.models import (
     pdbj,
     prd,
     prd_family,
-    sifts,
     vrpt,
 )
 
@@ -30,7 +29,6 @@ ALL_METADATA: dict[str, MetaData] = {
     "pdbj": pdbj.metadata,
     "prd": prd.metadata,
     "prd_family": prd_family.metadata,
-    "sifts": sifts.metadata,
     "vrpt": vrpt.metadata,
 }
 

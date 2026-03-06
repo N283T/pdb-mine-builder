@@ -39,7 +39,6 @@ src/pdbminebuilder/
 │   ├── pdbj.py             # pdbj schema (~400 tables)
 │   ├── prd.py              # prd schema
 │   ├── prd_family.py       # prd_family schema
-│   ├── sifts.py            # sifts schema (9 tables)
 │   └── vrpt.py             # vrpt schema
 ├── db/
 │   ├── connection.py       # psycopg3 connection pool
@@ -57,8 +56,7 @@ src/pdbminebuilder/
     ├── ccmodel.py          # Chemical component models
     ├── prd.py              # BIRD data (dual data blocks)
     ├── vrpt.py             # Validation reports (CIF)
-    ├── contacts.py         # Contact data (custom JSON)
-    └── sifts.py            # SIFTS cross-references (TTL/RDF)
+    └── contacts.py         # Contact data (custom JSON)
 alembic/                    # Alembic migration config
 ├── env.py                  # Multi-schema support
 └── versions/               # Migration scripts
@@ -83,7 +81,6 @@ docs/                       # Architecture docs
 | prd | CIF | Dual file (prd-all.cif.gz + prdcc-all.cif.gz) |
 | vrpt | CIF | Uses gemmi.CifWalk for nested directory structure |
 | contacts | JSON | Array format, not mmJSON |
-| sifts | TTL | SIFTS cross-references (RDF format) |
 | emdb | - | Schema only, no pipeline implementation |
 | ihm | - | Schema only, no pipeline implementation |
 
@@ -251,7 +248,7 @@ pixi run db-downgrade              # Rollback last migration
 pixi run db-history                # Show migration history
 ```
 
-Alembic is configured for multi-schema support (all 10 schemas).
+Alembic is configured for multi-schema support (all 9 schemas).
 Schema DDL is defined in `src/pdbminebuilder/models/` as SQLAlchemy Core Table objects.
 Data operations still use psycopg3 direct connections (no SQLAlchemy Engine for data).
 

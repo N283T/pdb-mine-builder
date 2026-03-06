@@ -24,7 +24,7 @@ console = Console()
 # Each pipeline module must expose run_cif_load() for CIF format.
 # Dual-format pipelines (DUAL_FORMAT_PIPELINES) must also expose
 # run_load() for mmJSON format.
-LOAD_PIPELINES = ["pdbj", "cc", "ccmodel", "prd", "vrpt", "contacts", "sifts"]
+LOAD_PIPELINES = ["pdbj", "cc", "ccmodel", "prd", "vrpt", "contacts"]
 
 
 def _get_load_runner(

@@ -22,7 +22,7 @@ class TestModelRegistry:
     """Tests for ALL_METADATA and get_metadata()."""
 
     def test_all_metadata_has_expected_count(self) -> None:
-        assert len(ALL_METADATA) == 10
+        assert len(ALL_METADATA) == 9
 
     def test_get_metadata_returns_valid_metadata(self) -> None:
         for name, meta in ALL_METADATA.items():

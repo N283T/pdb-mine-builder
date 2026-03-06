@@ -16,7 +16,6 @@ KNOWN_SCHEMAS = [
     "prd",
     "vrpt",
     "contacts",
-    "sifts",
     "emdb",
     "ihm",
 ]
