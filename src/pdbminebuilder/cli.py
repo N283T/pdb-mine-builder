@@ -319,7 +319,7 @@ def reset(
     schemas: Annotated[
         Optional[list[str]],
         typer.Argument(
-            help="Schemas to reset: pdbj, cc, ccmodel, prd, vrpt, contacts, sifts, emdb, ihm (or 'all')"
+            help="Schemas to reset: pdbj, cc, ccmodel, prd, vrpt, contacts, emdb, ihm (or 'all')"
         ),
     ] = None,
     config: Annotated[

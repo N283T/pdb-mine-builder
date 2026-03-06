@@ -248,7 +248,7 @@ pixi run db-downgrade              # Rollback last migration
 pixi run db-history                # Show migration history
 ```
 
-Alembic is configured for multi-schema support (all 10 schemas).
+Alembic is configured for multi-schema support (all 9 schemas).
 Schema DDL is defined in `src/pdbminebuilder/models/` as SQLAlchemy Core Table objects.
 Data operations still use psycopg3 direct connections (no SQLAlchemy Engine for data).
 
