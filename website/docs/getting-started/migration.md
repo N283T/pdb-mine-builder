@@ -99,16 +99,15 @@ pixi run db-history                   # View history
 | `misc` | Consolidated into other schemas |
 | `sifts` | Out of scope (SIFTS mapping data) |
 
-**Added schemas:**
+**Schema-only definitions** (no pipeline yet):
 
 | Schema | Notes |
 |--------|-------|
-| `prd_family` | Schema definition existed in mine2 but had no loading pipeline. Now has a dedicated pipeline and primary key (`family_prd_id`) |
+| `prd_family` | Schema definition existed in mine2 but had no loading pipeline. Has a dedicated primary key (`family_prd_id`) |
+| `emdb` | Electron Microscopy Data Bank |
+| `ihm` | Integrative/Hybrid Methods |
 
-**Schema-only definitions** (no pipeline yet):
-
-- `emdb` — Electron Microscopy Data Bank
-- `ihm` — Integrative/Hybrid Methods
+These schemas have table definitions but no data-loading pipeline. See the [Database Overview](../database/overview.md) for current status.
 
 ### Mtime-Based Skip Optimization
 
