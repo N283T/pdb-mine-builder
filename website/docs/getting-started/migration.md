@@ -103,7 +103,7 @@ pixi run db-history                   # View history
 
 | Schema | Notes |
 |--------|-------|
-| `prd_family` | Existed in mine2 but now has its own dedicated pipeline and primary key (`family_prd_id`) |
+| `prd_family` | Schema definition existed in mine2 but had no loading pipeline. Now has a dedicated pipeline and primary key (`family_prd_id`) |
 
 **Schema-only definitions** (no pipeline yet):
 
