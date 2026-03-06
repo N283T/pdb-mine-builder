@@ -14,6 +14,7 @@ KNOWN_SCHEMAS = [
     "cc",
     "ccmodel",
     "prd",
+    "prd_family",
     "vrpt",
     "contacts",
     "emdb",

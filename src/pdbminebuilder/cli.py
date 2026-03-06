@@ -77,7 +77,7 @@ def sync(
     targets: Annotated[
         Optional[list[str]],
         typer.Argument(
-            help="Sync targets: pdbj, pdbj-json, cc, cc-json, ccmodel, ccmodel-json, prd, prd-json, vrpt, contacts, schemas"
+            help="Sync targets: pdbj, pdbj-json, cc, cc-json, ccmodel, ccmodel-json, prd, prd-json, prd-family, vrpt, contacts, schemas"
         ),
     ] = None,
     config: Annotated[
@@ -103,7 +103,7 @@ def update(
     pipelines: Annotated[
         Optional[list[str]],
         typer.Argument(
-            help="Pipelines: pdbj, cc, ccmodel, prd, vrpt, contacts, emdb, ihm (format via config)"
+            help="Pipelines: pdbj, cc, ccmodel, prd, prd_family, vrpt, contacts, emdb, ihm (format via config)"
         ),
     ] = None,
     config: Annotated[
@@ -171,7 +171,9 @@ def update(
 def load(
     pipelines: Annotated[
         Optional[list[str]],
-        typer.Argument(help="Pipelines: pdbj, cc, ccmodel, prd, vrpt, contacts"),
+        typer.Argument(
+            help="Pipelines: pdbj, cc, ccmodel, prd, prd_family, vrpt, contacts"
+        ),
     ] = None,
     config: Annotated[
         Path,
@@ -319,7 +321,7 @@ def reset(
     schemas: Annotated[
         Optional[list[str]],
         typer.Argument(
-            help="Schemas to reset: pdbj, cc, ccmodel, prd, vrpt, contacts, emdb, ihm (or 'all')"
+            help="Schemas to reset: pdbj, cc, ccmodel, prd, prd_family, vrpt, contacts, emdb, ihm (or 'all')"
         ),
     ] = None,
     config: Annotated[

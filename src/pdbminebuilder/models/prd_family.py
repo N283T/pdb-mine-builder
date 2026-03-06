@@ -2,7 +2,6 @@
 
 from sqlalchemy import (
     ARRAY,
-    BigInteger,
     Column,
     Date,
     DateTime,
@@ -24,7 +23,7 @@ brief_summary = Table(
     "brief_summary",
     metadata,
     Column("family_prd_id", Text, nullable=True),
-    Column("docid", BigInteger, nullable=True),
+    Column("name", Text, nullable=True),
     Column("pdbx_initial_date", Date, nullable=True),
     Column("pdbx_modified_date", Date, nullable=True),
     Column("update_date", DateTime, nullable=True),

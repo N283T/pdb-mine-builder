@@ -18,6 +18,9 @@ pipelines:
   prd:
     format: cif
     data: ${CWD}/data/prd/
+  prd_family:
+    format: cif
+    data: ${CWD}/data/prd_family/
   vrpt:
     data: ${CWD}/data/vrpt-json/*
     data-cif: ${CWD}/data/vrpt/*_validation.cif.gz
