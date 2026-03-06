@@ -10,11 +10,17 @@ __pycache__/
 # Environment
 .env
 
-node_modules
+node_modules/
+
+# Docusaurus
+website/build/
+website/.docusaurus/
+website/node_modules/
 data
 logs/
 postgres_data_5433
 package-lock.json
+!website/package-lock.json
 setup-db.sh
 config.yml
 dist

@@ -2,6 +2,8 @@
 
 Build a MINE-schema database from PDB data. Synchronizes structural biology data from PDBj (Protein Data Bank Japan) via rsync and loads it into PostgreSQL.
 
+**Documentation**: [https://n283t.github.io/pdb-mine-builder/](https://n283t.github.io/pdb-mine-builder/)
+
 ## Features
 
 - Multi-process parallel data loading with configurable workers
