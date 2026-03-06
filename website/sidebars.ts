@@ -25,6 +25,7 @@ const sidebars: SidebarsConfig = {
         'database/cc',
         'database/ccmodel',
         'database/prd',
+        'database/prd_family',
         'database/vrpt',
         'database/contacts',
         'database/emdb',

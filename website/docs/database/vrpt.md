@@ -1,2 +1,973 @@
+---
+sidebar_position: 6
+---
+
 # vrpt Schema
-_Under construction_
+
+- **Primary Key**: `pdbid`
+- **Tables**: 69
+
+## brief_summary
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text |  |
+| docid | bigint |  |
+| update_date | timestamp without time zone | Entry update date (within the RDB). |
+| keywords | text[] | Array of keywords. |
+
+## audit_conform
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| dict_location | text | A file name or uniform resource locator (URL) for the dictionary to which the current data block conforms. |
+| dict_name | text | The string identifying the highest-level dictionary defining data names used in this file. |
+| dict_version | text | The version number of the dictionary to which the current data block conforms. |
+
+## entity
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| id | text | The value of _entity.id must uniquely identify a record in the ENTITY list. Note that this item need not be a number; it can be any unique identifier. |
+| type | text | Defines the type of the entity. Polymer entities are expected to have corresponding ENTITY_POLY and associated entries. Non-polymer entities are expected to have corresponding CHEM_COMP and associated entries. Water entities are not expected to have corresponding entries in the ENTITY category. |
+| src_method | text | The method by which the sample for the entity was produced. Entities isolated directly from natural sources (tissues, soil samples etc.) are expected to have further information in the ENTITY_SRC_NAT category. Entities isolated from genetically manipulated sources are expected to have further information in the ENTITY_SRC_GEN category. |
+| pdbx_description | text | A description of the entity. Corresponds to the compound name in the PDB format. |
+| formula_weight | double precision | Formula mass in daltons of the entity. |
+| pdbx_number_of_molecules | integer | A place holder for the number of molecules of the entity in the entry. |
+| pdbx_ec | text | Enzyme Commission (EC) number(s) |
+| pdbx_mutation | text | Details about any entity mutation(s). |
+| pdbx_fragment | text | Entity fragment description(s). |
+| details | text | A description of special aspects of the entity. |
+
+## entry
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| id | text | The value of _entry.id identifies the data block. Note that this item need not be a number; it can be any unique identifier. |
+
+## pdbx_vrpt_assign_completeness_full_length
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+| number_of_assigned_shifts | integer | Number of typically assigned nuclei of a given "type" (e.g., backbone) and "element" (13C) in the structure that have a chemical shift assignment. |
+| number_of_unassigned_shifts | integer | Number of typically assigned nuclei of a given "type" (e.g., backbone) and "element" (13C) in the structure that lack a chemical shift assignment |
+| number_of_shifts | integer | Total number of typically assigned nuclei of a given "type" (e.g., backbone) and "element" (13C) in the structure irrespective of assignment. It should be a sum of "number_of_unassigned_shifts" and "number_of_assigned_shifts" for the same type and element. |
+| type | text | "Type" refers to a subset of assignments: overall, backbone, aliphatic sidechain, aromatic protein rings, nucleic acid base and ribose or deoxyribose ring. |
+| element | text | The chemical element (isotope) for which the assignment completeness is calculated. |
+
+## pdbx_vrpt_assign_completeness_well_defined
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each well defined region. |
+| number_of_assigned_shifts | integer | Number of typically assigned nuclei of a given "type" (e.g., backbone) and "element" (13C) in the structure that have a chemical shift assignment. |
+| number_of_unassigned_shifts | integer | Number of typically assigned nuclei of a given "type" (e.g., backbone) and "element" (13C) in the structure that lack a chemical shift assignment |
+| number_of_shifts | integer | Total number of typically assigned nuclei of a given "type" (e.g., backbone) and "element" (13C)in the structure irrespective of assignment. It should be a sum of "number_of_unassigned_shifts" and "number_of_assigned_shifts" for the same type and element. |
+| type | text | "Type" refers to a subset of assignments: overall, backbone, aliphatic sidechain, aromatic protein rings, nucleic acid base and ribose or deoxyribose ring. |
+| element | text | The chemical element (isotope) for which the assignment completeness is calculated. |
+
+## pdbx_vrpt_asym
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| label_asym_id | text | The _struct_asym.label_asym_id in the PDB_model_num |
+| entity_id | text | The entity id corresponding to the label_asym_id. |
+
+## pdbx_vrpt_chemical_shift_list
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each chemical shift. |
+| file_id | integer | An identifier of a chemical shifts file. |
+| file_name | text | The name of the chemical shifts file supplied to the validation pipeline. |
+| block_name | text | Label of the section that contains chemical shifts. |
+| list_id | text | Identifier of the chemical shift list in the file. |
+| type | text | A flag indicating if the chemical shift list contains all the required data items i.e., NMR-STAR 3.1 tags ("full") or if any data items are missing ("partial"). |
+| number_of_errors_while_mapping | integer | Number of chemical shifts that could not be mapped to structure. |
+| number_of_warnings_while_mapping | integer | Currently not used. Reserved for ambiguous mappings. |
+| number_of_mapped_shifts | integer | Number of chemical shifts successfully mapped to the structure. |
+| number_of_parsed_shifts | integer | Number of chemical shifts successfully parsed. |
+| total_number_of_shifts | integer | Total number of records in the chemical shift list. |
+| number_of_unparsed_shifts | integer | Number of chemical shifts that could not be parsed. |
+
+## pdbx_vrpt_chemical_shift_outlier
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each outlier. |
+| auth_asym_id | text | The auth_asym_id identifier for the residue or auth_asym_id obtained from cif item _atom_site.auth_asym_id. Currently this is limited to 5 characters. Example: auth_asym_id="A" |
+| rescode | text | The "residue type", this is the name of the chemical component from the PDB chemical component dictionary. Obtained from _atom_site.auth_comp_id |
+| auth_seq_id | integer | The residue number aka sequence id for a residue. Obtained from _atom_site.auth_seq_id |
+| label_atom_id | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| value | double precision | Value in ppm of a chemical shift |
+| zscore | double precision | The Zscore of the deviation of the bond length or bond angle in the model compared to Mogul expected values and standard deviation. A Z score is generally defined as the difference between an observed value an expected or average value, divided by the standard deviations of the latter. Units depend on the parameter being analyzed. |
+| prediction | text | The mean value of the chemical shift expected from the BMRB statistics. |
+| method | text | Method to determine the expected value and standard deviation. At present this is limited to BMRB statistics. |
+
+## pdbx_vrpt_cyrange_domain
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each domain. |
+| domain | integer | Identifier of the well-defined core |
+| number_of_gaps | integer | Number of omissions from the contiguous protein _atom_site.auth_asym_id within the individual well-defined core (domain). |
+| number_of_residues | integer | Number of residues composing the individual well-defined core (domain). |
+| percentage_of_core | double precision | What fraction the individual core contributes to the total well-defined portion of the protein. |
+| rmsd | double precision | Average pairwise backbone RMSD of the individual well-defined core (domain) over the ensemble. |
+| medoid_model | integer | For each Cyrange well-defined core ("cyrange_domain") the id of the model which is most similar to other models as measured by pairwise RMSDs over the domain. For the whole entry, the medoid model of the largest core is taken as an overall representative of the structure. |
+| medoid_rmsd | double precision | Average RMSD between the medoid model and other members of the ensemble. |
+| residue_string | text | Simplified description of the residue composition of the individual well-defined core (domain). |
+
+## pdbx_vrpt_database
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| code | text | Accession code |
+| id | text | Uniquely identifies each instance of this category. |
+| extended_code | text | Extended accession code |
+
+## pdbx_vrpt_dihedralangle_ensemble_violation
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ang_rest_type | text | The type of dihedral-angle restraint. |
+| violations_count | integer | Number of violated restraints |
+| ensemble_dihedral_count | text | Indicates the count of the ensemble |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_dihedralangle_violation_ensemble_summary
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| fraction_of_ensemble_count | integer | Number of violated models for given set of violated restraints |
+| fraction_of_ensemble_percent | double precision | Percentage of violated models for given set of violated restraints |
+| id | text | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_dihedralangle_violation_model
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ang_rest_type | text | The type of dihedral-angle restraint |
+| violations_count | integer | Number of violated restraints. |
+| PDB_model_num | integer | Model number. |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_dihedralangle_violation_model_summary
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| PDB_model_num | integer | Model number in summary. |
+| max_violation | double precision | The maximum value of violation of a particular restraint in an ensemble |
+| mean_violation | double precision | The mean value of the violation of a given restraint in an ensemble. |
+| standard_deviation | double precision | The standard deviation of the value of the violations of a given restraint in an ensemble. |
+| median_violation | double precision | The median value of the violation of a given restraint in an ensemble |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_dihedralangle_violations_summary
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| restraint_type | text | The dihedral-angle restraint type (PHI,PSI,etc) |
+| consistently_violated_count | integer | Number of restraints that are violated in all models |
+| consistently_violated_percent_total | double precision | Percentage of restraints that are violated in all models against total number of restraints. |
+| consistently_violated_percent_type | double precision | Percentage of restraints that are violated in all models against number of restraints in a given restraint type. |
+| restraints_count | integer | Number of restraints in a given restraint type. |
+| violated_count | integer | Number of restraints that are violated that are violated at least in one model. |
+| percent_total | double precision | Percentage of restraints in a given restraint type. |
+| violated_percent_total | double precision | Percentage of restraints that are violated at least in one model in given restraint type against the total restraints |
+| violated_percent_type | double precision | Percentage of restraints that are violated at least in one model against the total number of restraints in a given restraints type |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_distance_violation_ensemble
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| dist_rest_type | text | The type of distance restraint (intraresidue, sequential, etc.) |
+| violations_count | integer | Number of violated restraints in ensemble. |
+| ensemble_distance_count | text | Number of violated models for given set of violated restraint |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_distance_violation_model_restraints
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| dist_rest_type | text | The type of distance restraint (intraresidue, sequential, etc.). |
+| violations_count | integer | Number of violated restraints. |
+| PDB_model_num | text | The model number. |
+| ordinal | integer | Uniquely identifies each model restraint. |
+
+## pdbx_vrpt_distance_violation_model_summary
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| max_violation | double precision | The maximum value of violation of a particular restraint in an ensemble. |
+| mean_violation | double precision | The mean value of the violation of a given restraint in an ensemble. |
+| PDB_model_num | integer | Model identifier. If the structure does not have multiple models then PDB_model_num will be "1". |
+| standard_deviation | double precision | The standard deviation of the value of the violations of a given restraint in an ensemble. |
+| median_violation | double precision | The median value of the violation of a given restraint in an ensemble |
+| ordinal | integer | Uniquely identifies each distance violation. |
+
+## pdbx_vrpt_distance_violation_summary
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| restraint_type | text | The restraint type (Intra-residue, Sequential, MediumRange, LongRange, InterChain, Total) |
+| restraint_sub_type | text | The restraint sub type (BackboneBackbone, BackboneSidechain, SidechainSidechain, all) |
+| consistently_violated_count | integer | Number of restraints that are violated in all models |
+| consistently_violated_percent_total | double precision | Percentage of restraints that are violated in all models against total number of restraints |
+| consistently_violated_percent_type | double precision | Percentage of restraints that are violated in all models against number of restraints in a given restraint type. |
+| restraints_count | integer | Number of restraints in a given restraint type. |
+| violated_count | integer | Number of restraints that are violated at least in one model |
+| percent_total | double precision | Percentage of restraints in a given restraint type |
+| violated_percent_total | double precision | Percentage of restraints that are violated at least in one model in given restraint type against the total restraints. |
+| violated_percent_type | double precision | Percentage of restraints that are violated at least in one model against the total number of restraints in a given restraints type. |
+| ordinal | integer | Uniquely identifies each violation summary. |
+
+## pdbx_vrpt_distance_violations_ensemble_summary
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| fraction_of_ensemble_count | integer | Number of violated models for given set of violated restraints. |
+| fraction_of_ensemble_percent | double precision | Percentage of violated models for given set of violated restraints |
+| id | text | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_em_2d_graph_data
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each instance of data in this category. |
+| graph_data_id | text | A reference to the 2D graph containing this item of data. |
+| x_value | double precision | Data X-value. |
+| y_value | double precision | Data Y-value. |
+
+## pdbx_vrpt_em_2d_graph_info
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| graph_data_id | text | An identifier for the data set associated with this 2D graph. |
+| graph_id | text | A unique identifier for a EM validation report 2D graph. |
+| title | text | 2D graph title. |
+| x_axis_title | text | 2D graph X-axis title. |
+| x_axis_units | text | 2D graph X-axis units. (arbitrary if not provided) |
+| y_axis_title | text | 2D graph Y-axis title. |
+| y_axis_scale | text | 2D graph Y-axis scale. (linear if not provided) |
+| y_axis_units | text | 2D graph X-axis units. (arbitrary if not provided) |
+
+## pdbx_vrpt_em_details
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each instance of data in this category. |
+| recommended_contour_level | double precision | Recommended contour level for the primary map of this entry. |
+
+## pdbx_vrpt_em_graph_atom_inclusion
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| graph_id | text | A unique identifier for a EM validation report 2D graph. |
+| type | text | The atom type subset for this graph |
+
+## pdbx_vrpt_em_graph_fsc_curve
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| graph_id | text | A unique identifier for a EM validation report 2D graph. |
+| type | text | The fsc curve type (e.g. half_map to half_map fsc). |
+| curve_name | text | The fsc curve name. |
+
+## pdbx_vrpt_em_graph_fsc_indicator_curve
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| graph_id | text | A unique identifier for a EM validation report 2D graph. |
+| type | text | The fsc indicator curve type (e.g. threshold). |
+| curve_name | text | The fsc indicator curve name. |
+| data_curve_name | text | The fsc data (curve_name) used to calculate this fsc indicator curve. |
+
+## pdbx_vrpt_em_resolution_intersections
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each instance of data in this category. |
+| resolution_units | text | Units of resolution. |
+| spatial_frequency_units | text | Units of spatial frequency. |
+| correlation | double precision | fsc intersection correlation. |
+| resolution | double precision | fsc intersection resolution. |
+| spatial_frequency | double precision | fsc intersection spatial frequency. |
+| curve | text | fsc curve name. |
+| type | text | fsc curve type. |
+
+## pdbx_vrpt_entity
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| id | text | Uniquely identifies each instance of this category. |
+| type | text | Describes the percentile type being reported |
+| description | text | The name of the entity |
+
+## pdbx_vrpt_exptl
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| method | text | Experimental methods used in structure determination |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_instance_clashes
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each clash instance. |
+| label_atom_id | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| cid | integer | An identifier that cross references the other label_atom_id in the clash. The two atoms in the clash will have the same unique cid. |
+| clashmag | double precision | The "magnitude" of the pdbx_vrpt_instance_clashes in Angstroms assessed by MolProbity. The MolProbity "magnitude" of a pdbx_vrpt_instance_clashes is defined as the difference between the observed interatomic distance and the sum of the van der Waals radii of the atoms involved. |
+| dist | double precision | The distance in Angstroms between two atoms involved a clash. |
+| instance_id | text | A pointer to pdbx_vrpt_model_instance.id. |
+
+## pdbx_vrpt_instance_intra_angle_outliers
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each angle outlier. |
+| mean | double precision | The "ideal" value of the bond angle. Source is mean value from Engh and Huber EH99 parameters, Parkinson et al. parameter set or Mogul analysis of CSD structures that have a similar local chemistry. |
+| stdev | double precision | The standard deviation for the bond bond angle. Source is standard deviation found from Engh and Huber EH99 parameters, Parkinson et al. parameter set or Mogul analysis of CSD structures that have a similar local chemistry. |
+| obs | double precision | The observed value for bond angle, that is the value fouund for the atoms involved. |
+| Z | double precision | The Zscore of the deviation of the bond angle compared to ideal values. A Z score is generally defined as the difference between an observed value an expected or average value, divided by the standard deviations of the latter. |
+| link | text | Flag indicating that the bond involves an atom that is in another residue. |
+| atom_1 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| atom_2 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| atom_3 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| instance_id | text | A pointer to pdbx_vrpt_model_instance.id. |
+
+## pdbx_vrpt_instance_intra_bond_outliers
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each outlier. |
+| instance_id | text | A pointer to pdbx_vrpt_model_instance.id. |
+| atom_1 | text | A label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| atom_2 | text | A label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| mean | double precision | The "ideal" value of the bond length. Source is mean value from Engh and Huber EH99 parameters, Parkinson et al. parameter set or Mogul analysis of CSD structures that have a similar local chemistry. Units depend on the parameter being analyzed in Angstroms. |
+| stdev | double precision | The standard deviation for the bond length. Source is standard deviation found from Engh and Huber EH99 parameters, Parkinson et al. parameter set or Mogul analysis of CSD structures that have a similar local chemistry. Units depend on the parameter being analyzed. |
+| obs | double precision | The observed value for the bond length. that is the value found in the structure being analyzed for the atoms involved. |
+| Z | double precision | The Zscore of the deviation of the bond length compared to ideal values. A Z score is generally defined as the difference between an observed value an expected or average value, divided by the standard deviations of the latter. |
+| link | text | Flag indicating that the bond involves an atom that is in another residue |
+
+## pdbx_vrpt_instance_intra_plane_outliers
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each planar outlier. |
+| type | text | The type of chiral problem that the label_atom_id has. One of: (A) "mainchain": The N label_atom_id of an amino acid residue is expected to be in the same plane as the Calpha, C, and O atoms of the previous residue. If the improper torsion angle of these atoms is more than 10 degrees, this is flagged as a planarity deviation. From mmcif item "_pdbx_validate_main_chain_plane". (B) "peptide": A deviation is flagged if the omega torsion angle of a peptide group differs by more than 30 degrees from the values expected for a proper cis or trans conformation (0 degrees and 180 degrees, respectively). For mmcif item: "_pdbx_validate_peptide_omega". (C) "sidechain": Certain groups of atoms in protein sidechains and nucleotide bases are expected to be in the same plane. An atom's deviation from planarity is calculated by fitting a plane through these atoms and then calculating distance of individual label_atom_id from the plane. Expected value of such distances have been pre-calculated from data analysis (wwPDB, 2012). If an label_atom_id is modelled to be more than six times farther than the pre-calculated value, the residue is flagged to have a sidechain planarity deviation. From mmcif item "_pdbx_validate_planes". |
+| improper | double precision | For a type="mainchain" outlier, the improper torsion angle in degrees. |
+| omega | double precision | For a type="peptide" outlier, the omega torsion angle in degrees. |
+| plane_rmsd | double precision | For a type="sidechain" outlier, the root mean squared deviation from the mean plane in Angstroms. |
+| instance_id | text | A pointer to pdbx_vrpt_model_instance.id. |
+
+## pdbx_vrpt_instance_mogul_angle_outliers
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| obsval | double precision | The observed value for the bond angle that is the value found in the structure being analyzed for the atoms involved. |
+| mean | double precision | The "ideal" value of the bond length or bond angle or torsion angle. Source is mean value Mogul analysis of CSD structures that have a similar local chemistry. |
+| stdev | double precision | The standard deviation for the bond angle. Source is standard deviation found Mogul analysis of CSD structures that have a similar local chemistry. |
+| numobs | integer | The number of observations found for bond length in the Mogul analysis. |
+| Zscore | double precision | The Zscore of the deviation of the bond angle in the model compared to Mogul expected values and standard deviation. A Z score is generally defined as the difference between an observed value an expected or average value, divided by the standard deviations of the latter. |
+| mindiff | double precision | The difference to the nearest value of the bond angle found in the Mogul analysis. |
+| atom_1 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| atom_2 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| atom_3 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| instance_id | text | A pointer to pdbx_vrpt_model_instance.id. |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_instance_mogul_bond_outliers
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| obsval | double precision | The observed value for the bond length that is the value found in the structure being analyzed for the atoms involved. |
+| mean | double precision | The "ideal" value of the bond length. Source is mean value from Mogul analysis of CSD structures that have a similar local chemistry. |
+| stdev | double precision | The standard deviation for the bond length. Source is standard deviation found from Mogul analysis of CSD structures that have a similar local chemistry. |
+| numobs | integer | The number of observations found for bond length or bond angle or torsion angle in the Mogul analysis. |
+| Zscore | double precision | The Zscore of the deviation of the bond length compared to the Mogul expected values and standard deviation. A Z score is generally defined as the difference between an observed value an expected or average value, divided by the standard deviations of the latter. |
+| mindiff | double precision | The difference to the nearest value of the bond length found in the Mogul analysis. |
+| atom_1 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| atom_2 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| instance_id | text | A pointer to pdbx_vrpt_model_instance.id. |
+| ordinal | integer | Uniquely identifies each bond outlier. |
+
+## pdbx_vrpt_instance_mogul_ring_outliers
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| atoms | text | A comma separated list of label_atom_id names. |
+| mean | double precision | The "ideal" value of the bond length or bond angle or torsion angle. Source is mean value from Mogul analysis of CSD structures that have a similar local chemistry. |
+| mindiff | double precision | The difference to the nearest value thetorsion angle found in the Mogul analysis. |
+| stdev | double precision | The standard deviation of the torsion angles. Source is standard deviation found in Mogul analysis of CSD structures that have a similar local chemistry. |
+| numobs | integer | The number of observations found for torsion angles in the Mogul analysis. |
+| instance_id | text | A pointer to pdbx_vrpt_model_instance.id. |
+| ordinal | integer | Uniquely identifies each ring outlier. |
+
+## pdbx_vrpt_instance_mogul_torsion_outliers
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| obsval | double precision | The observed value for the torsion angle, that is the value found in the structure being analyzed for the atoms involved. |
+| mean | double precision | The "ideal" value of the torsion angle. Source is mean value from Mogul analysis of CSD structures that have a similar local chemistry. Units depend on the parameter being analyzed. |
+| mindiff | double precision | The difference to the nearest value of the torsion angle found in the Mogul analysis. |
+| numobs | integer | The number of observations found for torsion angle in the Mogul analysis. |
+| stdev | double precision | The standard deviation for the torsion angle. Source is standard deviation found from Mogul analysis of CSD structures that have a similar local chemistry. |
+| local_density | double precision | The local density is the percentage of observed Mogul torsion angles within certain units of the query torsion angle. |
+| atom_1 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| atom_2 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| atom_3 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| atom_4 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| instance_id | text | A pointer to pdbx_vrpt_model_instance.id. |
+| ordinal | integer | Uniquely identifies each torsion outlier. |
+
+## pdbx_vrpt_instance_stereo_outliers
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each stereo outlier. |
+| label_atom_id | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| problem | text | The type of chiral problem that the label_atom_id has. either "WRONG HAND" or "PLANAR" |
+| instance_id | text | A pointer to pdbx_vrpt_model_instance.id. |
+
+## pdbx_vrpt_instance_symm_clashes
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each symmetry clash. |
+| label_atom_id | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| symop | text | The symmetry operator for the label_atom_id in the contact. The 1_555 notation is crystallographic shorthand to describe a particular symmetry operator (the number before the underscore) and any required translation (the three numbers following the underscore). Symmetry operators are defined by the space group and the translations are given for the three-unit cell axis (a, b, and c) where 5 indicates no translation and numbers higher or lower signify the number of unit cell translations in the positive or negative direction. For example, 4_565 indicates the use of symmetry operator 4 followed by a one-unit cell translation in the positive b direction. One of the atoms in the contact will have symop="1_555" that indicates the identity operator. |
+| scid | integer | An identifier that cross references the other label_atom_id in the clash. The two atoms in the clash will have the same unique scid. |
+| clashmag | double precision | The "magnitude" of the pdbx_vrpt_instance_clashes in Angstroms assessed by the validation package. In this case, the "magnitude" of a pdbx_vrpt_instance_clashes is defined as 2.2 Angstrom (or 1.6 Angstrom if either label_atom_id is a hydrogen atom) minus the interatomic distance. |
+| dist | double precision | The distance in Angstroms between two atoms involved a clash. |
+| instance_id | text | A pointer to pdbx_vrpt_model_instance.id. |
+
+## pdbx_vrpt_model_instance
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| id | text | Uniquely identifies each instance of the model. |
+| auth_asym_id | text | The auth_asym_id identifier for the residue is the same as in the model mmCIF item _atom_site.auth_asym_id. |
+| auth_seq_id | integer | The authors residue number for a residue. This is obtained from _atom_site.auth_seq_id |
+| label_comp_id | text | The "residue type", this is the name of the chemical component from the PDB chemical component dictionary. This is the same and the model mmCIF _atom_site.auth_comp_id. |
+| PDB_model_num | integer | The number corresponding to _atom_site.pdbx_PDB_model_num. If the structure does not have multiple models then PDB_model_num will be "1". |
+| label_alt_id | text | This attribute will be set if the pdbx_vrpt_model_instance has atoms with the alternate position indicator set. Normally one character but can be up to 3. Example label_alt_id="A" Obtained from _atom_site.label_alt_id |
+| PDB_ins_code | text | Insertion code for residue from _atom_site.pdbx_PDB_ins_code |
+| entity_id | text | The entity id for the residue or chain. This is a pointer to _pdbx_vrpt_entity.id |
+| label_asym_id | text | The _atom_site.label_asym_id label for the residue. Normally this is the same as the author chain name. |
+| label_seq_id | integer | From the modell mmCIF item _atom_site.label_seq_id. This is an internal sequence number within a polymer chain or "." for non-polymeric residue. |
+| count_angle_outliers | integer | Count of number of atoms with angle outliers for this instance |
+| count_bond_outliers | integer | Count of number of atoms with bond outliers in this instance |
+| count_symm_clashes | integer | Count of number of symmetry related clashes for this instance. |
+| count_chiral_outliers | integer | Count of number of chiral outliers for instance. |
+| count_plane_outliers | integer | Count of number of planar outliers for this instance. |
+| count_mogul_angle_outliers | integer | Count of number of angle outliers as reported by MOGUL for this instance. |
+| count_mogul_bond_outliers | integer | Count of number of bond outliers as reported by MOGUL for this residue. |
+| count_mogul_torsion_outliers | integer | Count of number torsion angle outliers as reported by MOGUL for this instance. |
+| count_mogul_ring_outliers | integer | Count of number of atoms with ring outliers as reported by MOGUL for this instance. |
+| count_clashes | integer | Count of number of atoms a with a pdbx_vrpt_instance_clashes for this instance. |
+| ligand_of_interest | text | A flag to indicate if this instance is a ligand of interest. |
+
+## pdbx_vrpt_model_instance_density
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| natoms_eds | integer | The number of atoms in the residue returned by the EDS software. |
+| RSRCC | double precision | The real space correlation coefficient for the instance. This is an alternative to RSR for assessing how well the residue's calculated electron density map matches the EDS electron density map calculated from the experimental diffraction data. A value above 0.95 normally indicates a very good fit. RSCC around 0.90 are generally OK. A poor fit results in a value around or below 0.80. X-ray specific produced by the EDS step. |
+| RSR | double precision | Real Space R-value (RSR) for the residue from the EDS generated map. X-ray specific produced by the EDS step. |
+| RSRZ | double precision | RSR Z-score (RSRZ) is a normalisation of RSR specific to a residue type and a resolution bin. RSRZ is calculated only for standard amino acids and nucleotides in protein, DNA and RNA chains. A residue is considered an RSRZ outlier if its RSRZ value is greater than 2. X-ray specific produced by the EDS step. |
+| instance_id | text | A pointer to pdbx_vrpt_model_instance.id. |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+| EDIAm | double precision | The EDIAm score aggregates the electron density support for individual atoms (EDIA score) within a residue, evaluating the overall electron density fit for the residue. A residue with an EDIAm below 0.8 suggests that its constituent atoms display increasing inconsistency with the electron density, and should be visually inspected. |
+| OPIA | double precision | Overall Percentage of well-resolved Interconnected Atoms score indicates the percentage of atoms within a residue where the EDIA score exceeds 0.8. A value below 50% suggests less than half of the atoms in the residue lack good electron density support and should be visually inspected. |
+
+## pdbx_vrpt_model_instance_geometry
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| OWAB | double precision | The Occupancy-Weighted Average B (OWAB) value per residue (in units Angstroms squared). This value is calculated by multiplying the B factor for each label_atom_id in the residue by its occupancy and then averaging this value over all atoms in the residue. X-ray specific produced by the EDS step. |
+| residue_inclusion | double precision | The proportion of all atoms of the residue in density |
+| num_H_reduce | integer | This is the number of hydrogen atoms added and optimized by the MolProbity reduce software as part of the all-atom clashscore. |
+| num_bonds_RMSZ | integer | The number of bond lengths compared to "standard geometry" made using the MolProbity dangle program. Standard geometry parameters are taken from Engh and Huber (2001) and Parkinson et al. (1996). |
+| bonds_RMSZ | double precision | The overall root mean square of the Z-score for deviations of bond lengths in comparison to "standard geometry" made using the MolProbity dangle program. Standard geometry parameters are taken from Engh and Huber (2001) and Parkinson et al. (1996). |
+| num_angles_RMSZ | integer | The number of bond angles compared to "standard geometry" made using the MolProbity dangle program. Standard geometry parameters are taken from Engh and Huber (2001) and Parkinson et al. (1996). |
+| angles_RMSZ | double precision | The overall root mean square of the Z-score for deviations of bond angles in comparison to "standard geometry" made using the MolProbity dangle program. Standard geometry parameters are taken from Engh and Huber (2001) and Parkinson et al. (1996). |
+| program_for_bond_angle_geometry | text | The software used to calculate the bond and angle RMSZ statistics. |
+| average_occupancy | double precision | The average occupancy for the residue. Hydrogen atoms are excluded from consideration. X-ray specific produce by the EDS step. |
+| ligand_chirality_outlier | text | A flag indicating of a ligand has a chirality outlier. |
+| validate | text | A flag for NMR entries to indicate if a residue should be included in calculating the overall entry scores ("True") or if it should be excluded from such calculations ("False"). |
+| cyrange_domain_id | integer | Identifier of the well-defined core (domain) to which the residue belongs, as determined by Cyrange. |
+| cis_peptide | text | A flag to indicate that the residue is a cis-peptide. |
+| RNA_score | double precision | MolProbity RNA match quality parameter "suiteness". The suiteness is a measure of how well the detailed local backbone conformation fits one of the most commonly observed (and thus presumably most favorable) conformational clusters. Varies between 1.0 meaning a good match to a commonly observed cluster to 0.0 meaning an outlier. |
+| RNA_suite | text | MolProbity RNA_suite conformation analysis. RNA specific produced by the molprobity step. |
+| RNA_pucker | text | Placeholder for reporting RNA pucker problem from MolProbity. |
+| flippable_sidechain | text | MolProbity identifies side chains of asparagine, glutamine and histidine that can be be rotated ("flipped") to make optimal hydrogen bonds, improving its contacts with its neighbours, without affecting their fit to the experimental electron density. These residues will have flippable_sidechain="1". Protein and polypeptide specific produced by the molprobity step. |
+| ramachandran_class | text | MolProbity Ramachandran plot classification for this residue one of "Favored", "Allowed" or "OUTLIER". Example: ramachandran_class="Favored" Protein and polypeptide specific produced by the molprobity step. |
+| rotamer_class | text | For proteins the MolProbity classification of the side conformation from the chi dihedral angles. For proline the ring pucker is classified as "Cg_endo", "Cg_exo" or "OUTLIER" Examples of common observed classifications: Protein and polypeptide specific produced by the molprobity step. |
+| phi | double precision | The phi torsion angle for the residue in degrees. Protein and polypeptide specific produced by the molprobity step. |
+| psi | double precision | The psi torsion angle for the residue in degrees. Protein and polypeptide specific produced by the molprobity step. |
+| instance_id | text | A pointer to pdbx_vrpt_model_instance.id. |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_model_instance_map_fitting
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| residue_inclusion | double precision | The proportion of all atoms of the residue in density |
+| Q_score | double precision | The Q-score for the residue in the map |
+| instance_id | text | A pointer to pdbx_vrpt_model_instance.id. |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_model_list
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| PDB_model_num | integer | The integer identifier of a Model. |
+| nmrclust_cluster_id | text | NMRClust software is used to compare models in NMR entries. It clusters similar models. Each model in an NMR entry, therefore, can have an "nmrclust_cluster_id" indicating to which cluster the given model belongs. This value is either an integer or the string "outlier" if the model is sufficiently different from other models in the ensemble. |
+| nmrclust_representative | text | A flag indicating if the given model is also the representative model of the cluster to which it belongs. |
+
+## pdbx_vrpt_most_violated_dihedralangle_restraints
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| altcode_1 | text | This attribute will be set if the first pdb x_vrpt_model_instance has atoms with the alternate position indicator set. |
+| chain_1 | text | The auth_asym_id identifier for the first residue or from cif item _atom_site.auth_asym_id. |
+| resnum_1 | integer | The residue number aka sequence id for the first residue. Obtained from _atom_site.auth_seq_id |
+| resname_1 | text | The firs "residue type", this is the name of the chemical component from the PDB chemical component dictionary. Obtained from _atom_site.auth_comp_id |
+| ent_1 | text | The entity id for the first residue. |
+| said_1 | text | The _atom_site.label_asym_id label for the first residue. Normally this is the same as the chain. |
+| seq_1 | integer | From cif item _atom_site.label_seq_id "a pointer to _entity_poly_seq.num" |
+| atom_1 | text | The first atom label from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| chain_2 | text | The auth_asym_id identifier for the second residue or auth_asym_id obtained from cif item _atom_site.auth_asym_id. |
+| altcode_2 | text | This attribute will be set if the second atom has the alternate position indicator set. |
+| resnum_2 | integer | The residue number aka sequence id for the second residue. Obtained from _atom_site.auth_seq_id |
+| resname_2 | text | The "residue type" of the second atom, this is the name of the chemical component from the PDB chemical component dictionary. Obtained from _atom_site.auth_comp_id. |
+| seq_2 | integer | The sequence number for the second atom mrom cif item _atom_site.label_seq_id "a pointer to _entity_poly_seq.num" |
+| said_2 | text | The _atom_site.label_asym_id label for the second residue. Normally this is the same as the chain. |
+| ent_2 | text | The entity id for the second residue. |
+| atom_2 | text | An label_atom_id name for the second item from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| mean_angle_violation | double precision | Mean value of dihedral-angle violation over all violated models |
+| standard_deviation | double precision | The standard deviation of the value of the violations of a given restraint in an ensemble |
+| median_violation | double precision | The median value of the violation of a given restraint in an ensemble |
+| altcode_3 | text | Alternate position setting for the third atom. Obtained from _atom_site.label_alt_id |
+| chain_3 | text | The auth_asym_id identifier for the third residue. |
+| resnum_3 | integer | The residue number aka sequence id for the third residue. Obtained from _atom_site.auth_seq_id. |
+| resname_3 | text | The "residue type", of the third residue. |
+| ent_3 | text | The entity id for the third residue. |
+| said_3 | text | The _atom_site.label_asym_id label for the third residue. Normally this is the same as the chain. |
+| seq_3 | integer | From cif item _atom_site.label_seq_id for the third residue. |
+| atom_3 | text | The label_atom_id name for the third atom. |
+| altcode_4 | text | This attribute will be set if the alternate position is set for the fourth atom. Obtained from _atom_site.label_alt_id |
+| chain_4 | text | The auth_asym_id identifier for the fourth residue. |
+| resnum_4 | integer | The residue number aka sequence id for the fourth residue. |
+| resname_4 | text | The "residue type", of the fourth atom. Obtained from _atom_site.auth_comp_id |
+| ent_4 | text | The entity id for the fourth atom. |
+| said_4 | text | The _atom_site.label_asym_id label for the fourth atom. Normally this is the same as the chain. |
+| seq_4 | integer | From cif item _atom_site.label_seq_id of fourth atom. |
+| atom_4 | text | The label_atom_id name for the fourth atom. |
+| rlist_id | integer | An identifier used to uniquely identify a particular restraints loop. |
+| rest_id | integer | An identifier used to uniquely identify a restraint with in a particular restraint loop. |
+| violated_models | integer | number of violated models for a given restraint or set of restraints |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_most_violated_distance_restraints
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| altcode_1 | text | This attribute will be set if the model has atoms with the alternate position indicator set. |
+| chain_1 | text | The auth_asym_id obtained from cif item _atom_site.auth_asym_id. |
+| resnum_1 | integer | The residue number aka sequence id for a residue. Obtained from _atom_site.auth_seq_id |
+| resname_1 | text | The "residue type", this is the name of the chemical component from the PDB chemical component dictionary. Obtained from _atom_site.auth_comp_id |
+| ent_1 | text | The entity id for the residue or chain. This is from item _atom_site.label_entity_id. |
+| said_1 | text | The _atom_site.label_asym_id label for the residue. Normally this is the same as the chain. |
+| seq_1 | integer | From cif item _atom_site.label_seq_id "a pointer to _entity_poly_seq.num" |
+| chain_2 | text | The auth_asym_id identifier for the residue. |
+| altcode_2 | text | This attribute will be set if the pdbx_vrpt_model_instance has atoms with the alternate position indicator set. Obtained from _atom_site.label_alt_id |
+| atom_1 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| resnum_2 | integer | The residue number aka sequence id for a residue. Obtained from _atom_site.auth_seq_id |
+| resname_2 | text | The "residue type", this is the name of the chemical component from the PDB chemical component dictionary. Obtained from _atom_site.auth_comp_id |
+| seq_2 | integer | From cif item _atom_site.label_seq_id "a pointer to _entity_poly_seq.num" |
+| said_2 | text | The _atom_site.label_asym_id label for the residue. Normally this is the same as the chain. |
+| ent_2 | text | The entity id for the residue or chain. This is from item _atom_site.label_entity_id that is a pointer to _entity.id. |
+| atom_2 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| mean_distance_violation | double precision | Mean distance violation over the violated models |
+| median_violation | double precision | The median value of the violation of a given restraint in an ensemble |
+| standard_deviation | double precision | The standard deviation of the value of the violations of a given restraint in an ensemble |
+| violated_models | integer | Number of violated models for a given restraint or set of restraints |
+| rlist_id | integer | An identifier used to uniquely identify a particular restraints loop. |
+| rest_id | integer | An identifier used to uniquely identify a restraint with in a particular restraint loop |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_percentile_conditions
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| percentile_list_id | text | A pointer to pdbx_vrpt_percentile_list.id. |
+| type_id | text | A pointer to _pdbx_vrpt_percentile_type.id indicating the type |
+| rank | double precision | The score or percentile |
+| res_high | double precision | The high resolution limit of relative entries or '?' if all entries |
+| res_low | double precision | The low resolution limit of relative entries or '?' if all entries |
+| number_entries_total | integer | The number of entries is this set of entries |
+| id | text | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_percentile_entity_view
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| conditions_id | text | Points to a specific condition. |
+| type_id | text | A pointer to _pdbx_vrpt_percentile_type.id indicating the type |
+| label_asym_id | text | The _atom_site.label_asym_id label for the residue. Normally this is the same as the chain. |
+| PDB_model_num | text | Model identifier. If the structure does not have multiple models then PDB_model_num will be "1". |
+| entity_id | text | The entity id for the residue or chain. This is from item _atom_site.label_entity_id that is a pointer to _entity.id in the ENTITY category. |
+| auth_asym_id | text | The auth_asym_id identifier for the polymer. |
+| rank | double precision | The score or percentile |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_percentile_list
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| exp_method | text | Experimental method for statistics |
+| range | text | High resolution relative range of percentiles or 'all' to indicate all resolutions |
+| id | text | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_percentile_type
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| id | text | Uniquely identifies each instance of this category. |
+| type | text | Describes the percentile type being reported |
+
+## pdbx_vrpt_random_coil_index
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+| auth_asym_id | text | The auth_asym_id identifier for the residue or auth_asym_id obtained from cif item _atom_site.auth_asym_id. |
+| rescode | text | The "residue type", this is the name of the chemical component from the PDB chemical component dictionary. Obtained from _atom_site.auth_comp_id |
+| auth_seq_id | integer | The residue number aka sequence id for a residue. Obtained from _atom_site.auth_seq_id |
+| value | double precision | Value in ppm of a chemical shift |
+
+## pdbx_vrpt_referencing_offset
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each referencing_offset. |
+| label_atom_id | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| uncertainty | double precision | Default uncertainty of the prediction, set to 0.05 ppm for protons and 0.5 ppm for 13C and 15N nuclei. |
+| precision | double precision | Precision of the suggested correction, as estimated by jack-knifing algorithm. |
+| value | double precision | Value in ppm of a chemical shift |
+| number_of_measurements | integer | How many chemical shift values for this kind of nucleus are reported in the chemical shift list. |
+
+## pdbx_vrpt_residual_angle_violations
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| max_violation | double precision | The maximum value of the dihedral-angle violation within the bin |
+| bins | text | The violations are binned as small, medium and large violations based on its absolute value. |
+| violations_per_model | double precision | Average number of violations per model is calculated by dividing the total number of violations in each bin by the size of the ensemble. |
+| ordinal | integer | Uniquely identifies each residual angle violation. |
+
+## pdbx_vrpt_residual_distance_violations
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| max_violation | double precision | The maximum value of distance violation with in the given bin |
+| bins | text | The violations are binned as small, medium and large violations based on its absolute value. |
+| violations_per_model | double precision | Average number of violations per model is calculated by dividing the total number of violations in each bin by the size of the ensemble. |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_restraint_summary
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| description | text | The description of the restraint type. |
+| value | double precision | The number of restraints or the value associated with the description. |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_software
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each software used. |
+| name | text | The name of the program. |
+| version | text | Version string for the program. The format is software dependent. |
+| success_y_or_n | text | Indicates if pdbx_vrpt_software for step ran successfully |
+
+## pdbx_vrpt_summary
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| entry_id | text | pdbx_vrpt_summary accesion code (PDB, EMDB or BMRB) |
+| extended_entry_id | text | pdbx_vrpt_summary extended accesion code |
+| PDB_deposition_date | date | Date in yyyy-mm-dd format when structure was deposited to the PDB. Obtained from model file _pdbx_database_status.recvd_initial_deposition_date. |
+| PDB_revision_number | integer | The highest number that appears in mmCIF model item _pdbx_audit_revision_history.ordinal. |
+| PDB_revision_date | date | Date in yyyy-mm-dd format when the structure was last revised by PDB. Obtained from the mmCIF model file _pdbx_audit_revision_history.revision_date |
+| EMDB_deposition_date | date | Date in yyyy-mm-dd format when map was deposited to the EMDB. |
+| report_creation_date | timestamp with time zone | The date, time and time-zone that the validation report was created. The string will be formatted like yyyy-mm-dd:hh:mm in GMT time. |
+| attempted_validation_steps | text | The steps that were attempted by the validation pipeline software. A step typically involves running a 3rd party validation tool, for instance "mogul" Each step will be enumerated in _pdbx_vrpt_software category. |
+| ligands_for_buster_report | text | A flag indicating if there are ligands in the model used for detailed Buster analysis. |
+| RNA_suiteness | double precision | The MolProbity conformer-match quality parameter for RNA structures. Low values are worse. Specific to structures that contain RNA polymers. |
+
+## pdbx_vrpt_summary_diffraction
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| exp_method | text | Experimental method for statistics |
+| Babinet_b | double precision | REFMAC scaling parameter as reported in log output line starting 'bulk solvent: scale'. X-ray entry specific, obtained in the EDS step from REFMAC calculation. |
+| bulk_solvent_b | double precision | REFMAC scaling parameter as reported in log output file. X-ray entry specific, obtained in the EDS step from REFMAC calculation. |
+| Wilson_B_estimate | double precision | An estimate of the overall B-value of the structure, calculated from the diffraction data. Units Angstroms squared. It serves as an indicator of the degree of order in the crystal and the value is usually not hugely different from the average B-value calculated from the model. X-ray entry specific, calculated by Phenix Xtriage program. |
+| I_over_sigma | text | Each reflection has an intensity (I) and an uncertainty in measurement (sigma(I)), so I/sigma(I) is the signal-to-noise ratio. This ratio decreases at higher resolution. &lt;I/sigma(I)&gt; is the mean of individual I/sigma(I) values. Value for outer resolution shell is given in parentheses. In case structure factor amplitudes are deposited, Xtriage estimates the intensities first and then calculates this metric. When intensities are available in the deposited file, these are converted to amplitudes and then back to intensity estimate before calculating the metric. X-ray entry specific, calculated by Phenix Xtriage program. |
+| num_miller_indices | integer | The number of Miller Indices reported by the Xtriage program. This should be the same as the number of _refln in the input structure factor file. X-ray entry specific, calculated by Phenix Xtriage program. |
+| Babinet_k | double precision | REFMAC scaling parameter as reported in log output line starting 'bulk solvent: scale'. X-ray entry specific, obtained in the EDS step from REFMAC calculation. |
+| bulk_solvent_k | double precision | REFMAC reported scaling parameter. X-ray entry specific, obtained in the EDS step from REFMAC calculation. |
+| Padilla_Yeates_L_mean | double precision | Padilla and Yeates twinning parameter &lt;\|L\|&gt;. Theoretical values is 0.5 in the untwinned case, and 0.375 in the perfectly twinned case. X-ray entry specific, obtained from the Xtriage program. |
+| Padilla_Yeates_L2_mean | double precision | Padilla and Yeates twinning parameter &lt;\|L**2\|&gt;. Theoretical values is 0.333 in the untwinned case, and 0.2 in the perfectly twinned case. X-ray entry specific, obtained from the Xtriage program. |
+| DCC_R | double precision | The overall R-factor from a DCC recalculation of an electron density map. Currently value is rounded to 2 decimal places. X-ray entry specific, obtained from the DCC program. |
+| DCC_Rfree | double precision | Rfree as calculated by DCC. |
+| EDS_R | double precision | The overall R factor from the EDS REFMAC calculation (no free set is used in this). Currently value is rounded to 2 decimal places. X-ray entry specific, obtained in the eds step from REFMAC calculation. |
+| EDS_res_high | double precision | The data high resolution diffraction limit, in Angstroms, found in the input structure factor file. X-ray entry specific, obtained in the EDS step. |
+| EDS_res_low | double precision | The data low resolution diffraction limit, in Angstroms, found in the input structure factor file. X-ray entry specific, obtained in the EDS step. |
+| Wilson_B_aniso | text | Result of absolute likelihood based Wilson scaling, The anisotropic B value of the data is determined using a likelihood based approach. The resulting B tensor is reported, the 3 diagonal values are given first, followed by the 3 off diagonal values. A large spread in (especially the diagonal) values indicates anisotropy. X-ray entry specific, calculated by Phenix Xtriage program. |
+| data_anisotropy | double precision | The ratio (Bmax - Bmin) / Bmean where Bmax, Bmin and Bmean are computed from the B-values associated with the principal axes of the anisotropic thermal ellipsoid. This ratio is usually less than 0.5; for only 1% of PDB entries it is more than 1.0 (Read et al., 2011). X-ray entry specific, obtained from the Xtriage program. |
+| trans_NCS_details | text | A sentence giving the result of Xtriage's analysis on translational NCS. X-ray entry specific, obtained from the Xtriage program. |
+| B_factor_type | text | An indicator if isotropic B factors are partial or full values. |
+| acentric_outliers | integer | The number of acentric reflections that Xtriage identifies as outliers on the basis of Wilson statistics. Note that if pseudo translational symmetry is present, a large number of 'outliers' will be present. X-ray entry specific, calculated by Phenix Xtriage program. |
+| centric_outliers | integer | The number of centric reflections that Xtriage identifies as outliers. X-ray entry specific, calculated by Phenix Xtriage program. |
+| data_completeness | double precision | The percent completeness of diffraction data. |
+| number_reflns_R_free | integer | The number of reflections in the free set as defined in the input structure factor file supplied to the validation pipeline. X-ray entry specific, obtained from the DCC program. |
+| percent_free_reflections | double precision | A percentage, Normally percent proportion of the total number. Between 0% and 100%. |
+| percent_RSRZ_outliers | double precision | The percent of RSRZ outliers. |
+| PDB_resolution_high | double precision | The high resolution limit of the data. |
+| PDB_resolution_low | double precision | The low resolution limit of the diffraction data. |
+| PDB_R | double precision | The reported R in the model file. |
+| PDB_Rfree | double precision | The reported Rfree. |
+| twin_fraction | text | Estimated twinning fraction for operators as identified by Xtriage. A semicolon separated list of operators with fractions is givens X-ray entry specific, obtained from the Xtriage program. |
+| Fo_Fc_correlation | double precision | Fo,Fc correlation: The difference between the observed structure factors (Fo) and the calculated structure factors (Fc) measures the correlation between the model and the experimental data. X-ray entry specific, obtained in the eds step from REFMAC calculation. |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+| density_fitness_version | text | The version of density-fitness suite programs used in the analysis. |
+| CCP4_version | text | The version of CCP4 suite used in the analysis. |
+| EDS_R_warning | text | Warning message when EDS calculated R vs reported R is higher than a threshold |
+
+## pdbx_vrpt_summary_em
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| exp_method | text | Experimental method for statistics |
+| contour_level_primary_map | double precision | The recommended contour level for the primary map of this deposition. |
+| atom_inclusion_all_atoms | double precision | The proportion of all non hydrogen atoms within density. |
+| atom_inclusion_backbone | double precision | The proportion of backbone atoms within density. |
+| author_provided_fsc_resolution_by_cutoff_pt_143 | double precision | The resolution from the intersection of the author provided fsc and the indicator curve 0.143. |
+| author_provided_fsc_resolution_by_cutoff_pt_333 | double precision | The resolution from the intersection of the author provided fsc and the indicator curve 0.333. |
+| author_provided_fsc_resolution_by_cutoff_pt_5 | double precision | The resolution from the intersection of the author provided fsc and the indicator curve 0.5. |
+| author_provided_fsc_resolution_by_cutoff_halfbit | double precision | The resolution from the intersection of the author provided fsc and the indicator curve halfbit. |
+| author_provided_fsc_resolution_by_cutoff_onebit | double precision | The resolution from the intersection of the author provided fsc and the indicator curve onebit. |
+| author_provided_fsc_resolution_by_cutoff_threesigma | double precision | The resolution from the intersection of the author provided fsc and the indicator curve threesigma. |
+| calculated_fsc_resolution_by_cutoff_pt_143 | double precision | The resolution from the intersection of the fsc curve generated by from the provided halfmaps and the indicator curve 0.143. |
+| calculated_fsc_resolution_by_cutoff_pt_333 | double precision | The resolution from the intersection of the fsc curve generated by from the provided halfmaps and the indicator curve 0.333. |
+| calculated_fsc_resolution_by_cutoff_pt_5 | double precision | The resolution from the intersection of the fsc curve generated by from the provided halfmaps and the indicator curve 0.5. |
+| calculated_fsc_resolution_by_cutoff_halfbit | double precision | The resolution from the intersection of the fsc curve generated by from the provided halfmaps and the indicator curve halfbit. |
+| calculated_fsc_resolution_by_cutoff_onebit | double precision | The resolution from the intersection of the fsc curve generated by from the provided halfmaps and the indicator curve onebit. |
+| calculated_fsc_resolution_by_cutoff_threesigma | double precision | The resolution from the intersection of the fsc curve generated by from the provided halfmaps and the indicator curve threesigma. |
+| EMDB_resolution | double precision | The resolution reported in the entry. |
+| Q_score | double precision | The overall Q-score of the fit of coordinates to the electron map. The Q-score is defined in Pintilie, GH. et al., Nature Methods, 17, 328-334 (2020) |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_summary_entity_fit_to_map
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each instance of this summary. |
+| PDB_model_num | integer | The unique model number from _atom_site.pdbx_PDB_model_num. |
+| entity_id | text | The entity id for the residue or chain. |
+| label_asym_id | text | The _atom_site.label_asym_id label for the residue. Normally this is the same as the chain. |
+| auth_asym_id | text | The _atom_site.auth_asym_id identifier for the instance. |
+| Q_score | double precision | The calculated average Q-score. |
+| average_residue_inclusion | double precision | The average of the residue inclusions for all residues in this instance |
+
+## pdbx_vrpt_summary_entity_geometry
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each instance of this summary. |
+| PDB_model_num | integer | The unique model number from _atom_site.pdbx_PDB_model_num. |
+| entity_id | text | The entity id for the residue or chain. |
+| label_asym_id | text | The _atom_site.label_asym_id label for the residue. Normally this is the same as the chain. |
+| auth_asym_id | text | The _atom_site.auth_asym_id identifier for the instance. |
+| angles_RMSZ | double precision | The overall root mean square of the Z-score for deviations of bond angles in comparison to "standard geometry" made using the MolProbity dangle program. Standard geometry parameters are taken from Engh and Huber (2001) and Parkinson et al. (1996). |
+| bonds_RMSZ | double precision | The overall root mean square of the Z-score for deviations of bond lengths in comparison to "standard geometry" made using the MolProbity dangle program. Standard geometry parameters are taken from Engh and Huber (2001) and Parkinson et al. (1996). |
+| num_bonds_RMSZ | integer | The number of bond lengths compared to "standard geometry" made using the MolProbity dangle program. Standard geometry parameters are taken from Engh and Huber (2001) and Parkinson et al. (1996). |
+| num_angles_RMSZ | integer | The number of bond angles compared to "standard geometry" made using the MolProbity dangle program. Standard geometry parameters are taken from Engh and Huber (2001) and Parkinson et al. (1996). |
+| average_residue_inclusion | double precision | The average of the residue inclusions for all residues in this instance |
+
+## pdbx_vrpt_summary_geometry
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| percent_ramachandran_outliers | double precision | The percentage of residues with Ramachandran outliers. |
+| clashscore | double precision | This score is derived from the number of pairs of atoms in the PDB_model_num that are unusually close to each other. It is calculated by the MolProbity pdbx_vrpt_software and expressed as the number or such clashes per thousand atoms. For structures determined by NMR the clashscore value here will only consider label_atom_id pairs in the well-defined (core) residues from ensemble analysis. |
+| angles_RMSZ | double precision | The overall root mean square of the Z-score for deviations of bond angles in comparison to "standard geometry" made using the MolProbity dangle program. Standard geometry parameters are taken from Engh and Huber (2001) and Parkinson et al. (1996). This value is for all chains in the structure. |
+| bonds_RMSZ | double precision | The overall root mean square of the Z-score for deviations of bond lengths in comparison to "standard geometry" made using the MolProbity dangle program. Standard geometry parameters are taken from Engh and Huber (2001) and Parkinson et al. (1996). This value is for all chains in the structure. |
+| num_angles_RMSZ | integer | The number of bond angles compared to "standard geometry" made using the MolProbity dangle program. Standard geometry parameters are taken from Engh and Huber (2001) and Parkinson et al. (1996). This value is for all chains in the structure. |
+| num_bonds_RMSZ | integer | The number of bond lengths compared to "standard geometry" made using the MolProbity dangle program. Standard geometry parameters are taken from Engh and Huber (2001) and Parkinson et al. (1996). This value is for all chains in the structure. |
+| percent_rotamer_outliers | double precision | The MolProbity sidechain outlier score (a percentage). Protein sidechains mostly adopt certain (combinations of) preferred torsion angle values (called rotamers or rotameric conformers), much like their backbone torsion angles (as assessed in the Ramachandran analysis). MolProbity considers the sidechain conformation of a residue to be an outlier if its set of torsion angles is not similar to any preferred combination. The sidechain outlier score is calculated as the percentage of residues with an unusual sidechain conformation with respect to the total number of residues for which the assessment is available. Example: percent-rota-outliers="2.44". Specific to structure that contain protein chains and have sidechains modelled. For NMR structures only the well-defined (core) residues from ensemble analysis will be considered. The percentage of residues with rotamer outliers. |
+| percent_ramachandran_outliers_full_length | double precision | Only given for structures determined by NMR. The MolProbity Ramachandran outlier score for all atoms in the structure rather than just the well-defined (core) residues. |
+| percent_rotamer_outliers_full_length | double precision | Only given for structures determined by NMR. The MolProbity sidechain outlier score for all atoms in the structure rather than just the well-defined (core) residues. |
+| clashscore_full_length | double precision | Only given for structures determined by NMR. The MolProbity pdbx_vrpt_instance_clashes score for all label_atom_id pairs. |
+| num_H_reduce | integer | This is the number of hydrogen atoms added and optimized by the MolProbity reduce pdbx_vrpt_software as part of the all-atom clashscore. |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_summary_nmr
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| exp_method | text | Experimental method for statistics |
+| nmr_models_consistency_flag | text | A flag indicating if all models in the NMR ensemble contain the exact same atoms ("True") or if the models differ in this respect ("False"). |
+| nmrclust_representative_model | integer | Overall representative PDB_model_num of the NMR ensemble as identified by NMRClust. |
+| medoid_model | integer | For each Cyrange well-defined core ("cyrange_domain") the id of the PDB_model_num which is most similar to other models as measured by pairwise RMSDs over the domain. For the whole entry ("Entry"), the medoid PDB_model_num of the largest core is taken as an overall representative of the structure. |
+| nmrclust_number_of_outliers | integer | Number of models that do not belong to any cluster as deemed by NMRClust. |
+| nmrclust_number_of_models | integer | Number of models analysed by NMRClust - should in almost all cases be the same as the number of models in the NMR ensemble. |
+| nmrclust_number_of_clusters | integer | Total number of clusters in the NMR ensemble identified by NMRClust. |
+| cyrange_number_of_domains | integer | Total number of well-defined cores (domains) identified by Cyrange |
+| chemical_shift_completeness | double precision | Overall completeness of the chemical shift assignments for the well-defined regions of the structure. |
+| chemical_shift_completeness_full_length | double precision | Overall completeness of the chemical shift assignments for the full macromolecule or complex as suggested by the molecular description of an entry (whether some portion of it is modelled or not). |
+| cyrange_error | text | Diagnostic message from the wrapper of Cyrange software which identifies the well-defined cores (domains) of NMR protein structures. |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## pdbx_vrpt_unmapped_chemical_shift
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+| auth_asym_id | text | The auth_asym_id identifier for the residue or auth_asym_id obtained from cif item _atom_site.auth_asym_id. Currently this is limited to 5 characters. Example: auth_asym_id="A" |
+| rescode | text | The "residue type", this is the name of the chemical component from the PDB chemical component dictionary. Obtained from _atom_site.auth_comp_id |
+| auth_seq_id | integer | The residue number aka sequence id for a residue. Obtained from _atom_site.auth_seq_id |
+| label_atom_id | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| value | double precision | Value in ppm of a chemical shift |
+| error | text | Uncertainty on a chemical shift value, if known. |
+| ambiguity | text | Ambiguity of the chemical shift assignment as per NMR-STAR V3.1 dictionary. |
+| diagnostic | text | Diagnostic text message when a chemical shift was not parsed or not mapped to structure. |
+
+## pdbx_vrpt_unparsed_chemical_shift
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+| id | text | ID of the chemical shift as parsed in the chemical shifts file. |
+| auth_asym_id | text | The auth_asym_id identifier for the residue obtained from mmCIF item _atom_site.auth_asym_id. |
+| rescode | text | The "residue type", this is the name of the chemical component from the PDB chemical component dictionary. Obtained from _atom_site.auth_comp_id |
+| auth_seq_id | integer | The residue number aka sequence id for a residue. Obtained from _atom_site.auth_seq_id |
+| label_atom_id | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| value | double precision | Value in ppm of a chemical shift |
+| error | text | Uncertainty on a chemical shift value - usually not available |
+| ambiguity | text | Ambiguity of the chemical shift assignment as per NMR-STAR V3.1 dictionary. |
+| diagnostic | text | Diagnostic text message when a chemical shift was not parsed or not mapped to structure. |
+
+## pdbx_vrpt_violated_dihedralangle_restraints
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| atom_1 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| atom_2 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| violation | double precision | The measureed violation. |
+| atom_3 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| atom_4 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. |
+| rlist_id | integer | An identifier used to uniquely identify a particular restraints loop. |
+| rest_id | integer | An identifier used to uniquely identify a restraint with in a particular restraint loop. |
+| instance_id_1 | text | A pointer to pdbx_vrpt_model_instance.id. |
+| instance_id_2 | text | A pointer to pdbx_vrpt_model_instance.id. |
+| instance_id_3 | text | A pointer to pdbx_vrpt_model_instance.id. |
+| instance_id_4 | text | A pointer to pdbx_vrpt_model_instance.id. |
+| ordinal | integer | Uniquely identifies each dihedral angle restraint. |
+
+## pdbx_vrpt_violated_distance_restraints
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| atom_1 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. The first atom in the pair. |
+| atom_2 | text | An label_atom_id name from cif item _atom_site.label_atom_id and _chem_comp_atom.atom_id. The second atom in the pair. |
+| violation | double precision | Absolute value of the violation |
+| rlist_id | integer | An identifier used to uniquely identify a particular restraints loop |
+| rest_id | integer | An identifier used to uniquely identify a restraint with in a particular restraint loop |
+| instance_id_1 | text | A pointer to the first atom fro pdbx_vrpt_model_instance.id. |
+| instance_id_2 | text | A pointer to pdbx_vrpt_model_instance.id for second atom |
+| ordinal | integer | Uniquely identifies each instance of this category. |
+
+## struct_asym
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text | PDBID of an entry. All tables/categories refer back to the PDBID in the brief_summary table. |
+| entity_id | text | This data item is a pointer to _entity.id in the ENTITY category. |
+| id | text | The value of _struct_asym.id must uniquely identify a record in the STRUCT_ASYM list. Note that this item need not be a number; it can be any unique identifier. |
+| pdbx_modified | text | This data item indicates whether the structural elements are modified. |
