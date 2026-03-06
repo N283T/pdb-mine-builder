@@ -11,6 +11,7 @@ const sidebars: SidebarsConfig = {
         'getting-started/configuration',
         'getting-started/sync',
         'getting-started/update',
+        'getting-started/migration',
       ],
     },
   ],
