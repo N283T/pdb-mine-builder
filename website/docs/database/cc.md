@@ -180,3 +180,68 @@ sidebar_position: 2
 | name | text | The synonym of this particular chemical component. |
 | provenance | text | The provenance of this synonym. |
 | type | text | The type of this synonym. |
+
+## RDKit Chemical Search
+
+The `cc` schema includes RDKit PostgreSQL extension support for chemical structure searches. The `brief_summary.canonical_smiles` column stores canonical SMILES generated from molecular structure using ccd2rdmol + RDKit.
+
+### Search Functions
+
+| Function | Description |
+|----------|-------------|
+| `cc.similar_compounds(smiles, threshold, limit)` | Tanimoto similarity search (Morgan FP) |
+| `cc.similar_compounds_dice(smiles, threshold, limit)` | Dice similarity search |
+| `cc.substructure_search(smarts, limit)` | Substructure search (SMARTS) |
+| `cc.exact_match(smiles)` | Exact structure match |
+| `cc.similar_to_compound(comp_id, threshold, limit)` | Find compounds similar to existing component |
+| `cc.compound_similarity(comp_id, smiles)` | Calculate similarity between component and SMILES |
+
+### Molecular Descriptors
+
+The `cc.brief_summary` table includes RDKit-calculated molecular descriptors:
+
+| Column | Type | Description |
+|--------|------|-------------|
+| `rdkit_mw` | double precision | Average molecular weight |
+| `rdkit_logp` | double precision | Wildman-Crippen LogP |
+| `rdkit_tpsa` | double precision | Topological polar surface area |
+| `rdkit_hba` | integer | Hydrogen bond acceptors |
+| `rdkit_hbd` | integer | Hydrogen bond donors |
+| `rdkit_rotbonds` | integer | Rotatable bonds |
+| `rdkit_rings` | integer | Number of rings |
+| `rdkit_formula` | text | Molecular formula |
+
+:::note
+Descriptors are NULL when the `mol` column is NULL (invalid SMILES).
+:::
+
+### Query Examples
+
+```sql
+-- Find compounds similar to aspirin (Tanimoto >= 0.7)
+SELECT * FROM cc.similar_compounds('CC(=O)Oc1ccccc1C(=O)O', 0.7, 20);
+
+-- Find compounds containing benzene ring
+SELECT * FROM cc.substructure_search('c1ccccc1', 50);
+
+-- Find compounds similar to ATP
+SELECT * FROM cc.similar_to_compound('ATP', 0.6, 50);
+
+-- Lipinski's Rule of Five filter (drug-like compounds)
+SELECT comp_id, name, rdkit_mw, rdkit_logp, rdkit_hba, rdkit_hbd
+FROM cc.brief_summary
+WHERE rdkit_mw < 500
+  AND rdkit_logp < 5
+  AND rdkit_hba <= 10
+  AND rdkit_hbd <= 5;
+
+-- Combine similarity search with property filter
+SELECT s.*, b.rdkit_mw, b.rdkit_logp
+FROM cc.similar_compounds('c1ccccc1C(=O)O', 0.5, 100) s
+JOIN cc.brief_summary b USING (comp_id)
+WHERE b.rdkit_mw BETWEEN 100 AND 300;
+
+-- Direct RDKit operators (for advanced queries)
+SELECT comp_id, name FROM cc.brief_summary
+WHERE mol @> 'C(=O)O'::qmol;  -- Carboxylic acid substructure
+```
