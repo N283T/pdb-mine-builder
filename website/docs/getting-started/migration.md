@@ -65,7 +65,7 @@ FROM cc.brief_summary
 WHERE morganbv_fp(mol) % morganbv_fp('CCO'::mol);
 ```
 
-SMILES values are generated from molecular structure via [ccd2rdmol](https://github.com/rcsb/py-rcsb_utils_chem) + RDKit, not taken from `pdbx_chem_comp_descriptor` records.
+SMILES values are generated from molecular structure via [ccd2rdmol](https://github.com/N283T/ccd2rdmol) + RDKit, not taken from `pdbx_chem_comp_descriptor` records.
 
 ### No Foreign Key Constraints
 
@@ -103,7 +103,7 @@ pixi run db-history                   # View history
 
 | Schema | Notes |
 |--------|-------|
-| `prd_family` | Separated from `prd` as its own schema with dedicated primary key (`family_prd_id`) |
+| `prd_family` | Existed in mine2 but now has its own dedicated pipeline and primary key (`family_prd_id`) |
 
 **Schema-only definitions** (no pipeline yet):
 
