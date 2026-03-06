@@ -25,7 +25,6 @@ AVAILABLE_PIPELINES = [
     "prd",
     "vrpt",
     "contacts",
-    "sifts",
     "emdb",
     "ihm",
 ]
@@ -50,7 +49,6 @@ PIPELINE_SCHEMA_MAP = {
     "prd": "prd",
     "vrpt": "vrpt",
     "contacts": "contacts",
-    "sifts": "sifts",
     "emdb": "emdb",
     "ihm": "ihm",
 }
@@ -86,7 +84,6 @@ def run_update(
     settings: Settings,
     pipelines: list[str],
     limit: int | None = None,
-    tables: list[str] | None = None,
     force: bool = False,
 ) -> None:
     """Run database update pipelines.
@@ -95,7 +92,6 @@ def run_update(
         settings: Application settings
         pipelines: List of pipeline names to run (empty = all)
         limit: Optional limit on number of entries to process per pipeline
-        tables: Optional list of tables for SIFTS pipeline (default: all)
         force: If True, reprocess all entries ignoring cached mtimes
     """
     # If no pipelines specified, run all
@@ -153,8 +149,6 @@ def run_update(
                 runner = getattr(pipeline_module, run_func)
                 # Build kwargs for the runner
                 runner_kwargs: dict = {"limit": limit}
-                if pipeline_name == "sifts" and tables:
-                    runner_kwargs["tables"] = tables
                 if pipeline_name in FORCE_PIPELINES:
                     runner_kwargs["force"] = force
 
@@ -199,7 +193,7 @@ def _get_pipeline_runner(pipeline_name: str, config: PipelineConfig) -> tuple[st
             return (pipeline_name, "run")
         return (pipeline_name, "run_cif")
 
-    # Other pipelines (vrpt, contacts, sifts, emdb, ihm) use run()
+    # Other pipelines (vrpt, contacts, emdb, ihm) use run()
     return (pipeline_name, "run")
 
 

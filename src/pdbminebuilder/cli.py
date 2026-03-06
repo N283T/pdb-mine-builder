@@ -77,7 +77,7 @@ def sync(
     targets: Annotated[
         Optional[list[str]],
         typer.Argument(
-            help="Sync targets: pdbj, pdbj-json, cc, cc-json, ccmodel, ccmodel-json, prd, prd-json, vrpt, contacts, sifts, schemas"
+            help="Sync targets: pdbj, pdbj-json, cc, cc-json, ccmodel, ccmodel-json, prd, prd-json, vrpt, contacts, schemas"
         ),
     ] = None,
     config: Annotated[
@@ -103,7 +103,7 @@ def update(
     pipelines: Annotated[
         Optional[list[str]],
         typer.Argument(
-            help="Pipelines: pdbj, cc, ccmodel, prd, vrpt, contacts, sifts, emdb, ihm (format via config)"
+            help="Pipelines: pdbj, cc, ccmodel, prd, vrpt, contacts, emdb, ihm (format via config)"
         ),
     ] = None,
     config: Annotated[
@@ -118,14 +118,6 @@ def update(
         Optional[int],
         typer.Option(
             "--workers", "-w", help="Number of worker processes (overrides config)"
-        ),
-    ] = None,
-    tables: Annotated[
-        Optional[list[str]],
-        typer.Option(
-            "--tables",
-            "-t",
-            help="SIFTS only: tables to load (e.g., pdb_pfam,pdb_uniprot). Default: all",
         ),
     ] = None,
     log: Annotated[
@@ -171,7 +163,7 @@ def update(
         settings.rdb.nworkers = workers
 
     logger.info(f"Starting update: pipelines={pipelines or 'all'}, limit={limit}")
-    run_update(settings, pipelines or [], limit=limit, tables=tables, force=force)
+    run_update(settings, pipelines or [], limit=limit, force=force)
     logger.info("Update completed")
 
 
@@ -179,7 +171,7 @@ def update(
 def load(
     pipelines: Annotated[
         Optional[list[str]],
-        typer.Argument(help="Pipelines: pdbj, cc, ccmodel, prd, vrpt, contacts, sifts"),
+        typer.Argument(help="Pipelines: pdbj, cc, ccmodel, prd, vrpt, contacts"),
     ] = None,
     config: Annotated[
         Path,

@@ -186,9 +186,9 @@ class TestGetPipelineRunner:
             )
 
     def test_other_pipelines_dispatch_to_run(self) -> None:
-        """Other pipelines (vrpt, contacts, sifts, etc.) dispatch to run()."""
+        """Other pipelines (vrpt, contacts, etc.) dispatch to run()."""
         config = PipelineConfig(data="/tmp")
-        other_cases = {"vrpt", "contacts", "sifts", "emdb", "ihm"}
+        other_cases = {"vrpt", "contacts", "emdb", "ihm"}
         for pipeline_name in other_cases:
             module_name, func_name = _get_pipeline_runner(pipeline_name, config)
             assert module_name == pipeline_name

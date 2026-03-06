@@ -39,7 +39,6 @@ src/pdbminebuilder/
 │   ├── pdbj.py             # pdbj schema (~400 tables)
 │   ├── prd.py              # prd schema
 │   ├── prd_family.py       # prd_family schema
-│   ├── sifts.py            # sifts schema (9 tables)
 │   └── vrpt.py             # vrpt schema
 ├── db/
 │   ├── connection.py       # psycopg3 connection pool
@@ -57,8 +56,7 @@ src/pdbminebuilder/
     ├── ccmodel.py          # Chemical component models
     ├── prd.py              # BIRD data (dual data blocks)
     ├── vrpt.py             # Validation reports (CIF)
-    ├── contacts.py         # Contact data (custom JSON)
-    └── sifts.py            # SIFTS cross-references (TTL/RDF)
+    └── contacts.py         # Contact data (custom JSON)
 alembic/                    # Alembic migration config
 ├── env.py                  # Multi-schema support
 └── versions/               # Migration scripts
@@ -83,7 +81,6 @@ docs/                       # Architecture docs
 | prd | CIF | Dual file (prd-all.cif.gz + prdcc-all.cif.gz) |
 | vrpt | CIF | Uses gemmi.CifWalk for nested directory structure |
 | contacts | JSON | Array format, not mmJSON |
-| sifts | TTL | SIFTS cross-references (RDF format) |
 | emdb | - | Schema only, no pipeline implementation |
 | ihm | - | Schema only, no pipeline implementation |
 

@@ -23,5 +23,3 @@ pipelines:
     data-cif: ${CWD}/data/vrpt/*_validation.cif.gz
   contacts:
     data: ${CWD}/data/contacts/
-  sifts:
-    data: ${CWD}/data/sifts/
