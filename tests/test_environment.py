@@ -1,7 +1,11 @@
 """Tests for environment version requirements."""
 
+import re
+import shutil
 import subprocess
 import sys
+
+import pytest
 
 
 class TestPythonVersion:
@@ -16,6 +20,7 @@ class TestPythonVersion:
 class TestPostgreSQLVersion:
     """Verify PostgreSQL version (provided by rdkit-postgresql dependency)."""
 
+    @pytest.mark.skipif(not shutil.which("pg_config"), reason="pg_config not found")
     def test_pg_version_minimum(self):
         result = subprocess.run(
             ["pg_config", "--version"],
@@ -23,16 +28,42 @@ class TestPostgreSQLVersion:
             text=True,
             check=True,
         )
-        # Output like "PostgreSQL 18.3"
-        version_str = result.stdout.strip().split()[-1]
-        major = int(version_str.split(".")[0])
-        assert major >= 17, f"PostgreSQL >=17 required, got {version_str}"
+        match = re.search(r"(\d+)\.\d+", result.stdout)
+        assert match, f"Could not parse PostgreSQL version from: {result.stdout.strip()}"
+        major = int(match.group(1))
+        assert major >= 17, f"PostgreSQL >=17 required, got {result.stdout.strip()}"
 
-    def test_psql_available(self):
+    @pytest.mark.skipif(not shutil.which("psql"), reason="psql not found")
+    def test_psql_version_minimum(self):
         result = subprocess.run(
             ["psql", "--version"],
             capture_output=True,
             text=True,
             check=True,
         )
-        assert "psql" in result.stdout
+        match = re.search(r"(\d+)\.\d+", result.stdout)
+        assert match, f"Could not parse psql version from: {result.stdout.strip()}"
+        major = int(match.group(1))
+        assert major >= 17, f"psql >=17 required, got {result.stdout.strip()}"
+
+
+CONDA_PACKAGES = [
+    "alembic",
+    "defusedxml",
+    "gemmi",
+    "pydantic",
+    "pydantic_settings",
+    "rich",
+    "ruff",
+    "sqlalchemy",
+    "typer",
+    "yaml",
+]
+
+
+class TestCondaPackages:
+    """Verify conda-forge packages are importable."""
+
+    @pytest.mark.parametrize("module", CONDA_PACKAGES)
+    def test_import(self, module):
+        __import__(module)
