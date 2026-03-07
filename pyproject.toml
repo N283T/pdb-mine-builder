@@ -1,6 +1,6 @@
 [project]
 name = "pdbminebuilder"
-version = "0.2.0"
+version = "0.2.1"
 description = "PDBj data synchronization and database loading tool"
 license = "MIT"
 requires-python = ">=3.12"

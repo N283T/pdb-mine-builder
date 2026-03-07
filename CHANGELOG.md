@@ -7,11 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-03-08
+
 ### Added
 
 - `pmb query` command for executing SQL queries with multi-format output (table, CSV, JSON, Parquet)
 - Read-only connection mode for query command to prevent accidental destructive SQL
 - Polars dependency for DataFrame-based query result handling
+- Docker/Podman support for production deployment
+- Interactive Table Relations page with dynamic Mermaid ER diagrams
+- Schema tab picker with preset examples for quick exploration
+- SVG/PNG diagram download
+- Schema search page with cross-schema column search
+
+### Changed
+
+- Migrated schema docs from .mdx to .md format
+- Extracted shared Schema interface and SCHEMA_PRIORITY to types module
+
+### Fixed
+
+- Schema ordering bug (unknown schemas sorted incorrectly)
+- PNG download silent failures with proper error handling
 
 ## [0.2.0] - 2026-03-07
 
