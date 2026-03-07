@@ -9,7 +9,6 @@ Usage:
     pixi run python scripts/generate_rdb_docs.py
 """
 
-import re
 from pathlib import Path
 
 import yaml
@@ -122,6 +121,7 @@ def main() -> None:
     yaml_dir = project_root.joinpath("docs", "rdb_docs")
     md_dir = project_root.joinpath("website", "docs", "database")
     yaml_dir.mkdir(parents=True, exist_ok=True)
+    md_dir.mkdir(parents=True, exist_ok=True)
 
     for schema_name in sorted(ALL_METADATA.keys()):
         data = generate_schema_data(schema_name)
@@ -141,7 +141,7 @@ def main() -> None:
         md_path = md_dir.joinpath(f"{schema_name}.md")
         custom = extract_custom_content(md_path)
         if custom:
-            md_content = md_content + custom
+            md_content += custom
 
         md_path.write_text(md_content)
 
