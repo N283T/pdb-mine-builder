@@ -7,16 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- Move most PyPI dependencies to conda-forge (#82)
-- PostgreSQL version is now managed by rdkit-postgresql dependency (#82)
-
-### Added
-
-- Environment version tests for Python and PostgreSQL (#82)
-
-## [0.2.0] - Unreleased
+## [0.2.0] - 2026-03-07
 
 Initial release as an independent Python project. Rewritten from
 [mine2updater](https://gitlab.com/pdbjapan/mine2updater) (Node.js) by PDBj.
@@ -37,4 +28,8 @@ Initial release as an independent Python project. Rewritten from
 - Pydantic-based configuration with YAML and environment variable support
 - Documentation website with auto-generated schema docs
 - Docker-based test environment (PostgreSQL + RDKit)
+- PyPI publishing support with trusted publishing
+- Environment version tests for Python and PostgreSQL
+- Alternative installation methods (pip, conda+pip)
+- `config.example.yml` with documented options
 - MIT license

@@ -6,26 +6,67 @@ sidebar_position: 1
 
 This guide walks you through setting up pdb-mine-builder from scratch.
 
-## Prerequisites
+## Pixi (recommended)
 
-Before you begin, ensure you have the following installed:
+[Pixi](https://pixi.sh/) manages all dependencies — Python, PostgreSQL, RDKit, and CLI tools — in a single isolated environment.
+
+### Prerequisites
 
 | Requirement | Version | Purpose |
 |-------------|---------|---------|
-| Python | 3.12+ | Runtime |
-| PostgreSQL | 17+ | Database (with RDKit extension for chemical searches) |
-| [Pixi](https://pixi.sh/) | Latest | Package manager (manages Python deps and CLI tools) |
+| [Pixi](https://pixi.sh/) | Latest | Package manager |
 | rsync | Any | Data synchronization from PDBj servers |
 
-## Clone and Install
+### Setup
 
 ```bash
 git clone https://github.com/N283T/pdb-mine-builder.git
 cd pdb-mine-builder
 pixi install
+cp config.example.yml config.yml  # Edit with your data paths
 ```
 
-This installs all Python dependencies and CLI tools into an isolated Pixi environment.
+This installs all dependencies including Python, PostgreSQL, and RDKit into an isolated Pixi environment.
+
+## pip (alternative)
+
+:::warning
+pip installs the Python package only. You must provide PostgreSQL (17+) and the [RDKit PostgreSQL cartridge](https://github.com/rdkit/rdkit-postgresql) separately. Database management commands (`pixi run db-*`) are not available — use your own PostgreSQL instance.
+:::
+
+```bash
+pip install pdbminebuilder
+```
+
+Then create a config file and point it to your PostgreSQL instance:
+
+```bash
+curl -O https://raw.githubusercontent.com/N283T/pdb-mine-builder/main/config.example.yml
+cp config.example.yml config.yml  # Edit constring and data paths
+pmb --help
+```
+
+## conda + pip (alternative)
+
+:::warning
+Database management commands (`pixi run db-*`) are not available. Use your own PostgreSQL instance.
+:::
+
+Use conda to install rdkit-postgresql, then pip for the Python package:
+
+```bash
+conda create -n pmb python=3.12 rdkit-postgresql -c conda-forge
+conda activate pmb
+pip install pdbminebuilder
+```
+
+Then create a config file:
+
+```bash
+curl -O https://raw.githubusercontent.com/N283T/pdb-mine-builder/main/config.example.yml
+cp config.example.yml config.yml  # Edit constring and data paths
+pmb --help
+```
 
 ## Environment Variables
 

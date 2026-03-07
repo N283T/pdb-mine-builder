@@ -13,13 +13,17 @@ This project is based on PDBj's [mine2updater](https://gitlab.com/pdbjapan/mine2
 - RDKit chemical search integration (substructure, similarity)
 - 9 database schemas covering PDB structures, chemical components, validation reports, and more
 
-## Quick Start
+## Installation
+
+### Pixi (recommended)
+
+[Pixi](https://pixi.sh/) manages all dependencies including Python, PostgreSQL, and RDKit in a single environment.
 
 ```bash
 git clone https://github.com/N283T/pdb-mine-builder.git
 cd pdb-mine-builder
 pixi install
-cp .env.example .env   # Edit with your settings
+cp config.example.yml config.yml  # Edit with your data paths
 ```
 
 ```bash
@@ -28,6 +32,28 @@ pixi run db-start      # Start PostgreSQL
 pixi run pmb sync      # Sync data from PDBj
 pixi run pmb load pdbj --force  # Load data
 pixi run pmb stats     # Check database statistics
+```
+
+### pip (alternative)
+
+> **Note**: pip installs the Python package only. You must provide PostgreSQL (17+) and the [RDKit PostgreSQL cartridge](https://github.com/rdkit/rdkit-postgresql) separately. Database management commands (`pixi run db-*`) are not available.
+
+```bash
+pip install pdbminebuilder
+cp config.example.yml config.yml  # Edit with your data paths and connection string
+pmb --help
+```
+
+### conda + pip (alternative)
+
+> **Note**: Database management commands (`pixi run db-*`) are not available. Use your own PostgreSQL instance.
+
+```bash
+conda create -n pmb python=3.12 rdkit-postgresql -c conda-forge
+conda activate pmb
+pip install pdbminebuilder
+cp config.example.yml config.yml
+pmb --help
 ```
 
 See the [Getting Started guide](https://n283t.github.io/pdb-mine-builder/docs/getting-started/installation) for detailed setup instructions.
