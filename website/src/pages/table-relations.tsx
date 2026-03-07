@@ -4,13 +4,8 @@ import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 import useBaseUrl from '@docusaurus/useBaseUrl';
 import BrowserOnly from '@docusaurus/BrowserOnly';
-import type {Column, Table} from '@site/src/types/schema';
-
-interface Schema {
-  schema: string;
-  primaryKey: string;
-  tables: Table[];
-}
+import type {Column, Table, Schema} from '@site/src/types/schema';
+import {SCHEMA_PRIORITY} from '@site/src/types/schema';
 
 interface TableEntry {
   schema: string;
@@ -56,7 +51,6 @@ const PRESETS: {label: string; description: string; tables: string[]}[] = [
   },
 ];
 
-const SCHEMA_ORDER = ['pdbj', 'cc', 'ccmodel', 'prd', 'prd_family', 'vrpt', 'contacts', 'emdb', 'ihm'];
 
 function useSchemaData() {
   const [schemas, setSchemas] = useState<Schema[]>([]);
@@ -85,12 +79,14 @@ function SchemaTablePicker({
   selected,
   onAdd,
   onRemove,
+  onClearAll,
 }: {
   schemas: Schema[];
   allTables: TableEntry[];
   selected: string[];
   onAdd: (key: string) => void;
   onRemove: (key: string) => void;
+  onClearAll: () => void;
 }) {
   const [activeSchema, setActiveSchema] = useState<string | null>(null);
   const [tableFilter, setTableFilter] = useState('');
@@ -100,7 +96,7 @@ function SchemaTablePicker({
     () =>
       [...schemas].sort(
         (a, b) =>
-          (SCHEMA_ORDER.indexOf(a.schema) ?? 99) - (SCHEMA_ORDER.indexOf(b.schema) ?? 99),
+          (SCHEMA_PRIORITY[a.schema] ?? 99) - (SCHEMA_PRIORITY[b.schema] ?? 99),
       ),
     [schemas],
   );
@@ -135,9 +131,7 @@ function SchemaTablePicker({
             </span>
           ))}
           <button
-            onClick={() => {
-              for (const key of selected) onRemove(key);
-            }}
+            onClick={onClearAll}
             className="table-relations__clear-btn"
           >
             Clear all
@@ -348,7 +342,7 @@ function buildMermaidDef(
         const relKey = [a, b].sort().join('--') + ':' + col;
         if (!addedRels.has(relKey)) {
           addedRels.add(relKey);
-          lines.push(`    ${a} ||--o{ ${b} : "${col}"`);
+          lines.push(`    ${a} ||--o{ ${b} : "${sanitizeName(col)}"`);;
         }
       }
     }
@@ -409,6 +403,7 @@ function MermaidRenderer({definition}: {definition: string}) {
 
   useEffect(() => {
     let cancelled = false;
+    setError(null);
     (async () => {
       if (!containerRef.current) return;
       try {
@@ -439,24 +434,31 @@ function MermaidRenderer({definition}: {definition: string}) {
   }, [svgContent]);
 
   const handleDownloadPng = useCallback(() => {
-    const svgEl = containerRef.current?.querySelector('svg');
-    if (!svgEl) return;
-    const svgData = new XMLSerializer().serializeToString(svgEl);
-    const canvas = document.createElement('canvas');
-    const bbox = svgEl.getBoundingClientRect();
-    const scale = 2;
-    canvas.width = bbox.width * scale;
-    canvas.height = bbox.height * scale;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const img = new Image();
-    img.onload = () => {
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob((blob) => {
-        if (blob) downloadBlob(blob, 'table-relations.png');
-      });
-    };
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    try {
+      const svgEl = containerRef.current?.querySelector('svg');
+      if (!svgEl) return;
+      const svgData = new XMLSerializer().serializeToString(svgEl);
+      const canvas = document.createElement('canvas');
+      const bbox = svgEl.getBoundingClientRect();
+      const scale = 2;
+      canvas.width = bbox.width * scale;
+      canvas.height = bbox.height * scale;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+      const img = new Image();
+      img.onerror = () => {
+        setError('Failed to render PNG. Try downloading SVG instead.');
+      };
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => {
+          if (blob) downloadBlob(blob, 'table-relations.png');
+        });
+      };
+      img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    } catch {
+      setError('Failed to export PNG. Try downloading SVG instead.');
+    }
   }, []);
 
   if (error) return <p className="schema-search__error">Diagram error: {error}</p>;
@@ -562,6 +564,10 @@ export default function TableRelationsPage(): ReactNode {
     setSelected((prev) => prev.filter((k) => k !== key));
   }, []);
 
+  const handleClearAll = useCallback(() => {
+    setSelected([]);
+  }, []);
+
   const handlePreset = useCallback((tables: string[]) => {
     setSelected(tables.slice(0, MAX_TABLES));
   }, []);
@@ -607,6 +613,7 @@ export default function TableRelationsPage(): ReactNode {
               selected={selected}
               onAdd={handleAdd}
               onRemove={handleRemove}
+              onClearAll={handleClearAll}
             />
 
             <SuggestedTables

@@ -133,11 +133,6 @@
 }
 
 /* Table Relations page */
-.table-relations__selector {
-  position: relative;
-  margin-bottom: 1rem;
-}
-
 .table-relations__tags {
   display: flex;
   flex-wrap: wrap;
@@ -174,39 +169,6 @@
 
 .table-relations__tag-remove:hover {
   opacity: 1;
-}
-
-.table-relations__dropdown {
-  position: absolute;
-  z-index: 10;
-  list-style: none;
-  margin: 0.25rem 0 0;
-  padding: 0;
-  background: var(--ifm-background-surface-color);
-  border: 1px solid var(--ifm-color-emphasis-300);
-  border-radius: var(--ifm-global-radius);
-  max-height: 300px;
-  overflow-y: auto;
-  width: 100%;
-  max-width: 600px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.table-relations__dropdown-item {
-  display: flex;
-  justify-content: space-between;
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  font-size: 0.9rem;
-  color: var(--ifm-font-color-base);
-}
-
-.table-relations__dropdown-item:hover {
-  background: var(--ifm-color-emphasis-100);
 }
 
 .table-relations__col-count {
