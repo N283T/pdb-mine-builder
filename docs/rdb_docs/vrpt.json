@@ -1,0 +1,3867 @@
+{
+  "config": {
+    "primaryKey": "pdbid",
+    "schema": "vrpt"
+  },
+  "tables": [
+    {
+      "name": "audit_conform",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "dict_location",
+          "text",
+          ""
+        ],
+        [
+          "dict_name",
+          "text",
+          ""
+        ],
+        [
+          "dict_version",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "dict_name",
+        "dict_version"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "brief_summary",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "docid",
+          "bigint",
+          ""
+        ],
+        [
+          "update_date",
+          "timestamp without time zone",
+          ""
+        ],
+        [
+          "keywords",
+          "text[]",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "entity",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "id",
+          "text",
+          ""
+        ],
+        [
+          "type",
+          "text",
+          ""
+        ],
+        [
+          "src_method",
+          "text",
+          ""
+        ],
+        [
+          "pdbx_description",
+          "text",
+          ""
+        ],
+        [
+          "formula_weight",
+          "double precision",
+          ""
+        ],
+        [
+          "pdbx_number_of_molecules",
+          "integer",
+          ""
+        ],
+        [
+          "pdbx_ec",
+          "text",
+          ""
+        ],
+        [
+          "pdbx_mutation",
+          "text",
+          ""
+        ],
+        [
+          "pdbx_fragment",
+          "text",
+          ""
+        ],
+        [
+          "details",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "id"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "entry",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "id",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "id"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_assign_completeness_full_length",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "number_of_assigned_shifts",
+          "integer",
+          ""
+        ],
+        [
+          "number_of_unassigned_shifts",
+          "integer",
+          ""
+        ],
+        [
+          "number_of_shifts",
+          "integer",
+          ""
+        ],
+        [
+          "type",
+          "text",
+          ""
+        ],
+        [
+          "element",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_assign_completeness_well_defined",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "number_of_assigned_shifts",
+          "integer",
+          ""
+        ],
+        [
+          "number_of_unassigned_shifts",
+          "integer",
+          ""
+        ],
+        [
+          "number_of_shifts",
+          "integer",
+          ""
+        ],
+        [
+          "type",
+          "text",
+          ""
+        ],
+        [
+          "element",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_asym",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "label_asym_id",
+          "text",
+          ""
+        ],
+        [
+          "entity_id",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "label_asym_id"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_chemical_shift_list",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "file_id",
+          "integer",
+          ""
+        ],
+        [
+          "file_name",
+          "text",
+          ""
+        ],
+        [
+          "block_name",
+          "text",
+          ""
+        ],
+        [
+          "list_id",
+          "text",
+          ""
+        ],
+        [
+          "type",
+          "text",
+          ""
+        ],
+        [
+          "number_of_errors_while_mapping",
+          "integer",
+          ""
+        ],
+        [
+          "number_of_warnings_while_mapping",
+          "integer",
+          ""
+        ],
+        [
+          "number_of_mapped_shifts",
+          "integer",
+          ""
+        ],
+        [
+          "number_of_parsed_shifts",
+          "integer",
+          ""
+        ],
+        [
+          "total_number_of_shifts",
+          "integer",
+          ""
+        ],
+        [
+          "number_of_unparsed_shifts",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_chemical_shift_outlier",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "auth_asym_id",
+          "text",
+          ""
+        ],
+        [
+          "rescode",
+          "text",
+          ""
+        ],
+        [
+          "auth_seq_id",
+          "integer",
+          ""
+        ],
+        [
+          "label_atom_id",
+          "text",
+          ""
+        ],
+        [
+          "value",
+          "double precision",
+          ""
+        ],
+        [
+          "zscore",
+          "double precision",
+          ""
+        ],
+        [
+          "prediction",
+          "text",
+          ""
+        ],
+        [
+          "method",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_cyrange_domain",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "domain",
+          "integer",
+          ""
+        ],
+        [
+          "number_of_gaps",
+          "integer",
+          ""
+        ],
+        [
+          "number_of_residues",
+          "integer",
+          ""
+        ],
+        [
+          "percentage_of_core",
+          "double precision",
+          ""
+        ],
+        [
+          "rmsd",
+          "double precision",
+          ""
+        ],
+        [
+          "medoid_model",
+          "integer",
+          ""
+        ],
+        [
+          "medoid_rmsd",
+          "double precision",
+          ""
+        ],
+        [
+          "residue_string",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_database",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "code",
+          "text",
+          ""
+        ],
+        [
+          "id",
+          "text",
+          ""
+        ],
+        [
+          "extended_code",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "id"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_dihedralangle_ensemble_violation",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ang_rest_type",
+          "text",
+          ""
+        ],
+        [
+          "violations_count",
+          "integer",
+          ""
+        ],
+        [
+          "ensemble_dihedral_count",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_dihedralangle_violation_ensemble_summary",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "fraction_of_ensemble_count",
+          "integer",
+          ""
+        ],
+        [
+          "fraction_of_ensemble_percent",
+          "double precision",
+          ""
+        ],
+        [
+          "id",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "id"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_dihedralangle_violation_model",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ang_rest_type",
+          "text",
+          ""
+        ],
+        [
+          "violations_count",
+          "integer",
+          ""
+        ],
+        [
+          "PDB_model_num",
+          "integer",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_dihedralangle_violation_model_summary",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "PDB_model_num",
+          "integer",
+          ""
+        ],
+        [
+          "max_violation",
+          "double precision",
+          ""
+        ],
+        [
+          "mean_violation",
+          "double precision",
+          ""
+        ],
+        [
+          "standard_deviation",
+          "double precision",
+          ""
+        ],
+        [
+          "median_violation",
+          "double precision",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_dihedralangle_violations_summary",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "restraint_type",
+          "text",
+          ""
+        ],
+        [
+          "consistently_violated_count",
+          "integer",
+          ""
+        ],
+        [
+          "consistently_violated_percent_total",
+          "double precision",
+          ""
+        ],
+        [
+          "consistently_violated_percent_type",
+          "double precision",
+          ""
+        ],
+        [
+          "restraints_count",
+          "integer",
+          ""
+        ],
+        [
+          "violated_count",
+          "integer",
+          ""
+        ],
+        [
+          "percent_total",
+          "double precision",
+          ""
+        ],
+        [
+          "violated_percent_total",
+          "double precision",
+          ""
+        ],
+        [
+          "violated_percent_type",
+          "double precision",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_distance_violation_ensemble",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "dist_rest_type",
+          "text",
+          ""
+        ],
+        [
+          "violations_count",
+          "integer",
+          ""
+        ],
+        [
+          "ensemble_distance_count",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_distance_violation_model_restraints",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "dist_rest_type",
+          "text",
+          ""
+        ],
+        [
+          "violations_count",
+          "integer",
+          ""
+        ],
+        [
+          "PDB_model_num",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_distance_violation_model_summary",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "max_violation",
+          "double precision",
+          ""
+        ],
+        [
+          "mean_violation",
+          "double precision",
+          ""
+        ],
+        [
+          "PDB_model_num",
+          "integer",
+          ""
+        ],
+        [
+          "standard_deviation",
+          "double precision",
+          ""
+        ],
+        [
+          "median_violation",
+          "double precision",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_distance_violation_summary",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "restraint_type",
+          "text",
+          ""
+        ],
+        [
+          "restraint_sub_type",
+          "text",
+          ""
+        ],
+        [
+          "consistently_violated_count",
+          "integer",
+          ""
+        ],
+        [
+          "consistently_violated_percent_total",
+          "double precision",
+          ""
+        ],
+        [
+          "consistently_violated_percent_type",
+          "double precision",
+          ""
+        ],
+        [
+          "restraints_count",
+          "integer",
+          ""
+        ],
+        [
+          "violated_count",
+          "integer",
+          ""
+        ],
+        [
+          "percent_total",
+          "double precision",
+          ""
+        ],
+        [
+          "violated_percent_total",
+          "double precision",
+          ""
+        ],
+        [
+          "violated_percent_type",
+          "double precision",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_distance_violations_ensemble_summary",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "fraction_of_ensemble_count",
+          "integer",
+          ""
+        ],
+        [
+          "fraction_of_ensemble_percent",
+          "double precision",
+          ""
+        ],
+        [
+          "id",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "id"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_em_2d_graph_data",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "graph_data_id",
+          "text",
+          ""
+        ],
+        [
+          "x_value",
+          "double precision",
+          ""
+        ],
+        [
+          "y_value",
+          "double precision",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_em_2d_graph_info",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "graph_data_id",
+          "text",
+          ""
+        ],
+        [
+          "graph_id",
+          "text",
+          ""
+        ],
+        [
+          "title",
+          "text",
+          ""
+        ],
+        [
+          "x_axis_title",
+          "text",
+          ""
+        ],
+        [
+          "x_axis_units",
+          "text",
+          ""
+        ],
+        [
+          "y_axis_title",
+          "text",
+          ""
+        ],
+        [
+          "y_axis_scale",
+          "text",
+          ""
+        ],
+        [
+          "y_axis_units",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "graph_id"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_em_details",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "recommended_contour_level",
+          "double precision",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_em_graph_atom_inclusion",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "graph_id",
+          "text",
+          ""
+        ],
+        [
+          "type",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "graph_id"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_em_graph_fsc_curve",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "graph_id",
+          "text",
+          ""
+        ],
+        [
+          "type",
+          "text",
+          ""
+        ],
+        [
+          "curve_name",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "graph_id"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_em_graph_fsc_indicator_curve",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "graph_id",
+          "text",
+          ""
+        ],
+        [
+          "type",
+          "text",
+          ""
+        ],
+        [
+          "curve_name",
+          "text",
+          ""
+        ],
+        [
+          "data_curve_name",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "graph_id"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_em_resolution_intersections",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "resolution_units",
+          "text",
+          ""
+        ],
+        [
+          "spatial_frequency_units",
+          "text",
+          ""
+        ],
+        [
+          "correlation",
+          "double precision",
+          ""
+        ],
+        [
+          "resolution",
+          "double precision",
+          ""
+        ],
+        [
+          "spatial_frequency",
+          "double precision",
+          ""
+        ],
+        [
+          "curve",
+          "text",
+          ""
+        ],
+        [
+          "type",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_entity",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "id",
+          "text",
+          ""
+        ],
+        [
+          "type",
+          "text",
+          ""
+        ],
+        [
+          "description",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "id"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_exptl",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "method",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_instance_clashes",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "label_atom_id",
+          "text",
+          ""
+        ],
+        [
+          "cid",
+          "integer",
+          ""
+        ],
+        [
+          "clashmag",
+          "double precision",
+          ""
+        ],
+        [
+          "dist",
+          "double precision",
+          ""
+        ],
+        [
+          "instance_id",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_instance_intra_angle_outliers",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "mean",
+          "double precision",
+          ""
+        ],
+        [
+          "stdev",
+          "double precision",
+          ""
+        ],
+        [
+          "obs",
+          "double precision",
+          ""
+        ],
+        [
+          "Z",
+          "double precision",
+          ""
+        ],
+        [
+          "link",
+          "text",
+          ""
+        ],
+        [
+          "atom_1",
+          "text",
+          ""
+        ],
+        [
+          "atom_2",
+          "text",
+          ""
+        ],
+        [
+          "atom_3",
+          "text",
+          ""
+        ],
+        [
+          "instance_id",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_instance_intra_bond_outliers",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "instance_id",
+          "text",
+          ""
+        ],
+        [
+          "atom_1",
+          "text",
+          ""
+        ],
+        [
+          "atom_2",
+          "text",
+          ""
+        ],
+        [
+          "mean",
+          "double precision",
+          ""
+        ],
+        [
+          "stdev",
+          "double precision",
+          ""
+        ],
+        [
+          "obs",
+          "double precision",
+          ""
+        ],
+        [
+          "Z",
+          "double precision",
+          ""
+        ],
+        [
+          "link",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_instance_intra_plane_outliers",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "type",
+          "text",
+          ""
+        ],
+        [
+          "improper",
+          "double precision",
+          ""
+        ],
+        [
+          "omega",
+          "double precision",
+          ""
+        ],
+        [
+          "plane_rmsd",
+          "double precision",
+          ""
+        ],
+        [
+          "instance_id",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_instance_mogul_angle_outliers",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "obsval",
+          "double precision",
+          ""
+        ],
+        [
+          "mean",
+          "double precision",
+          ""
+        ],
+        [
+          "stdev",
+          "double precision",
+          ""
+        ],
+        [
+          "numobs",
+          "integer",
+          ""
+        ],
+        [
+          "Zscore",
+          "double precision",
+          ""
+        ],
+        [
+          "mindiff",
+          "double precision",
+          ""
+        ],
+        [
+          "atom_1",
+          "text",
+          ""
+        ],
+        [
+          "atom_2",
+          "text",
+          ""
+        ],
+        [
+          "atom_3",
+          "text",
+          ""
+        ],
+        [
+          "instance_id",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_instance_mogul_bond_outliers",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "obsval",
+          "double precision",
+          ""
+        ],
+        [
+          "mean",
+          "double precision",
+          ""
+        ],
+        [
+          "stdev",
+          "double precision",
+          ""
+        ],
+        [
+          "numobs",
+          "integer",
+          ""
+        ],
+        [
+          "Zscore",
+          "double precision",
+          ""
+        ],
+        [
+          "mindiff",
+          "double precision",
+          ""
+        ],
+        [
+          "atom_1",
+          "text",
+          ""
+        ],
+        [
+          "atom_2",
+          "text",
+          ""
+        ],
+        [
+          "instance_id",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_instance_mogul_ring_outliers",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "atoms",
+          "text",
+          ""
+        ],
+        [
+          "mean",
+          "double precision",
+          ""
+        ],
+        [
+          "mindiff",
+          "double precision",
+          ""
+        ],
+        [
+          "stdev",
+          "double precision",
+          ""
+        ],
+        [
+          "numobs",
+          "integer",
+          ""
+        ],
+        [
+          "instance_id",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_instance_mogul_torsion_outliers",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "obsval",
+          "double precision",
+          ""
+        ],
+        [
+          "mean",
+          "double precision",
+          ""
+        ],
+        [
+          "mindiff",
+          "double precision",
+          ""
+        ],
+        [
+          "numobs",
+          "integer",
+          ""
+        ],
+        [
+          "stdev",
+          "double precision",
+          ""
+        ],
+        [
+          "local_density",
+          "double precision",
+          ""
+        ],
+        [
+          "atom_1",
+          "text",
+          ""
+        ],
+        [
+          "atom_2",
+          "text",
+          ""
+        ],
+        [
+          "atom_3",
+          "text",
+          ""
+        ],
+        [
+          "atom_4",
+          "text",
+          ""
+        ],
+        [
+          "instance_id",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_instance_stereo_outliers",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "label_atom_id",
+          "text",
+          ""
+        ],
+        [
+          "problem",
+          "text",
+          ""
+        ],
+        [
+          "instance_id",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_instance_symm_clashes",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "label_atom_id",
+          "text",
+          ""
+        ],
+        [
+          "symop",
+          "text",
+          ""
+        ],
+        [
+          "scid",
+          "integer",
+          ""
+        ],
+        [
+          "clashmag",
+          "double precision",
+          ""
+        ],
+        [
+          "dist",
+          "double precision",
+          ""
+        ],
+        [
+          "instance_id",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_model_instance",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "id",
+          "text",
+          ""
+        ],
+        [
+          "auth_asym_id",
+          "text",
+          ""
+        ],
+        [
+          "auth_seq_id",
+          "integer",
+          ""
+        ],
+        [
+          "label_comp_id",
+          "text",
+          ""
+        ],
+        [
+          "PDB_model_num",
+          "integer",
+          ""
+        ],
+        [
+          "label_alt_id",
+          "text",
+          ""
+        ],
+        [
+          "PDB_ins_code",
+          "text",
+          ""
+        ],
+        [
+          "entity_id",
+          "text",
+          ""
+        ],
+        [
+          "label_asym_id",
+          "text",
+          ""
+        ],
+        [
+          "label_seq_id",
+          "integer",
+          ""
+        ],
+        [
+          "count_angle_outliers",
+          "integer",
+          ""
+        ],
+        [
+          "count_bond_outliers",
+          "integer",
+          ""
+        ],
+        [
+          "count_symm_clashes",
+          "integer",
+          ""
+        ],
+        [
+          "count_chiral_outliers",
+          "integer",
+          ""
+        ],
+        [
+          "count_plane_outliers",
+          "integer",
+          ""
+        ],
+        [
+          "count_mogul_angle_outliers",
+          "integer",
+          ""
+        ],
+        [
+          "count_mogul_bond_outliers",
+          "integer",
+          ""
+        ],
+        [
+          "count_mogul_torsion_outliers",
+          "integer",
+          ""
+        ],
+        [
+          "count_mogul_ring_outliers",
+          "integer",
+          ""
+        ],
+        [
+          "count_clashes",
+          "integer",
+          ""
+        ],
+        [
+          "ligand_of_interest",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "id"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_model_instance_density",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "natoms_eds",
+          "integer",
+          ""
+        ],
+        [
+          "RSRCC",
+          "double precision",
+          ""
+        ],
+        [
+          "RSR",
+          "double precision",
+          ""
+        ],
+        [
+          "RSRZ",
+          "double precision",
+          ""
+        ],
+        [
+          "instance_id",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "EDIAm",
+          "double precision",
+          ""
+        ],
+        [
+          "OPIA",
+          "double precision",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_model_instance_geometry",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "OWAB",
+          "double precision",
+          ""
+        ],
+        [
+          "residue_inclusion",
+          "double precision",
+          ""
+        ],
+        [
+          "num_H_reduce",
+          "integer",
+          ""
+        ],
+        [
+          "num_bonds_RMSZ",
+          "integer",
+          ""
+        ],
+        [
+          "bonds_RMSZ",
+          "double precision",
+          ""
+        ],
+        [
+          "num_angles_RMSZ",
+          "integer",
+          ""
+        ],
+        [
+          "angles_RMSZ",
+          "double precision",
+          ""
+        ],
+        [
+          "program_for_bond_angle_geometry",
+          "text",
+          ""
+        ],
+        [
+          "average_occupancy",
+          "double precision",
+          ""
+        ],
+        [
+          "ligand_chirality_outlier",
+          "text",
+          ""
+        ],
+        [
+          "validate",
+          "text",
+          ""
+        ],
+        [
+          "cyrange_domain_id",
+          "integer",
+          ""
+        ],
+        [
+          "cis_peptide",
+          "text",
+          ""
+        ],
+        [
+          "RNA_score",
+          "double precision",
+          ""
+        ],
+        [
+          "RNA_suite",
+          "text",
+          ""
+        ],
+        [
+          "RNA_pucker",
+          "text",
+          ""
+        ],
+        [
+          "flippable_sidechain",
+          "text",
+          ""
+        ],
+        [
+          "ramachandran_class",
+          "text",
+          ""
+        ],
+        [
+          "rotamer_class",
+          "text",
+          ""
+        ],
+        [
+          "phi",
+          "double precision",
+          ""
+        ],
+        [
+          "psi",
+          "double precision",
+          ""
+        ],
+        [
+          "instance_id",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_model_instance_map_fitting",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "residue_inclusion",
+          "double precision",
+          ""
+        ],
+        [
+          "Q_score",
+          "double precision",
+          ""
+        ],
+        [
+          "instance_id",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_model_list",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "PDB_model_num",
+          "integer",
+          ""
+        ],
+        [
+          "nmrclust_cluster_id",
+          "text",
+          ""
+        ],
+        [
+          "nmrclust_representative",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "PDB_model_num"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_most_violated_dihedralangle_restraints",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "altcode_1",
+          "text",
+          ""
+        ],
+        [
+          "chain_1",
+          "text",
+          ""
+        ],
+        [
+          "resnum_1",
+          "integer",
+          ""
+        ],
+        [
+          "resname_1",
+          "text",
+          ""
+        ],
+        [
+          "ent_1",
+          "text",
+          ""
+        ],
+        [
+          "said_1",
+          "text",
+          ""
+        ],
+        [
+          "seq_1",
+          "integer",
+          ""
+        ],
+        [
+          "atom_1",
+          "text",
+          ""
+        ],
+        [
+          "chain_2",
+          "text",
+          ""
+        ],
+        [
+          "altcode_2",
+          "text",
+          ""
+        ],
+        [
+          "resnum_2",
+          "integer",
+          ""
+        ],
+        [
+          "resname_2",
+          "text",
+          ""
+        ],
+        [
+          "seq_2",
+          "integer",
+          ""
+        ],
+        [
+          "said_2",
+          "text",
+          ""
+        ],
+        [
+          "ent_2",
+          "text",
+          ""
+        ],
+        [
+          "atom_2",
+          "text",
+          ""
+        ],
+        [
+          "mean_angle_violation",
+          "double precision",
+          ""
+        ],
+        [
+          "standard_deviation",
+          "double precision",
+          ""
+        ],
+        [
+          "median_violation",
+          "double precision",
+          ""
+        ],
+        [
+          "altcode_3",
+          "text",
+          ""
+        ],
+        [
+          "chain_3",
+          "text",
+          ""
+        ],
+        [
+          "resnum_3",
+          "integer",
+          ""
+        ],
+        [
+          "resname_3",
+          "text",
+          ""
+        ],
+        [
+          "ent_3",
+          "text",
+          ""
+        ],
+        [
+          "said_3",
+          "text",
+          ""
+        ],
+        [
+          "seq_3",
+          "integer",
+          ""
+        ],
+        [
+          "atom_3",
+          "text",
+          ""
+        ],
+        [
+          "altcode_4",
+          "text",
+          ""
+        ],
+        [
+          "chain_4",
+          "text",
+          ""
+        ],
+        [
+          "resnum_4",
+          "integer",
+          ""
+        ],
+        [
+          "resname_4",
+          "text",
+          ""
+        ],
+        [
+          "ent_4",
+          "text",
+          ""
+        ],
+        [
+          "said_4",
+          "text",
+          ""
+        ],
+        [
+          "seq_4",
+          "integer",
+          ""
+        ],
+        [
+          "atom_4",
+          "text",
+          ""
+        ],
+        [
+          "rlist_id",
+          "integer",
+          ""
+        ],
+        [
+          "rest_id",
+          "integer",
+          ""
+        ],
+        [
+          "violated_models",
+          "integer",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_most_violated_distance_restraints",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "altcode_1",
+          "text",
+          ""
+        ],
+        [
+          "chain_1",
+          "text",
+          ""
+        ],
+        [
+          "resnum_1",
+          "integer",
+          ""
+        ],
+        [
+          "resname_1",
+          "text",
+          ""
+        ],
+        [
+          "ent_1",
+          "text",
+          ""
+        ],
+        [
+          "said_1",
+          "text",
+          ""
+        ],
+        [
+          "seq_1",
+          "integer",
+          ""
+        ],
+        [
+          "chain_2",
+          "text",
+          ""
+        ],
+        [
+          "altcode_2",
+          "text",
+          ""
+        ],
+        [
+          "atom_1",
+          "text",
+          ""
+        ],
+        [
+          "resnum_2",
+          "integer",
+          ""
+        ],
+        [
+          "resname_2",
+          "text",
+          ""
+        ],
+        [
+          "seq_2",
+          "integer",
+          ""
+        ],
+        [
+          "said_2",
+          "text",
+          ""
+        ],
+        [
+          "ent_2",
+          "text",
+          ""
+        ],
+        [
+          "atom_2",
+          "text",
+          ""
+        ],
+        [
+          "mean_distance_violation",
+          "double precision",
+          ""
+        ],
+        [
+          "median_violation",
+          "double precision",
+          ""
+        ],
+        [
+          "standard_deviation",
+          "double precision",
+          ""
+        ],
+        [
+          "violated_models",
+          "integer",
+          ""
+        ],
+        [
+          "rlist_id",
+          "integer",
+          ""
+        ],
+        [
+          "rest_id",
+          "integer",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_percentile_conditions",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "percentile_list_id",
+          "text",
+          ""
+        ],
+        [
+          "type_id",
+          "text",
+          ""
+        ],
+        [
+          "rank",
+          "double precision",
+          ""
+        ],
+        [
+          "res_high",
+          "double precision",
+          ""
+        ],
+        [
+          "res_low",
+          "double precision",
+          ""
+        ],
+        [
+          "number_entries_total",
+          "integer",
+          ""
+        ],
+        [
+          "id",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "id"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_percentile_entity_view",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "conditions_id",
+          "text",
+          ""
+        ],
+        [
+          "type_id",
+          "text",
+          ""
+        ],
+        [
+          "label_asym_id",
+          "text",
+          ""
+        ],
+        [
+          "PDB_model_num",
+          "text",
+          ""
+        ],
+        [
+          "entity_id",
+          "text",
+          ""
+        ],
+        [
+          "auth_asym_id",
+          "text",
+          ""
+        ],
+        [
+          "rank",
+          "double precision",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_percentile_list",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "exp_method",
+          "text",
+          ""
+        ],
+        [
+          "range",
+          "text",
+          ""
+        ],
+        [
+          "id",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "id"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_percentile_type",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "id",
+          "text",
+          ""
+        ],
+        [
+          "type",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "id"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_random_coil_index",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "auth_asym_id",
+          "text",
+          ""
+        ],
+        [
+          "rescode",
+          "text",
+          ""
+        ],
+        [
+          "auth_seq_id",
+          "integer",
+          ""
+        ],
+        [
+          "value",
+          "double precision",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_referencing_offset",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "label_atom_id",
+          "text",
+          ""
+        ],
+        [
+          "uncertainty",
+          "double precision",
+          ""
+        ],
+        [
+          "precision",
+          "double precision",
+          ""
+        ],
+        [
+          "value",
+          "double precision",
+          ""
+        ],
+        [
+          "number_of_measurements",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_residual_angle_violations",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "max_violation",
+          "double precision",
+          ""
+        ],
+        [
+          "bins",
+          "text",
+          ""
+        ],
+        [
+          "violations_per_model",
+          "double precision",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_residual_distance_violations",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "max_violation",
+          "double precision",
+          ""
+        ],
+        [
+          "bins",
+          "text",
+          ""
+        ],
+        [
+          "violations_per_model",
+          "double precision",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_restraint_summary",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "description",
+          "text",
+          ""
+        ],
+        [
+          "value",
+          "double precision",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_software",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "name",
+          "text",
+          ""
+        ],
+        [
+          "version",
+          "text",
+          ""
+        ],
+        [
+          "success_y_or_n",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_summary",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "entry_id",
+          "text",
+          ""
+        ],
+        [
+          "extended_entry_id",
+          "text",
+          ""
+        ],
+        [
+          "PDB_deposition_date",
+          "date",
+          ""
+        ],
+        [
+          "PDB_revision_number",
+          "integer",
+          ""
+        ],
+        [
+          "PDB_revision_date",
+          "date",
+          ""
+        ],
+        [
+          "EMDB_deposition_date",
+          "date",
+          ""
+        ],
+        [
+          "report_creation_date",
+          "timestamp with time zone",
+          ""
+        ],
+        [
+          "attempted_validation_steps",
+          "text",
+          ""
+        ],
+        [
+          "ligands_for_buster_report",
+          "text",
+          ""
+        ],
+        [
+          "RNA_suiteness",
+          "double precision",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "entry_id"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_summary_diffraction",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "exp_method",
+          "text",
+          ""
+        ],
+        [
+          "Babinet_b",
+          "double precision",
+          ""
+        ],
+        [
+          "bulk_solvent_b",
+          "double precision",
+          ""
+        ],
+        [
+          "Wilson_B_estimate",
+          "double precision",
+          ""
+        ],
+        [
+          "I_over_sigma",
+          "text",
+          ""
+        ],
+        [
+          "num_miller_indices",
+          "integer",
+          ""
+        ],
+        [
+          "Babinet_k",
+          "double precision",
+          ""
+        ],
+        [
+          "bulk_solvent_k",
+          "double precision",
+          ""
+        ],
+        [
+          "Padilla_Yeates_L_mean",
+          "double precision",
+          ""
+        ],
+        [
+          "Padilla_Yeates_L2_mean",
+          "double precision",
+          ""
+        ],
+        [
+          "DCC_R",
+          "double precision",
+          ""
+        ],
+        [
+          "DCC_Rfree",
+          "double precision",
+          ""
+        ],
+        [
+          "EDS_R",
+          "double precision",
+          ""
+        ],
+        [
+          "EDS_res_high",
+          "double precision",
+          ""
+        ],
+        [
+          "EDS_res_low",
+          "double precision",
+          ""
+        ],
+        [
+          "Wilson_B_aniso",
+          "text",
+          ""
+        ],
+        [
+          "data_anisotropy",
+          "double precision",
+          ""
+        ],
+        [
+          "trans_NCS_details",
+          "text",
+          ""
+        ],
+        [
+          "B_factor_type",
+          "text",
+          ""
+        ],
+        [
+          "acentric_outliers",
+          "integer",
+          ""
+        ],
+        [
+          "centric_outliers",
+          "integer",
+          ""
+        ],
+        [
+          "data_completeness",
+          "double precision",
+          ""
+        ],
+        [
+          "number_reflns_R_free",
+          "integer",
+          ""
+        ],
+        [
+          "percent_free_reflections",
+          "double precision",
+          ""
+        ],
+        [
+          "percent_RSRZ_outliers",
+          "double precision",
+          ""
+        ],
+        [
+          "PDB_resolution_high",
+          "double precision",
+          ""
+        ],
+        [
+          "PDB_resolution_low",
+          "double precision",
+          ""
+        ],
+        [
+          "PDB_R",
+          "double precision",
+          ""
+        ],
+        [
+          "PDB_Rfree",
+          "double precision",
+          ""
+        ],
+        [
+          "twin_fraction",
+          "text",
+          ""
+        ],
+        [
+          "Fo_Fc_correlation",
+          "double precision",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "density_fitness_version",
+          "text",
+          ""
+        ],
+        [
+          "CCP4_version",
+          "text",
+          ""
+        ],
+        [
+          "EDS_R_warning",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_summary_em",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "exp_method",
+          "text",
+          ""
+        ],
+        [
+          "contour_level_primary_map",
+          "double precision",
+          ""
+        ],
+        [
+          "atom_inclusion_all_atoms",
+          "double precision",
+          ""
+        ],
+        [
+          "atom_inclusion_backbone",
+          "double precision",
+          ""
+        ],
+        [
+          "author_provided_fsc_resolution_by_cutoff_pt_143",
+          "double precision",
+          ""
+        ],
+        [
+          "author_provided_fsc_resolution_by_cutoff_pt_333",
+          "double precision",
+          ""
+        ],
+        [
+          "author_provided_fsc_resolution_by_cutoff_pt_5",
+          "double precision",
+          ""
+        ],
+        [
+          "author_provided_fsc_resolution_by_cutoff_halfbit",
+          "double precision",
+          ""
+        ],
+        [
+          "author_provided_fsc_resolution_by_cutoff_onebit",
+          "double precision",
+          ""
+        ],
+        [
+          "author_provided_fsc_resolution_by_cutoff_threesigma",
+          "double precision",
+          ""
+        ],
+        [
+          "calculated_fsc_resolution_by_cutoff_pt_143",
+          "double precision",
+          ""
+        ],
+        [
+          "calculated_fsc_resolution_by_cutoff_pt_333",
+          "double precision",
+          ""
+        ],
+        [
+          "calculated_fsc_resolution_by_cutoff_pt_5",
+          "double precision",
+          ""
+        ],
+        [
+          "calculated_fsc_resolution_by_cutoff_halfbit",
+          "double precision",
+          ""
+        ],
+        [
+          "calculated_fsc_resolution_by_cutoff_onebit",
+          "double precision",
+          ""
+        ],
+        [
+          "calculated_fsc_resolution_by_cutoff_threesigma",
+          "double precision",
+          ""
+        ],
+        [
+          "EMDB_resolution",
+          "double precision",
+          ""
+        ],
+        [
+          "Q_score",
+          "double precision",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_summary_entity_fit_to_map",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "PDB_model_num",
+          "integer",
+          ""
+        ],
+        [
+          "entity_id",
+          "text",
+          ""
+        ],
+        [
+          "label_asym_id",
+          "text",
+          ""
+        ],
+        [
+          "auth_asym_id",
+          "text",
+          ""
+        ],
+        [
+          "Q_score",
+          "double precision",
+          ""
+        ],
+        [
+          "average_residue_inclusion",
+          "double precision",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_summary_entity_geometry",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "PDB_model_num",
+          "integer",
+          ""
+        ],
+        [
+          "entity_id",
+          "text",
+          ""
+        ],
+        [
+          "label_asym_id",
+          "text",
+          ""
+        ],
+        [
+          "auth_asym_id",
+          "text",
+          ""
+        ],
+        [
+          "angles_RMSZ",
+          "double precision",
+          ""
+        ],
+        [
+          "bonds_RMSZ",
+          "double precision",
+          ""
+        ],
+        [
+          "num_bonds_RMSZ",
+          "integer",
+          ""
+        ],
+        [
+          "num_angles_RMSZ",
+          "integer",
+          ""
+        ],
+        [
+          "average_residue_inclusion",
+          "double precision",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_summary_geometry",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "percent_ramachandran_outliers",
+          "double precision",
+          ""
+        ],
+        [
+          "clashscore",
+          "double precision",
+          ""
+        ],
+        [
+          "angles_RMSZ",
+          "double precision",
+          ""
+        ],
+        [
+          "bonds_RMSZ",
+          "double precision",
+          ""
+        ],
+        [
+          "num_angles_RMSZ",
+          "integer",
+          ""
+        ],
+        [
+          "num_bonds_RMSZ",
+          "integer",
+          ""
+        ],
+        [
+          "percent_rotamer_outliers",
+          "double precision",
+          ""
+        ],
+        [
+          "percent_ramachandran_outliers_full_length",
+          "double precision",
+          ""
+        ],
+        [
+          "percent_rotamer_outliers_full_length",
+          "double precision",
+          ""
+        ],
+        [
+          "clashscore_full_length",
+          "double precision",
+          ""
+        ],
+        [
+          "num_H_reduce",
+          "integer",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_summary_nmr",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "exp_method",
+          "text",
+          ""
+        ],
+        [
+          "nmr_models_consistency_flag",
+          "text",
+          ""
+        ],
+        [
+          "nmrclust_representative_model",
+          "integer",
+          ""
+        ],
+        [
+          "medoid_model",
+          "integer",
+          ""
+        ],
+        [
+          "nmrclust_number_of_outliers",
+          "integer",
+          ""
+        ],
+        [
+          "nmrclust_number_of_models",
+          "integer",
+          ""
+        ],
+        [
+          "nmrclust_number_of_clusters",
+          "integer",
+          ""
+        ],
+        [
+          "cyrange_number_of_domains",
+          "integer",
+          ""
+        ],
+        [
+          "chemical_shift_completeness",
+          "double precision",
+          ""
+        ],
+        [
+          "chemical_shift_completeness_full_length",
+          "double precision",
+          ""
+        ],
+        [
+          "cyrange_error",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_unmapped_chemical_shift",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "auth_asym_id",
+          "text",
+          ""
+        ],
+        [
+          "rescode",
+          "text",
+          ""
+        ],
+        [
+          "auth_seq_id",
+          "integer",
+          ""
+        ],
+        [
+          "label_atom_id",
+          "text",
+          ""
+        ],
+        [
+          "value",
+          "double precision",
+          ""
+        ],
+        [
+          "error",
+          "text",
+          ""
+        ],
+        [
+          "ambiguity",
+          "text",
+          ""
+        ],
+        [
+          "diagnostic",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_unparsed_chemical_shift",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ],
+        [
+          "id",
+          "text",
+          ""
+        ],
+        [
+          "auth_asym_id",
+          "text",
+          ""
+        ],
+        [
+          "rescode",
+          "text",
+          ""
+        ],
+        [
+          "auth_seq_id",
+          "integer",
+          ""
+        ],
+        [
+          "label_atom_id",
+          "text",
+          ""
+        ],
+        [
+          "value",
+          "double precision",
+          ""
+        ],
+        [
+          "error",
+          "text",
+          ""
+        ],
+        [
+          "ambiguity",
+          "text",
+          ""
+        ],
+        [
+          "diagnostic",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_violated_dihedralangle_restraints",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "atom_1",
+          "text",
+          ""
+        ],
+        [
+          "atom_2",
+          "text",
+          ""
+        ],
+        [
+          "violation",
+          "double precision",
+          ""
+        ],
+        [
+          "atom_3",
+          "text",
+          ""
+        ],
+        [
+          "atom_4",
+          "text",
+          ""
+        ],
+        [
+          "rlist_id",
+          "integer",
+          ""
+        ],
+        [
+          "rest_id",
+          "integer",
+          ""
+        ],
+        [
+          "instance_id_1",
+          "text",
+          ""
+        ],
+        [
+          "instance_id_2",
+          "text",
+          ""
+        ],
+        [
+          "instance_id_3",
+          "text",
+          ""
+        ],
+        [
+          "instance_id_4",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "pdbx_vrpt_violated_distance_restraints",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "atom_1",
+          "text",
+          ""
+        ],
+        [
+          "atom_2",
+          "text",
+          ""
+        ],
+        [
+          "violation",
+          "double precision",
+          ""
+        ],
+        [
+          "rlist_id",
+          "integer",
+          ""
+        ],
+        [
+          "rest_id",
+          "integer",
+          ""
+        ],
+        [
+          "instance_id_1",
+          "text",
+          ""
+        ],
+        [
+          "instance_id_2",
+          "text",
+          ""
+        ],
+        [
+          "ordinal",
+          "integer",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "ordinal"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "struct_asym",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "entity_id",
+          "text",
+          ""
+        ],
+        [
+          "id",
+          "text",
+          ""
+        ],
+        [
+          "pdbx_modified",
+          "text",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "id"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    }
+  ]
+}

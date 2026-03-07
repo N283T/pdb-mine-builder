@@ -1,0 +1,87 @@
+{
+  "config": {
+    "primaryKey": "pdbid",
+    "schema": "contacts"
+  },
+  "tables": [
+    {
+      "name": "brief_summary",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "modification_date",
+          "date",
+          ""
+        ],
+        [
+          "update_date",
+          "timestamp without time zone",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    },
+    {
+      "name": "list",
+      "columns": [
+        [
+          "pdbid",
+          "text",
+          ""
+        ],
+        [
+          "label_asym_id_1",
+          "text",
+          ""
+        ],
+        [
+          "label_asym_id_2",
+          "text",
+          ""
+        ],
+        [
+          "label_seq_id_1",
+          "integer",
+          ""
+        ],
+        [
+          "label_seq_id_2",
+          "integer",
+          ""
+        ],
+        [
+          "label_comp_id_1",
+          "text",
+          ""
+        ],
+        [
+          "label_comp_id_2",
+          "text",
+          ""
+        ],
+        [
+          "distance",
+          "real",
+          ""
+        ]
+      ],
+      "primary_key": [
+        "pdbid",
+        "label_asym_id_1",
+        "label_asym_id_2",
+        "label_seq_id_1",
+        "label_seq_id_2"
+      ],
+      "foreign_keys": [],
+      "desc": ""
+    }
+  ]
+}
