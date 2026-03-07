@@ -55,6 +55,7 @@ rich = ">=13.0.0"
 ruff = ">=0.9.0"
 sqlalchemy = ">=2.0.0"
 typer = ">=0.15.0"
+hatch = ">=1.16.5,<2"
 
 [pypi-dependencies]
 pdbminebuilder = { path = ".", editable = true }
