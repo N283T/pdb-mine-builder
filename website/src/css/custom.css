@@ -28,3 +28,38 @@
   --ifm-color-primary-lightest: #4fddbf;
   --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.3);
 }
+
+/* Schema filter component */
+.schema-filter {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  position: sticky;
+  top: var(--ifm-navbar-height);
+  z-index: 1;
+  background: var(--ifm-background-color);
+  padding: 0.75rem 0;
+}
+
+.schema-filter__input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  font-size: 0.95rem;
+  background: var(--ifm-background-surface-color);
+  color: var(--ifm-font-color-base);
+}
+
+.schema-filter__input:focus {
+  outline: none;
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 0 0 2px var(--ifm-color-primary-light);
+}
+
+.schema-filter__count {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-600);
+  white-space: nowrap;
+}

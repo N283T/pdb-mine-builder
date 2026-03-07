@@ -1,14 +1,15 @@
 #!/usr/bin/env -S pixi run python
-"""Generate rdb_docs YAML and website Markdown from SQLAlchemy models.
+"""Generate rdb_docs YAML and website MDX from SQLAlchemy models.
 
 Outputs:
   - docs/rdb_docs/{schema}.yml  — mine2-compatible YAML for AI/tooling
-  - website/docs/database/{schema}.md — Docusaurus schema reference pages
+  - website/docs/database/{schema}.mdx — Docusaurus schema reference pages (with search)
 
 Usage:
     pixi run python scripts/generate_rdb_docs.py
 """
 
+import json
 from pathlib import Path
 
 import yaml
@@ -73,55 +74,70 @@ def generate_schema_data(schema_name: str) -> dict:
     return {"config": config, "tables": tables}
 
 
-def generate_schema_markdown(schema_name: str, data: dict) -> str:
-    """Generate Docusaurus Markdown for a schema reference page."""
+def generate_schema_mdx(schema_name: str, data: dict) -> str:
+    """Generate Docusaurus MDX for a schema reference page with search."""
     config = data["config"]
     tables = data["tables"]
     position = SIDEBAR_POSITIONS.get(schema_name, 99)
+
+    # Convert column arrays to objects for the React component
+    tables_for_component = [
+        {
+            "name": t["name"],
+            "columns": [
+                {"name": c[0], "type": c[1], "description": c[2]} for c in t["columns"]
+            ],
+        }
+        for t in tables
+    ]
+    tables_json = json.dumps(tables_for_component, ensure_ascii=False)
 
     lines = [
         "---",
         f"sidebar_position: {position}",
         "---",
         "",
+        "import SchemaFilter from '@site/src/components/SchemaFilter';",
+        "",
         f"# {schema_name} Schema",
         "",
         f"- **Primary Key**: `{config['primaryKey']}`",
         f"- **Tables**: {len(tables)}",
+        "",
+        f"<SchemaFilter tables={{JSON.parse('{_escape_js_string(tables_json)}')}} />",
     ]
-
-    for table in tables:
-        lines.append("")
-        lines.append(f"## {table['name']}")
-        lines.append("")
-        lines.append("| Column | Type | Description |")
-        lines.append("|--------|------|-------------|")
-        for col_name, col_type, col_desc in table["columns"]:
-            # Escape pipe characters in descriptions for Markdown tables
-            desc = col_desc.replace("|", "\\|")
-            lines.append(f"| {col_name} | {col_type} | {desc} |")
 
     lines.append("")
     return "\n".join(lines)
 
 
-def extract_custom_content(md_path: Path) -> str | None:
-    """Extract hand-written content after the APPENDIX_MARKER from existing file."""
-    if not md_path.exists():
-        return None
-    content = md_path.read_text()
-    idx = content.find(APPENDIX_MARKER)
-    if idx == -1:
-        return None
-    return content[idx:]
+def _escape_js_string(s: str) -> str:
+    """Escape a string for use inside a JS single-quoted string literal."""
+    return s.replace("\\", "\\\\").replace("'", "\\'")
+
+
+def extract_custom_content(dir_path: Path, schema_name: str) -> str | None:
+    """Extract hand-written content after the APPENDIX_MARKER from existing file.
+
+    Searches both .mdx and .md files (for migration from .md to .mdx).
+    """
+    for ext in (".mdx", ".md"):
+        path = dir_path.joinpath(f"{schema_name}{ext}")
+        if not path.exists():
+            continue
+        content = path.read_text()
+        idx = content.find(APPENDIX_MARKER)
+        if idx != -1:
+            return content[idx:]
+    return None
 
 
 def main() -> None:
     project_root = Path(__file__).resolve().parent.parent
     yaml_dir = project_root.joinpath("docs", "rdb_docs")
-    md_dir = project_root.joinpath("website", "docs", "database")
+    mdx_dir = project_root.joinpath("website", "docs", "database")
     yaml_dir.mkdir(parents=True, exist_ok=True)
-    md_dir.mkdir(parents=True, exist_ok=True)
+    mdx_dir.mkdir(parents=True, exist_ok=True)
 
     for schema_name in sorted(ALL_METADATA.keys()):
         data = generate_schema_data(schema_name)
@@ -135,21 +151,26 @@ def main() -> None:
             )
         )
 
-        # Write Markdown
-        md_content = generate_schema_markdown(schema_name, data)
+        # Write MDX
+        mdx_content = generate_schema_mdx(schema_name, data)
 
-        md_path = md_dir.joinpath(f"{schema_name}.md")
-        custom = extract_custom_content(md_path)
+        custom = extract_custom_content(mdx_dir, schema_name)
         if custom:
-            md_content += custom
+            mdx_content += custom
 
-        md_path.write_text(md_content)
+        mdx_path = mdx_dir.joinpath(f"{schema_name}.mdx")
+        mdx_path.write_text(mdx_content)
+
+        # Remove old .md if .mdx was created
+        old_md = mdx_dir.joinpath(f"{schema_name}.md")
+        if old_md.exists():
+            old_md.unlink()
 
         print(
-            f"  {schema_name}: {table_count} tables -> {yaml_path.name}, {md_path.name}"
+            f"  {schema_name}: {table_count} tables -> {yaml_path.name}, {mdx_path.name}"
         )
 
-    print(f"\nGenerated {len(ALL_METADATA)} schemas (YAML + Markdown)")
+    print(f"\nGenerated {len(ALL_METADATA)} schemas (YAML + MDX)")
 
 
 if __name__ == "__main__":
