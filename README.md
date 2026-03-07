@@ -17,6 +17,7 @@ This project is based on PDBj's [mine2updater](https://gitlab.com/pdbjapan/mine2
 - Multi-process parallel data loading with configurable workers
 - Support for multiple data formats (CIF default, mmJSON optional)
 - RDKit chemical search integration (substructure, similarity)
+- SQL query interface with multi-format output (table, CSV, JSON, Parquet)
 - 9 database schemas covering PDB structures, chemical components, validation reports, and more
 
 ## Installation
@@ -88,6 +89,18 @@ See the [Getting Started guide](https://n283t.github.io/pdb-mine-builder/docs/ge
 | contacts | Protein-protein contact data | JSON |
 
 See the [Database Reference](https://n283t.github.io/pdb-mine-builder/docs/database/overview) for schema details and SQL examples.
+
+## Query
+
+Execute SQL queries directly from the CLI with multiple output formats:
+
+```bash
+pmb query "SELECT * FROM cc.brief_summary LIMIT 5"                    # Rich table
+pmb query "SELECT * FROM cc.brief_summary" -F csv > out.csv            # CSV
+pmb query "SELECT * FROM cc.brief_summary LIMIT 10" -F json            # JSON
+pmb query "SELECT * FROM cc.brief_summary" -F parquet -o out.parquet   # Parquet
+pmb query -f query.sql                                                 # SQL from file
+```
 
 ## Development
 
