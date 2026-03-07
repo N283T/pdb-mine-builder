@@ -1,17 +1,18 @@
 #!/usr/bin/env -S pixi run python
-"""Generate rdb_docs JSON and website Markdown from SQLAlchemy models.
+"""Generate rdb_docs YAML and website Markdown from SQLAlchemy models.
 
 Outputs:
-  - docs/rdb_docs/{schema}.json  — mine2-compatible JSON for AI/tooling
+  - docs/rdb_docs/{schema}.yml  — mine2-compatible YAML for AI/tooling
   - website/docs/database/{schema}.md — Docusaurus schema reference pages
 
 Usage:
     pixi run python scripts/generate_rdb_docs.py
 """
 
-import json
 import re
 from pathlib import Path
+
+import yaml
 
 from sqlalchemy import PrimaryKeyConstraint
 
@@ -36,8 +37,8 @@ SIDEBAR_POSITIONS: dict[str, int] = {
 APPENDIX_MARKER = "<!-- BEGIN CUSTOM CONTENT -->"
 
 
-def generate_schema_json(schema_name: str) -> dict:
-    """Generate rdb_docs JSON for a single schema."""
+def generate_schema_data(schema_name: str) -> dict:
+    """Generate rdb_docs data for a single schema."""
     meta = ALL_METADATA[schema_name]
     entry_pk = get_entry_pk(meta)
 
@@ -52,17 +53,17 @@ def generate_schema_json(schema_name: str) -> dict:
         for col in table.columns:
             pg_type = sa_type_to_pg(col.type)
             desc = col.comment or ""
-            columns.append([col.name, pg_type, desc])
+            columns.append([str(col.name), pg_type, desc])
 
         pk_cols = []
         for constraint in table.constraints:
             if isinstance(constraint, PrimaryKeyConstraint):
-                pk_cols = [c.name for c in constraint.columns]
+                pk_cols = [str(c.name) for c in constraint.columns]
                 break
 
         tables.append(
             {
-                "name": table.name,
+                "name": str(table.name),
                 "columns": columns,
                 "primary_key": pk_cols,
                 "foreign_keys": [],
@@ -118,17 +119,21 @@ def extract_custom_content(md_path: Path) -> str | None:
 
 def main() -> None:
     project_root = Path(__file__).resolve().parent.parent
-    json_dir = project_root.joinpath("docs", "rdb_docs")
+    yaml_dir = project_root.joinpath("docs", "rdb_docs")
     md_dir = project_root.joinpath("website", "docs", "database")
-    json_dir.mkdir(parents=True, exist_ok=True)
+    yaml_dir.mkdir(parents=True, exist_ok=True)
 
     for schema_name in sorted(ALL_METADATA.keys()):
-        data = generate_schema_json(schema_name)
+        data = generate_schema_data(schema_name)
         table_count = len(data["tables"])
 
-        # Write JSON
-        json_path = json_dir.joinpath(f"{schema_name}.json")
-        json_path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+        # Write YAML
+        yaml_path = yaml_dir.joinpath(f"{schema_name}.yml")
+        yaml_path.write_text(
+            yaml.dump(
+                data, allow_unicode=True, default_flow_style=False, sort_keys=False
+            )
+        )
 
         # Write Markdown
         md_content = generate_schema_markdown(schema_name, data)
@@ -140,9 +145,11 @@ def main() -> None:
 
         md_path.write_text(md_content)
 
-        print(f"  {schema_name}: {table_count} tables -> {json_path.name}, {md_path.name}")
+        print(
+            f"  {schema_name}: {table_count} tables -> {yaml_path.name}, {md_path.name}"
+        )
 
-    print(f"\nGenerated {len(ALL_METADATA)} schemas (JSON + Markdown)")
+    print(f"\nGenerated {len(ALL_METADATA)} schemas (YAML + Markdown)")
 
 
 if __name__ == "__main__":
