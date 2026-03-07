@@ -79,14 +79,16 @@ See the [Getting Started guide](https://n283t.github.io/pdb-mine-builder/docs/ge
 
 ## Pipelines
 
-| Pipeline | Description | Format |
-|----------|-------------|--------|
-| pdbj | Main structure data (~248k entries) | CIF / mmJSON |
-| cc | Chemical component dictionary | CIF / mmJSON |
-| ccmodel | Chemical component models | CIF / mmJSON |
-| prd | BIRD reference dictionary | CIF / mmJSON |
-| vrpt | Validation reports | CIF |
-| contacts | Protein-protein contact data | JSON |
+| Pipeline | Description | Entries | Tables | Size | Format |
+|----------|-------------|---------|--------|------|--------|
+| pdbj | Main structure data | ~250k | 250 | 183 GB | CIF / mmJSON |
+| vrpt | Validation reports | ~250k | 69 | 152 GB | CIF |
+| contacts | Protein-protein contacts | ~250k | 2 | 13 GB | JSON |
+| cc | Chemical components (with RDKit) | ~50k | 12 | 811 MB | CIF / mmJSON |
+| ccmodel | Chemical component models | ~23k | 8 | 174 MB | CIF / mmJSON |
+| prd | BIRD reference dictionary | ~1.2k | 17 | 50 MB | CIF / mmJSON |
+
+**Total: 368 tables, ~349 GB** with all PDB entries loaded (as of 2026-03-08).
 
 See the [Database Reference](https://n283t.github.io/pdb-mine-builder/docs/database/overview) for schema details and SQL examples.
 
