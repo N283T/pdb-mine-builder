@@ -1,5 +1,11 @@
 # pdb-mine-builder
 
+[![CI](https://github.com/N283T/pdb-mine-builder/actions/workflows/ci.yml/badge.svg)](https://github.com/N283T/pdb-mine-builder/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/pdbminebuilder)](https://pypi.org/project/pdbminebuilder/)
+[![Python](https://img.shields.io/pypi/pyversions/pdbminebuilder)](https://pypi.org/project/pdbminebuilder/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Pixi Badge](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/prefix-dev/pixi/main/assets/badge/v0.json)](https://pixi.sh)
+
 Build a Mine-schema database from PDB data. Synchronizes structural biology data from PDBj (Protein Data Bank Japan) via rsync and loads it into PostgreSQL.
 
 This project is based on PDBj's [mine2updater](https://gitlab.com/pdbjapan/mine2updater). Thanks to the PDBj team for the original implementation and the [Mine](https://doi.org/10.1093/database/baq021) relational database design.
