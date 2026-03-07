@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from pdbminebuilder.commands.load import LOAD_PIPELINES
 from pdbminebuilder.commands.update import (
     AVAILABLE_PIPELINES,
+    CIF_ONLY_PIPELINES,
     DUAL_FORMAT_PIPELINES,
     LEGACY_ALIASES,
     PIPELINE_SCHEMA_MAP,
@@ -184,6 +185,16 @@ class TestGetPipelineRunner:
             assert func_name == "run", (
                 f"{pipeline_name} with format=mmjson should dispatch to run, got {func_name}"
             )
+
+    def test_cif_only_pipelines_dispatch_to_run_cif(self) -> None:
+        """CIF-only pipelines should always dispatch to run_cif regardless of format config."""
+        for fmt in ("cif", "mmjson"):
+            config = PipelineConfig(data="/tmp", format=fmt)
+            for pipeline_name in CIF_ONLY_PIPELINES:
+                module_name, func_name = _get_pipeline_runner(pipeline_name, config)
+                assert func_name == "run_cif", (
+                    f"{pipeline_name} with format={fmt} should dispatch to run_cif, got {func_name}"
+                )
 
     def test_other_pipelines_dispatch_to_run(self) -> None:
         """Other pipelines (vrpt, contacts, etc.) dispatch to run()."""

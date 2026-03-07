@@ -23,6 +23,7 @@ AVAILABLE_PIPELINES = [
     "cc",
     "ccmodel",
     "prd",
+    "prd_family",
     "vrpt",
     "contacts",
     "emdb",
@@ -47,6 +48,7 @@ PIPELINE_SCHEMA_MAP = {
     "cc": "cc",
     "ccmodel": "ccmodel",
     "prd": "prd",
+    "prd_family": "prd_family",
     "vrpt": "vrpt",
     "contacts": "contacts",
     "emdb": "emdb",
@@ -55,6 +57,9 @@ PIPELINE_SCHEMA_MAP = {
 
 # Pipelines that support dual format (CIF and mmJSON)
 DUAL_FORMAT_PIPELINES = {"pdbj", "cc", "ccmodel", "prd"}
+
+# Pipelines that only support CIF format (always use run_cif)
+CIF_ONLY_PIPELINES = {"prd_family"}
 
 # Pipelines that support --force (file-per-entry with mtime tracking)
 FORCE_PIPELINES = {"pdbj", "vrpt", "contacts"}
@@ -191,6 +196,9 @@ def _get_pipeline_runner(pipeline_name: str, config: PipelineConfig) -> tuple[st
     if pipeline_name in DUAL_FORMAT_PIPELINES:
         if config.format == "mmjson":
             return (pipeline_name, "run")
+        return (pipeline_name, "run_cif")
+
+    if pipeline_name in CIF_ONLY_PIPELINES:
         return (pipeline_name, "run_cif")
 
     # Other pipelines (vrpt, contacts, emdb, ihm) use run()

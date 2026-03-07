@@ -47,6 +47,12 @@ def prd_fixtures_dir(fixtures_dir: Path) -> Path:
     return fixtures_dir / "prd"
 
 
+@pytest.fixture
+def prd_family_fixtures_dir(fixtures_dir: Path) -> Path:
+    """Return the prd_family fixtures directory."""
+    return fixtures_dir / "prd_family"
+
+
 # =============================================================================
 # Database fixtures (for integration tests)
 # =============================================================================
@@ -114,6 +120,14 @@ def prd_metadata():
     from pdbminebuilder.models import get_metadata
 
     return get_metadata("prd")
+
+
+@pytest.fixture(scope="session")
+def prd_family_metadata():
+    """Load the prd_family schema metadata."""
+    from pdbminebuilder.models import get_metadata
+
+    return get_metadata("prd_family")
 
 
 @pytest.fixture(scope="function")
@@ -217,6 +231,30 @@ def prd_schema(db_connection: str, prd_metadata):
                 cur.execute(
                     sql.SQL("TRUNCATE TABLE {} CASCADE").format(
                         sql.Identifier(prd_metadata.schema, table_name)
+                    )
+                )
+        conn.commit()
+
+
+@pytest.fixture(scope="function")
+def prd_family_schema(db_connection: str, prd_family_metadata):
+    """Ensure prd_family schema and tables exist, cleanup after test."""
+    import psycopg
+    from psycopg import sql
+
+    from pdbminebuilder.db.loader import ensure_schema, get_all_tables
+
+    ensure_schema(prd_family_metadata, db_connection)
+
+    yield prd_family_metadata
+
+    with psycopg.connect(db_connection) as conn:
+        with conn.cursor() as cur:
+            for table in get_all_tables(prd_family_metadata):
+                table_name = table.name.lower()
+                cur.execute(
+                    sql.SQL("TRUNCATE TABLE {} CASCADE").format(
+                        sql.Identifier(prd_family_metadata.schema, table_name)
                     )
                 )
         conn.commit()

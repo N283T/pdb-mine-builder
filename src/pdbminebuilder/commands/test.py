@@ -11,7 +11,7 @@ from pdbminebuilder.db.connection import close_pool, execute, init_pool
 
 console = Console()
 
-AVAILABLE_PIPELINES = ["pdbj", "cc", "ccmodel", "prd", "vrpt", "contacts"]
+AVAILABLE_PIPELINES = ["pdbj", "cc", "ccmodel", "prd", "prd_family", "vrpt", "contacts"]
 
 # Valid PostgreSQL identifier pattern
 _VALID_IDENTIFIER = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")

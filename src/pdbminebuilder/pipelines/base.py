@@ -592,7 +592,7 @@ class BasePipeline(ABC):
 
 
 class BaseCifBatchPipeline:
-    """Base class for CIF batch pipelines (cc, ccmodel, prd).
+    """Base class for CIF batch pipelines (cc, ccmodel, prd, prd_family).
 
     Provides shared methods for batch upsert, summary output,
     and stale-row pruning. Subclasses must set ``name`` and

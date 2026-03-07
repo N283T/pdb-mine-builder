@@ -12,7 +12,7 @@ sidebar_position: 5
 | Column | Type | Description |
 |--------|------|-------------|
 | family_prd_id | text |  |
-| docid | bigint |  |
+| name | text | The entity family name. |
 | pdbx_initial_date | date |  |
 | pdbx_modified_date | date |  |
 | update_date | timestamp without time zone |  |

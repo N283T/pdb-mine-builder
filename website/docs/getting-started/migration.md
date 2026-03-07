@@ -103,11 +103,14 @@ pixi run db-history                   # View history
 
 | Schema | Notes |
 |--------|-------|
-| `prd_family` | Schema definition existed in mine2 but had no loading pipeline. Has a dedicated primary key (`family_prd_id`) |
 | `emdb` | Electron Microscopy Data Bank |
 | `ihm` | Integrative/Hybrid Methods |
 
 These schemas have table definitions but no data-loading pipeline. See the [Database Overview](../database/overview.md) for current status.
+
+:::note prd_family pipeline
+`prd_family` existed as schema-only in mine2 (no loading pipeline). pdb-mine-builder now provides a full CIF pipeline using `family-all.cif.gz`.
+:::
 
 ### Mtime-Based Skip Optimization
 

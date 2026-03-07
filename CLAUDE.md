@@ -55,6 +55,7 @@ src/pdbminebuilder/
     ├── cc.py               # Chemical components
     ├── ccmodel.py          # Chemical component models
     ├── prd.py              # BIRD data (dual data blocks)
+    ├── prd_family.py       # BIRD family data (CIF only)
     ├── vrpt.py             # Validation reports (CIF)
     └── contacts.py         # Contact data (custom JSON)
 alembic/                    # Alembic migration config
@@ -79,6 +80,7 @@ docs/                       # Architecture docs
 | cc | CIF | Single file (components.cif.gz), ~40k blocks |
 | ccmodel | CIF | Single file (chem_comp_model.cif.gz) |
 | prd | CIF | Dual file (prd-all.cif.gz + prdcc-all.cif.gz) |
+| prd_family | CIF | Single file (family-all.cif.gz), CIF only |
 | vrpt | CIF | Uses gemmi.CifWalk for nested directory structure |
 | contacts | JSON | Array format, not mmJSON |
 | emdb | - | Schema only, no pipeline implementation |

@@ -54,6 +54,11 @@ SYNC_TARGETS: dict[str, dict] = {
         "dest": "data/bird/prd/",
         "options": ["-avz"],
     },
+    "prd-family": {  # CIF (family-all.cif.gz)
+        "source": "rsync.pdbj.org::ftp_data/bird/family/",
+        "dest": "data/bird/family/",
+        "options": ["-avz"],
+    },
     "prd-json": {  # mmJSON (requires suffix)
         "source": "rsync.pdbj.org::ftp_data/bird/mmjson/",
         "dest": "data/prd/",
