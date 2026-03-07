@@ -1,0 +1,47 @@
+# pdb-mine-builder configuration
+# Copy this file to config.yml and adjust paths to your environment.
+#
+# Available variables:
+#   ${CWD}      - Current working directory
+#   ${DATA_DIR} - DATA_DIR environment variable (default: /mnt/c/pdb)
+#   ${HOME}     - User home directory
+
+rdb:
+  # Number of worker processes (omit for auto-detect, or override with --workers)
+  # nworkers: 8
+  constring: "host=localhost port=5433 dbname=pmb user=pdbj"
+
+pipelines:
+  # Main PDB structure data (~248k entries)
+  pdbj:
+    format: cif  # "cif" (default) or "mmjson"
+    data: /path/to/data/structures/divided/mmCIF/
+    # data-plus: /path/to/pdbj/pdbjplus/data/pdb/mmjson-plus/
+    # data-nextgen-plus: /path/to/pdbj/pdbjplus/data/pdb_nextgen/mmjson-plus/
+
+  # Chemical component dictionary (single file: components.cif.gz)
+  cc:
+    format: cif
+    data: /path/to/data/monomers/
+
+  # Chemical component models (single file: chem_comp_model.cif.gz)
+  ccmodel:
+    format: cif
+    data: /path/to/data/component-models/complete/complete/
+
+  # BIRD reference dictionary (dual file: prd-all.cif.gz + prdcc-all.cif.gz)
+  prd:
+    format: cif
+    data: /path/to/data/bird/prd/
+
+  # BIRD family data (single file: family-all.cif.gz)
+  prd_family:
+    data: /path/to/data/bird/family/
+
+  # Validation reports (nested directory structure)
+  vrpt:
+    data: /path/to/validation_reports/
+
+  # Protein-protein contact data (JSON array format)
+  contacts:
+    data: /path/to/pdbj/pdbjplus/data/pdb/contacts/
