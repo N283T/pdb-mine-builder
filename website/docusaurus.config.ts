@@ -66,6 +66,11 @@ const config: Config = {
           position: 'left',
         },
         {
+          to: '/table-relations',
+          label: 'Table Relations',
+          position: 'left',
+        },
+        {
           href: 'https://github.com/N283T/pdb-mine-builder',
           label: 'GitHub',
           position: 'right',
