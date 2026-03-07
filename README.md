@@ -62,6 +62,18 @@ cp config.example.yml config.yml
 pmb --help
 ```
 
+### Docker / Podman (alternative)
+
+> **Note**: Requires [Docker](https://docs.docker.com/get-docker/) or [Podman](https://podman.io/). Data files must be mounted as volumes.
+
+```bash
+git clone https://github.com/N283T/pdb-mine-builder.git
+cd pdb-mine-builder
+cp config.docker.yml config.yml  # Edit data paths
+docker compose up -d             # Start PostgreSQL+RDKit and pmb
+docker compose run --rm pmb update pdbj --limit 10
+```
+
 See the [Getting Started guide](https://n283t.github.io/pdb-mine-builder/docs/getting-started/installation) for detailed setup instructions.
 
 ## Pipelines

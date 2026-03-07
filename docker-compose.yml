@@ -1,0 +1,36 @@
+services:
+  db:
+    image: mcs07/postgres-rdkit:latest
+    container_name: pmb-postgres
+    environment:
+      POSTGRES_USER: pdbj
+      POSTGRES_PASSWORD: pdbj
+      POSTGRES_DB: pmb
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pdbj -d pmb"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init:/docker-entrypoint-initdb.d:ro
+
+  pmb:
+    build: .
+    container_name: pmb-app
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./config.yml:/app/config.yml:ro
+      - pmb-data:/data
+    entrypoint: ["pmb"]
+    command: ["--help"]
+    # Override command to run pipelines:
+    #   docker compose run pmb update pdbj --limit 10
+
+volumes:
+  pgdata:
+  pmb-data:

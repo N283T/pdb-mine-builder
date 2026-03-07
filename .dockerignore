@@ -1,0 +1,37 @@
+# Git
+.git/
+
+# Pixi environment
+.pixi/
+pixi.lock
+
+# PostgreSQL data
+postgres_data_5433/
+
+# Python artifacts
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+
+# Data files
+data/
+
+# IDE / editor
+.cursor/
+.vscode/
+
+# Docker
+docker/
+
+# Docs / website
+docs/
+website/
+plans/
+
+# Tests and config
+tests/
+config.yml
+config.test.yml
+.env

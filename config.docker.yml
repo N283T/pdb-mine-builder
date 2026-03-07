@@ -1,0 +1,33 @@
+# Docker environment configuration
+# Used by the pmb container to connect to the db container.
+# Copy to config.yml or mount as volume.
+
+rdb:
+  # nworkers: 8
+  constring: "host=db port=5432 dbname=pmb user=pdbj password=pdbj"
+
+pipelines:
+  pdbj:
+    format: cif
+    data: /data/structures/divided/mmCIF/
+
+  cc:
+    format: cif
+    data: /data/monomers/
+
+  ccmodel:
+    format: cif
+    data: /data/component-models/complete/complete/
+
+  prd:
+    format: cif
+    data: /data/bird/prd/
+
+  prd_family:
+    data: /data/bird/family/
+
+  vrpt:
+    data: /data/validation_reports/
+
+  contacts:
+    data: /data/contacts/

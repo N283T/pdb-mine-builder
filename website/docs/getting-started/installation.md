@@ -68,6 +68,38 @@ cp config.example.yml config.yml  # Edit constring and data paths
 pmb --help
 ```
 
+## Docker / Podman (alternative)
+
+:::warning
+Data files must be mounted as volumes. The `pmb-data` volume or a host directory bind mount is required.
+:::
+
+[Docker](https://docs.docker.com/get-docker/) or [Podman](https://podman.io/) can run PostgreSQL+RDKit and pmb together without installing anything else.
+
+```bash
+git clone https://github.com/N283T/pdb-mine-builder.git
+cd pdb-mine-builder
+cp config.docker.yml config.yml  # Edit data paths if needed
+docker compose up -d             # Start PostgreSQL+RDKit and pmb
+```
+
+Run pipelines with `docker compose run`:
+
+```bash
+# Sync data from PDBj
+docker compose run --rm pmb sync pdbj
+
+# Load data
+docker compose run --rm pmb load pdbj --force
+
+# Check stats
+docker compose run --rm pmb stats
+```
+
+:::tip
+Podman users can replace `docker` with `podman` — the same `Dockerfile` and `docker-compose.yml` work with both.
+:::
+
 ## Environment Variables
 
 Copy the example environment file and customize it:
