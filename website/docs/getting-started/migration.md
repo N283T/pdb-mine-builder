@@ -86,7 +86,7 @@ pixi run db-history                   # View history
 
 ### Removed Columns
 
-- **`docid`** (bigint) — Removed from all `brief_summary` tables. The original system used docid for internal indexing; pdb-mine-builder uses text-based primary keys directly.
+- **`docid`** (bigint) — Retained in most `brief_summary` tables for compatibility, but not used as a primary key. pdb-mine-builder uses text-based primary keys directly. Removed from `prd_family.brief_summary` (replaced by `name`).
 - **`byte0`–`byte15`** (bigint) — Replaced by RDKit `mol` column in `cc.brief_summary`.
 
 ### New Columns

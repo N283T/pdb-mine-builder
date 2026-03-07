@@ -54,12 +54,6 @@ def load_desc_map(rdb_docs_dir: Path, schema: str) -> dict[str, dict[str, str]]:
         if table_descs:
             desc_map[table["name"]] = table_descs
 
-    # Also load table-level descriptions
-    for table in data["tables"]:
-        if table.get("desc"):
-            desc_map.setdefault(table["name"], {})
-            desc_map[table["name"]]["__table_desc__"] = table["desc"]
-
     return desc_map
 
 
@@ -81,8 +75,6 @@ def inject_comments(model_path: Path, desc_map: dict[str, dict[str, str]]) -> in
     current_table: str | None = None
     injected = 0
 
-    # Pattern: Table("table_name", ...
-    table_pattern = re.compile(r"^\w+\s*=\s*Table\(\s*$|^\w+\s*=\s*Table\(")
     table_name_pattern = re.compile(r'^\s*"(\w+)"')
     # Pattern: Column("col_name", Type, nullable=True)
     # or       Column("col_name", Type, nullable=True),
