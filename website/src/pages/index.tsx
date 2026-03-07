@@ -34,6 +34,12 @@ function HomepageHeader() {
             to="/schema-search">
             Schema Search
           </Link>
+          <Link
+            className="button button--secondary button--lg"
+            style={{marginLeft: '1rem'}}
+            to="/table-relations">
+            Table Relations
+          </Link>
         </div>
       </div>
     </header>
@@ -69,13 +75,21 @@ export default function Home(): ReactNode {
               </div>
             </div>
             <div className="row" style={{marginTop: '2rem'}}>
-              <div className="col col--12">
+              <div className="col col--6">
                 <Heading as="h2">Schema Search</Heading>
                 <p>
                   Search across all schemas, tables, and columns in one place.
                   Find columns by name, type, or description across pdbj, cc, vrpt, and more.
                 </p>
                 <Link to="/schema-search">Search schemas →</Link>
+              </div>
+              <div className="col col--6">
+                <Heading as="h2">Table Relations</Heading>
+                <p>
+                  Select tables and visualize shared columns with interactive
+                  Mermaid ER diagrams. Explore implicit relationships across schemas.
+                </p>
+                <Link to="/table-relations">Explore relations →</Link>
               </div>
             </div>
           </div>

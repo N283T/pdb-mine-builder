@@ -131,3 +131,276 @@
   font-size: 0.8rem;
   color: var(--ifm-color-emphasis-500);
 }
+
+/* Table Relations page */
+.table-relations__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.table-relations__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.5rem;
+  background: var(--ifm-color-primary-lightest);
+  color: var(--ifm-color-primary-darkest);
+  border-radius: var(--ifm-global-radius);
+  font-size: 0.85rem;
+}
+
+[data-theme='dark'] .table-relations__tag {
+  background: var(--ifm-color-primary-darkest);
+  color: var(--ifm-color-primary-lightest);
+}
+
+.table-relations__tag-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 0.15rem;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.table-relations__tag-remove:hover {
+  opacity: 1;
+}
+
+.table-relations__col-count {
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-500);
+}
+
+.table-relations__results {
+  width: 100%;
+}
+
+.table-relations__results td code {
+  font-weight: 600;
+}
+
+.table-relations__suggestions {
+  margin-bottom: 1.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-background-surface-color);
+  font-size: 0.9rem;
+  line-height: 2;
+}
+
+.table-relations__suggestion-btn {
+  display: inline;
+  background: none;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--ifm-color-primary);
+}
+
+.table-relations__suggestion-btn:hover {
+  background: var(--ifm-color-emphasis-100);
+  border-color: var(--ifm-color-primary);
+}
+
+/* Schema tab picker */
+.table-relations__picker {
+  margin-bottom: 1.5rem;
+}
+
+.table-relations__schema-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.table-relations__schema-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.4rem 0.75rem;
+  background: none;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--ifm-font-color-base);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.table-relations__schema-tab:hover {
+  background: var(--ifm-color-emphasis-100);
+  border-color: var(--ifm-color-primary);
+}
+
+.table-relations__schema-tab.active {
+  background: var(--ifm-color-primary);
+  color: #fff;
+  border-color: var(--ifm-color-primary);
+}
+
+/* Table list within schema */
+.table-relations__table-list {
+  margin-bottom: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-background-surface-color);
+}
+
+.table-relations__table-filter {
+  margin-bottom: 0.5rem;
+  width: 100%;
+}
+
+.table-relations__table-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.table-relations__table-btn {
+  padding: 0.25rem 0.5rem;
+  background: none;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-global-radius);
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--ifm-font-color-base);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.table-relations__table-btn:hover:not(:disabled) {
+  background: var(--ifm-color-emphasis-100);
+  border-color: var(--ifm-color-primary);
+}
+
+.table-relations__table-btn.selected {
+  background: var(--ifm-color-primary-lightest);
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary-darkest);
+}
+
+[data-theme='dark'] .table-relations__table-btn.selected {
+  background: var(--ifm-color-primary-darkest);
+  color: var(--ifm-color-primary-lightest);
+}
+
+.table-relations__table-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.table-relations__limit-msg {
+  margin: 0.5rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ifm-color-warning-darkest);
+}
+
+/* Clear button */
+.table-relations__clear-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  background: none;
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--ifm-color-danger);
+}
+
+.table-relations__clear-btn:hover {
+  background: var(--ifm-color-emphasis-100);
+}
+
+/* Preset examples */
+.table-relations__presets {
+  margin-bottom: 1.5rem;
+}
+
+.table-relations__presets h3 {
+  margin-bottom: 0.75rem;
+}
+
+.table-relations__preset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 0.75rem;
+}
+
+.table-relations__preset-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.75rem;
+  background: var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-global-radius);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.table-relations__preset-btn:hover {
+  border-color: var(--ifm-color-primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.table-relations__preset-btn strong {
+  font-size: 0.95rem;
+  color: var(--ifm-color-primary);
+}
+
+.table-relations__preset-btn span {
+  font-size: 0.85rem;
+  color: var(--ifm-color-emphasis-600);
+}
+
+.table-relations__diagram {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-background-surface-color);
+  overflow-x: auto;
+}
+
+.table-relations__diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.table-relations__download-bar {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  justify-content: flex-end;
+}
+
+.table-relations__download-btn {
+  padding: 0.3rem 0.75rem;
+  background: var(--ifm-background-surface-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+  border-radius: var(--ifm-global-radius);
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--ifm-font-color-base);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.table-relations__download-btn:hover {
+  background: var(--ifm-color-emphasis-100);
+  border-color: var(--ifm-color-primary);
+  color: var(--ifm-color-primary);
+}

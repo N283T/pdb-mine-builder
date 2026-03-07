@@ -3,33 +3,14 @@ import React, {useState, useEffect, useMemo, useCallback} from 'react';
 import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 import useBaseUrl from '@docusaurus/useBaseUrl';
-import type {Column, Table} from '@site/src/types/schema';
-
-interface Schema {
-  schema: string;
-  primaryKey: string;
-  tables: Table[];
-}
+import type {Column, Table, Schema} from '@site/src/types/schema';
+import {SCHEMA_PRIORITY} from '@site/src/types/schema';
 
 interface SearchResult {
   schema: string;
   table: string;
   column: Column;
 }
-
-// Display priority order (lower = higher priority).
-// Keep in sync with SIDEBAR_POSITIONS in scripts/generate_rdb_docs.py.
-const SCHEMA_PRIORITY: Record<string, number> = {
-  pdbj: 0,
-  cc: 1,
-  ccmodel: 2,
-  prd: 3,
-  prd_family: 4,
-  vrpt: 5,
-  contacts: 6,
-  emdb: 7,
-  ihm: 8,
-};
 
 function SchemaCheckboxes({
   schemas,
