@@ -33,7 +33,8 @@ def generate_schema_json(schema_name: str) -> dict:
         columns = []
         for col in table.columns:
             pg_type = sa_type_to_pg(col.type)
-            columns.append([col.name, pg_type, ""])
+            desc = col.comment or ""
+            columns.append([col.name, pg_type, desc])
 
         pk_cols = []
         for constraint in table.constraints:
@@ -61,9 +62,7 @@ def main() -> None:
     for schema_name in sorted(ALL_METADATA.keys()):
         data = generate_schema_json(schema_name)
         output_path = output_dir.joinpath(f"{schema_name}.json")
-        output_path.write_text(
-            json.dumps(data, indent=2, ensure_ascii=False) + "\n"
-        )
+        output_path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
         table_count = len(data["tables"])
         print(f"  {schema_name}: {table_count} tables -> {output_path.name}")
 
