@@ -8,12 +8,19 @@ pdb-mine-builder uses a YAML configuration file to define database connections a
 
 ## config.yml
 
-Create `config.yml` in the project root (it is gitignored). Here is a full example:
+Copy the example config to get started:
+
+```bash
+cp config.example.yml config.yml
+# Edit config.yml with your data paths
+```
+
+`config.yml` is gitignored. Here is a full example:
 
 ```yaml
 rdb:
   nworkers: 8
-  constring: "dbname='pmb' user='pdbj' port=5433"
+  constring: "host=localhost port=5433 dbname=pmb user=pdbj"
 
 pipelines:
   pdbj:
@@ -29,6 +36,8 @@ pipelines:
   prd:
     format: cif
     data: /data/pdb/bird/prd/
+  prd_family:
+    data: /data/pdb/bird/family/
   vrpt:
     data: /data/pdb/validation_reports/
   contacts:
@@ -91,7 +100,13 @@ When `data-plus` is omitted, only standard structure data is loaded.
 
 ## Variable Expansion
 
-The special variable `${CWD}` expands to the repository root directory. This is useful for test configurations or portable setups:
+Config values support `${VAR}` placeholders that are resolved at load time:
+
+| Variable | Description |
+|----------|-------------|
+| `${CWD}` | Current working directory |
+| `${DATA_DIR}` | `DATA_DIR` environment variable (default: `/mnt/c/pdb`) |
+| `${HOME}` | User home directory |
 
 ```yaml
 pipelines:
