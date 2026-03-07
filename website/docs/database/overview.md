@@ -20,7 +20,7 @@ pdb-mine-builder creates a PostgreSQL database with multiple schemas, each conta
 | [emdb](./emdb.md) | `emdb_id` | — | 79 | — | Electron Microscopy Data Bank (experimental) |
 | [ihm](./ihm.md) | `pdbid` | — | 114 | — | Integrative/Hybrid Methods (experimental) |
 
-**Total: 368 tables, ~349 GB** (excluding emdb/ihm which have no data pipeline yet)
+**Total: 368 tables, ~349 GB** (excluding emdb/ihm which have no data pipeline yet, as of 2026-03-08)
 
 **[Schema Search](/schema-search)** — Search across all schemas, tables, and columns in one place.
 **[Table Relations](/table-relations)** — Explore relationships between tables interactively.

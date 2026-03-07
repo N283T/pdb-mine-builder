@@ -88,7 +88,7 @@ See the [Getting Started guide](https://n283t.github.io/pdb-mine-builder/docs/ge
 | ccmodel | Chemical component models | ~23k | 8 | 174 MB | CIF / mmJSON |
 | prd | BIRD reference dictionary | ~1.2k | 17 | 50 MB | CIF / mmJSON |
 
-**Total: 368 tables, ~349 GB** with all PDB entries loaded.
+**Total: 368 tables, ~349 GB** with all PDB entries loaded (as of 2026-03-08).
 
 See the [Database Reference](https://n283t.github.io/pdb-mine-builder/docs/database/overview) for schema details and SQL examples.
 
