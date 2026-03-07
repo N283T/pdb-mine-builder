@@ -22,6 +22,8 @@ pdb-mine-builder creates a PostgreSQL database with multiple schemas, each conta
 
 **[Schema Search](/schema-search)** — Search across all schemas, tables, and columns in one place.
 
+**ER Diagrams** — Visual table relationship diagrams are available for each schema (see sidebar).
+
 :::note emdb / ihm schemas
 The `emdb` and `ihm` schemas have table definitions but have not been thoroughly tested with production data. They currently have no data-loading pipeline. If there is community demand, these schemas will receive full pipeline support and validation. Feedback and contributions are welcome via [GitHub Issues](https://github.com/N283T/pdb-mine-builder/issues).
 :::
