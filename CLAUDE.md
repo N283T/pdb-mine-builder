@@ -121,6 +121,7 @@ pixi run pmb all                     # Full sync + update cycle
 pixi run pmb setup-rdkit             # Setup RDKit extension
 pixi run pmb test [pipeline...]      # Run test pipelines against test DB
 pixi run pmb reset <schema|all>      # Drop and reset schemas
+pixi run pmb query <sql>             # Execute SQL query (table/csv/json/parquet)
 pixi run pmb stats                   # Show database statistics
 pixi run pmb --version               # Show version
 ```
