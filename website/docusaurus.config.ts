@@ -4,7 +4,7 @@ import type * as Preset from '@docusaurus/preset-classic';
 
 const config: Config = {
   title: 'pdb-mine-builder',
-  tagline: 'Build a MINE-schema database from PDB data',
+  tagline: 'Build a Mine-schema database from PDB data',
   favicon: 'img/favicon.ico',
 
   future: {

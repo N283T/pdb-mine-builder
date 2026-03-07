@@ -1,6 +1,8 @@
 # pdb-mine-builder
 
-Build a MINE-schema database from PDB data. Synchronizes structural biology data from PDBj (Protein Data Bank Japan) via rsync and loads it into PostgreSQL.
+Build a Mine-schema database from PDB data. Synchronizes structural biology data from PDBj (Protein Data Bank Japan) via rsync and loads it into PostgreSQL.
+
+This project is based on PDBj's [mine2updater](https://gitlab.com/pdbjapan/mine2updater). Thanks to the PDBj team for the original implementation and the [Mine](https://doi.org/10.1093/database/baq021) relational database design.
 
 **Documentation**: [https://n283t.github.io/pdb-mine-builder/](https://n283t.github.io/pdb-mine-builder/)
 
@@ -61,4 +63,12 @@ pixi run check     # All checks
 
 ## License
 
-GNU LGPLv3 - See [LICENSE](LICENSE) for details.
+MIT - See [LICENSE](LICENSE) for details.
+
+### Relationship to mine2updater
+
+This project is inspired by [mine2updater](https://gitlab.com/pdbjapan/mine2updater) (LGPLv3) by PDBj, which loads PDB data into PostgreSQL using Node.js. pdb-mine-builder is an independent rewrite in Python with a completely different tech stack (gemmi, SQLAlchemy, psycopg3, RDKit), architecture, and data model. No code was copied or translated from the original project. Shared concepts (pipeline names, schema structures, PDB ID encoding) derive from PDB data specifications, not from the original codebase.
+
+## References
+
+- Kinjo AR, Yamashita R, Nakamura H. PDBj Mine: design and implementation of relational database interface for Protein Data Bank Japan. *Database (Oxford)*. 2010;2010:baq021. doi: [10.1093/database/baq021](https://doi.org/10.1093/database/baq021)
