@@ -57,9 +57,11 @@ pixi run check     # All checks
 ## Requirements
 
 - Python 3.12+
-- PostgreSQL 17+ (with RDKit extension for chemical searches)
-- [Pixi](https://pixi.sh/)
+- PostgreSQL 17+ (managed by rdkit-postgresql via conda-forge)
+- [Pixi](https://pixi.sh/) — manages all dependencies (conda + PyPI)
 - rsync
+
+> **Note**: Most dependencies are installed from conda-forge. Only `ccd2rdmol` (PyPI only) and `psycopg[binary,pool]` (extras required) remain as PyPI dependencies. PostgreSQL version is determined by rdkit-postgresql.
 
 ## License
 
