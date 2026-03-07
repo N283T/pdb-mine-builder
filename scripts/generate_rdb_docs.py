@@ -1,14 +1,16 @@
 #!/usr/bin/env -S pixi run python
-"""Generate rdb_docs JSON files from SQLAlchemy models.
+"""Generate rdb_docs JSON and website Markdown from SQLAlchemy models.
 
-Produces one JSON file per schema in docs/rdb_docs/, matching the format
-used by mine2 rdb_docs (compatible with AI/documentation tooling).
+Outputs:
+  - docs/rdb_docs/{schema}.json  — mine2-compatible JSON for AI/tooling
+  - website/docs/database/{schema}.md — Docusaurus schema reference pages
 
 Usage:
     pixi run python scripts/generate_rdb_docs.py
 """
 
 import json
+import re
 from pathlib import Path
 
 from sqlalchemy import PrimaryKeyConstraint
@@ -16,6 +18,22 @@ from sqlalchemy import PrimaryKeyConstraint
 from pdbminebuilder.db._type_utils import sa_type_to_pg
 from pdbminebuilder.db.loader import get_all_tables, get_entry_pk
 from pdbminebuilder.models import ALL_METADATA
+
+# Sidebar order for Docusaurus (overview.md = 0)
+SIDEBAR_POSITIONS: dict[str, int] = {
+    "pdbj": 1,
+    "cc": 2,
+    "ccmodel": 3,
+    "prd": 4,
+    "prd_family": 5,
+    "vrpt": 6,
+    "contacts": 7,
+    "emdb": 8,
+    "ihm": 9,
+}
+
+# Marker that separates auto-generated content from hand-written appendices
+APPENDIX_MARKER = "<!-- BEGIN CUSTOM CONTENT -->"
 
 
 def generate_schema_json(schema_name: str) -> dict:
@@ -55,18 +73,76 @@ def generate_schema_json(schema_name: str) -> dict:
     return {"config": config, "tables": tables}
 
 
+def generate_schema_markdown(schema_name: str, data: dict) -> str:
+    """Generate Docusaurus Markdown for a schema reference page."""
+    config = data["config"]
+    tables = data["tables"]
+    position = SIDEBAR_POSITIONS.get(schema_name, 99)
+
+    lines = [
+        "---",
+        f"sidebar_position: {position}",
+        "---",
+        "",
+        f"# {schema_name} Schema",
+        "",
+        f"- **Primary Key**: `{config['primaryKey']}`",
+        f"- **Tables**: {len(tables)}",
+    ]
+
+    for table in tables:
+        lines.append("")
+        lines.append(f"## {table['name']}")
+        lines.append("")
+        lines.append("| Column | Type | Description |")
+        lines.append("|--------|------|-------------|")
+        for col_name, col_type, col_desc in table["columns"]:
+            # Escape pipe characters in descriptions for Markdown tables
+            desc = col_desc.replace("|", "\\|")
+            lines.append(f"| {col_name} | {col_type} | {desc} |")
+
+    lines.append("")
+    return "\n".join(lines)
+
+
+def extract_custom_content(md_path: Path) -> str | None:
+    """Extract hand-written content after the APPENDIX_MARKER from existing file."""
+    if not md_path.exists():
+        return None
+    content = md_path.read_text()
+    idx = content.find(APPENDIX_MARKER)
+    if idx == -1:
+        return None
+    return content[idx:]
+
+
 def main() -> None:
-    output_dir = Path(__file__).resolve().parent.parent.joinpath("docs", "rdb_docs")
-    output_dir.mkdir(parents=True, exist_ok=True)
+    project_root = Path(__file__).resolve().parent.parent
+    json_dir = project_root.joinpath("docs", "rdb_docs")
+    md_dir = project_root.joinpath("website", "docs", "database")
+    json_dir.mkdir(parents=True, exist_ok=True)
 
     for schema_name in sorted(ALL_METADATA.keys()):
         data = generate_schema_json(schema_name)
-        output_path = output_dir.joinpath(f"{schema_name}.json")
-        output_path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
         table_count = len(data["tables"])
-        print(f"  {schema_name}: {table_count} tables -> {output_path.name}")
 
-    print(f"\nGenerated {len(ALL_METADATA)} schema files in {output_dir}")
+        # Write JSON
+        json_path = json_dir.joinpath(f"{schema_name}.json")
+        json_path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+
+        # Write Markdown
+        md_content = generate_schema_markdown(schema_name, data)
+
+        md_path = md_dir.joinpath(f"{schema_name}.md")
+        custom = extract_custom_content(md_path)
+        if custom:
+            md_content = md_content + custom
+
+        md_path.write_text(md_content)
+
+        print(f"  {schema_name}: {table_count} tables -> {json_path.name}, {md_path.name}")
+
+    print(f"\nGenerated {len(ALL_METADATA)} schemas (JSON + Markdown)")
 
 
 if __name__ == "__main__":
