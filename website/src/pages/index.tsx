@@ -45,7 +45,7 @@ export default function Home(): ReactNode {
   return (
     <Layout
       title="Home"
-      description="Build a MINE-schema database from PDB data">
+      description="Build a Mine-schema database from PDB data">
       <HomepageHeader />
       <main>
         <section style={{padding: '2rem 0'}}>

@@ -4,7 +4,7 @@ sidebar_position: 5
 
 # Migration from mine2updater
 
-pdb-mine-builder is a complete rewrite of the original [mine2updater](https://gitlab.com/pdbjapan/mine2updater) — the RDB updater for PDBj's MINE 2 system. This page covers what changed and why.
+pdb-mine-builder is a complete rewrite of the original [mine2updater](https://gitlab.com/pdbjapan/mine2updater) — the RDB updater for PDBj's Mine 2 system. This page covers what changed and why.
 
 ## Why Rewrite?
 
@@ -154,7 +154,7 @@ pixi run pmb load pdbj --force
 
 ## Database Compatibility
 
-pdb-mine-builder produces a database with the **same MINE 2 schema structure**. Schema names, table names, and column naming conventions are preserved. Basic queries should work with minimal changes:
+pdb-mine-builder produces a database with the **same Mine 2 schema structure**. Schema names, table names, and column naming conventions are preserved. Basic queries should work with minimal changes:
 
 - Replace `docid`-based lookups with primary key lookups
 - Replace `byte0`–`byte15` fingerprint queries with RDKit operators
@@ -162,12 +162,12 @@ pdb-mine-builder produces a database with the **same MINE 2 schema structure**. 
 - Column names follow the same CIF/mmJSON category naming convention
 
 :::warning Important
-pdb-mine-builder is an **independent reimplementation** of the MINE 2 database builder. While the schema structure is largely compatible, **full query compatibility with PDBj's official services is not guaranteed**.
+pdb-mine-builder is an **independent reimplementation** of the Mine 2 database builder. While the schema structure is largely compatible, **full query compatibility with PDBj's official services is not guaranteed**.
 
 - SQL queries written for PDBj's [Mine 2 RDB web API](https://pdbj.org/help/mine2-sql) or REST API may not work as-is against a pdb-mine-builder database
 - Column types, NULL handling, and data transformations may differ in subtle ways
 - The `brief_summary` tables are constructed differently (e.g., no `docid`, different fingerprint columns)
-- New columns or tables added by PDBj's official MINE 2 system may not be present
+- New columns or tables added by PDBj's official Mine 2 system may not be present
 
 If you rely on queries from PDBj's official documentation or web interface, **test them against your local database before use in production**.
 :::

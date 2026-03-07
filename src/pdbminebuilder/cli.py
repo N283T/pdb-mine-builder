@@ -13,7 +13,7 @@ from pdbminebuilder.config import load_config
 
 app = typer.Typer(
     name="pmb",
-    help="pdb-mine-builder - Build a MINE-schema database from PDB data.",
+    help="pdb-mine-builder - Build a Mine-schema database from PDB data.",
     rich_markup_mode="rich",
 )
 console = Console()
@@ -68,7 +68,7 @@ def main(
         typer.Option("--version", "-v", callback=version_callback, is_eager=True),
     ] = None,
 ) -> None:
-    """pdb-mine-builder - Build a MINE-schema database from PDB data."""
+    """pdb-mine-builder - Build a Mine-schema database from PDB data."""
     pass
 
 
