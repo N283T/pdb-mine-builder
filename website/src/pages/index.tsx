@@ -28,6 +28,12 @@ function HomepageHeader() {
             to="/docs/database/overview">
             Database Reference
           </Link>
+          <Link
+            className="button button--secondary button--lg"
+            style={{marginLeft: '1rem'}}
+            to="/schema-search">
+            Schema Search
+          </Link>
         </div>
       </div>
     </header>
@@ -60,6 +66,16 @@ export default function Home(): ReactNode {
                   and SQL query examples for structural biology data.
                 </p>
                 <Link to="/docs/database/overview">Browse schemas →</Link>
+              </div>
+            </div>
+            <div className="row" style={{marginTop: '2rem'}}>
+              <div className="col col--12">
+                <Heading as="h2">Schema Search</Heading>
+                <p>
+                  Search across all schemas, tables, and columns in one place.
+                  Find columns by name, type, or description across pdbj, cc, vrpt, and more.
+                </p>
+                <Link to="/schema-search">Search schemas →</Link>
               </div>
             </div>
           </div>
