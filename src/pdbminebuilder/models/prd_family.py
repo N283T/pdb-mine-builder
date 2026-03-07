@@ -23,7 +23,12 @@ brief_summary = Table(
     "brief_summary",
     metadata,
     Column("family_prd_id", Text, nullable=True),
-    Column("name", Text, nullable=True, comment="Name of the PRD family group."),
+    Column(
+        "name",
+        Text,
+        nullable=True,
+        comment="[pmb] Name of the PRD family group (from pdbx_reference_molecule_family).",
+    ),
     Column("pdbx_initial_date", Date, nullable=True),
     Column("pdbx_modified_date", Date, nullable=True),
     Column("update_date", DateTime, nullable=True),

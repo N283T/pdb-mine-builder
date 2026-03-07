@@ -10372,7 +10372,7 @@
         [
           "_hash_asym_id_list",
           "text",
-          "SHA-256 hash of asym_id_list for composite primary key deduplication."
+          "[pmb] SHA-256 hash of asym_id_list for composite primary key deduplication."
         ],
         [
           "assembly_id",
@@ -10387,7 +10387,7 @@
         [
           "_hash_oper_expression",
           "text",
-          "SHA-256 hash of oper_expression for composite primary key deduplication."
+          "[pmb] SHA-256 hash of oper_expression for composite primary key deduplication."
         ]
       ],
       "primary_key": [

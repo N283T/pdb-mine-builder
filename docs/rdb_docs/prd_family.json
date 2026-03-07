@@ -15,7 +15,7 @@
         [
           "name",
           "text",
-          "Name of the PRD family group."
+          "[pmb] Name of the PRD family group (from pdbx_reference_molecule_family)."
         ],
         [
           "pdbx_initial_date",

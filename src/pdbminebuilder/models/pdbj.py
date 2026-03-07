@@ -11907,7 +11907,7 @@ pdbx_struct_assembly_gen = Table(
         "_hash_asym_id_list",
         Text,
         nullable=True,
-        comment="SHA-256 hash of asym_id_list for composite primary key deduplication.",
+        comment="[pmb] SHA-256 hash of asym_id_list for composite primary key deduplication.",
     ),
     Column("assembly_id", Text, nullable=True),
     Column("oper_expression", Text, nullable=True),
@@ -11915,7 +11915,7 @@ pdbx_struct_assembly_gen = Table(
         "_hash_oper_expression",
         Text,
         nullable=True,
-        comment="SHA-256 hash of oper_expression for composite primary key deduplication.",
+        comment="[pmb] SHA-256 hash of oper_expression for composite primary key deduplication.",
     ),
     PrimaryKeyConstraint(
         "pdbid", "assembly_id", "_hash_asym_id_list", "_hash_oper_expression"

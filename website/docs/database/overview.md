@@ -48,6 +48,7 @@ PostgreSQL (one schema per data source)
 - No foreign key constraints (for loading performance)
 - All columns except primary keys are nullable
 - Table names match CIF/mmJSON category names for straightforward mapping
+- Columns added by pdb-mine-builder (not in the original mine2 schema) are marked with `[pmb]` prefix in their descriptions
 
 ## Common Query Patterns
 
