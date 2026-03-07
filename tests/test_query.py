@@ -5,7 +5,9 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import polars as pl
+import psycopg
 import pytest
+import typer
 
 from pdbminebuilder.commands.query import (
     OutputFormat,
@@ -28,7 +30,9 @@ class TestExecuteQuery:
         mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
         mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
 
-        with patch("pdbminebuilder.commands.query.psycopg.connect", return_value=mock_conn):
+        with patch(
+            "pdbminebuilder.commands.query.psycopg.connect", return_value=mock_conn
+        ):
             from pdbminebuilder.commands.query import _execute_query
 
             df = _execute_query("dbname=test", "SELECT id, name FROM test")
@@ -48,7 +52,9 @@ class TestExecuteQuery:
         mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
         mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
 
-        with patch("pdbminebuilder.commands.query.psycopg.connect", return_value=mock_conn):
+        with patch(
+            "pdbminebuilder.commands.query.psycopg.connect", return_value=mock_conn
+        ):
             from pdbminebuilder.commands.query import _execute_query
 
             df = _execute_query("dbname=test", "SELECT id, name FROM empty")
@@ -67,7 +73,9 @@ class TestExecuteQuery:
         mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
         mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
 
-        with patch("pdbminebuilder.commands.query.psycopg.connect", return_value=mock_conn):
+        with patch(
+            "pdbminebuilder.commands.query.psycopg.connect", return_value=mock_conn
+        ):
             from pdbminebuilder.commands.query import _execute_query
 
             df = _execute_query("dbname=test", "CREATE TABLE t (id int)")
@@ -118,8 +126,15 @@ class TestRunQueryOutputFormats:
 
     def test_csv_to_file(self, mock_settings, sample_df, tmp_path):
         out = tmp_path / "out.csv"
-        with patch("pdbminebuilder.commands.query._execute_query", return_value=sample_df):
-            run_query(mock_settings, "SELECT 1", output_format=OutputFormat.csv, output_file=out)
+        with patch(
+            "pdbminebuilder.commands.query._execute_query", return_value=sample_df
+        ):
+            run_query(
+                mock_settings,
+                "SELECT 1",
+                output_format=OutputFormat.csv,
+                output_file=out,
+            )
         assert out.exists()
         content = out.read_text()
         assert "ATP" in content
@@ -127,36 +142,86 @@ class TestRunQueryOutputFormats:
 
     def test_json_to_file(self, mock_settings, sample_df, tmp_path):
         out = tmp_path / "out.json"
-        with patch("pdbminebuilder.commands.query._execute_query", return_value=sample_df):
-            run_query(mock_settings, "SELECT 1", output_format=OutputFormat.json, output_file=out)
+        with patch(
+            "pdbminebuilder.commands.query._execute_query", return_value=sample_df
+        ):
+            run_query(
+                mock_settings,
+                "SELECT 1",
+                output_format=OutputFormat.json,
+                output_file=out,
+            )
         assert out.exists()
         data = json.loads(out.read_text())
         assert len(data) == 2
 
     def test_parquet_to_file(self, mock_settings, sample_df, tmp_path):
         out = tmp_path / "out.parquet"
-        with patch("pdbminebuilder.commands.query._execute_query", return_value=sample_df):
+        with patch(
+            "pdbminebuilder.commands.query._execute_query", return_value=sample_df
+        ):
             run_query(
-                mock_settings, "SELECT 1", output_format=OutputFormat.parquet, output_file=out
+                mock_settings,
+                "SELECT 1",
+                output_format=OutputFormat.parquet,
+                output_file=out,
             )
         assert out.exists()
         result = pl.read_parquet(out)
         assert result.shape == (2, 2)
 
     def test_parquet_without_output_fails(self, mock_settings, sample_df):
-        with patch("pdbminebuilder.commands.query._execute_query", return_value=sample_df):
-            with pytest.raises(SystemExit):
+        with patch(
+            "pdbminebuilder.commands.query._execute_query", return_value=sample_df
+        ):
+            with pytest.raises(typer.Exit):
                 run_query(mock_settings, "SELECT 1", output_format=OutputFormat.parquet)
 
     def test_csv_to_stdout(self, mock_settings, sample_df, capsys):
-        with patch("pdbminebuilder.commands.query._execute_query", return_value=sample_df):
+        with patch(
+            "pdbminebuilder.commands.query._execute_query", return_value=sample_df
+        ):
             run_query(mock_settings, "SELECT 1", output_format=OutputFormat.csv)
         captured = capsys.readouterr()
         assert "ATP" in captured.out
 
     def test_json_to_stdout(self, mock_settings, sample_df, capsys):
-        with patch("pdbminebuilder.commands.query._execute_query", return_value=sample_df):
+        with patch(
+            "pdbminebuilder.commands.query._execute_query", return_value=sample_df
+        ):
             run_query(mock_settings, "SELECT 1", output_format=OutputFormat.json)
         captured = capsys.readouterr()
         data = json.loads(captured.out)
         assert len(data) == 2
+
+    def test_database_error_exits_gracefully(self, mock_settings):
+        with patch(
+            "pdbminebuilder.commands.query._execute_query",
+            side_effect=psycopg.Error("connection refused"),
+        ):
+            with pytest.raises(typer.Exit):
+                run_query(mock_settings, "SELECT 1")
+
+
+class TestReadOnlyConnection:
+    """Test that query connections are read-only."""
+
+    def test_sets_read_only_transaction(self):
+        mock_cursor = MagicMock()
+        mock_cursor.description = [("id",)]
+        mock_cursor.fetchall.return_value = [(1,)]
+
+        mock_conn = MagicMock()
+        mock_conn.__enter__ = MagicMock(return_value=mock_conn)
+        mock_conn.__exit__ = MagicMock(return_value=False)
+        mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
+        mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
+
+        with patch(
+            "pdbminebuilder.commands.query.psycopg.connect", return_value=mock_conn
+        ):
+            from pdbminebuilder.commands.query import _execute_query
+
+            _execute_query("dbname=test", "SELECT 1")
+
+        mock_conn.execute.assert_called_once_with("SET TRANSACTION READ ONLY")

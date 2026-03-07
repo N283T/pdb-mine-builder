@@ -6,6 +6,7 @@ from pathlib import Path
 
 import polars as pl
 import psycopg
+import typer
 from rich.console import Console
 from rich.table import Table
 
@@ -24,8 +25,13 @@ class OutputFormat(str, Enum):
 
 
 def _execute_query(conninfo: str, sql: str) -> pl.DataFrame:
-    """Execute SQL and return results as a Polars DataFrame."""
+    """Execute SQL and return results as a Polars DataFrame.
+
+    The connection is opened in read-only mode via a READ ONLY transaction
+    to prevent accidental destructive operations.
+    """
     with psycopg.connect(conninfo) as conn:
+        conn.execute("SET TRANSACTION READ ONLY")
         with conn.cursor() as cur:
             cur.execute(sql)
             if cur.description is None:
@@ -70,7 +76,11 @@ def run_query(
     max_rows: int | None = None,
 ) -> None:
     """Execute a SQL query and output results."""
-    df = _execute_query(settings.rdb.constring, sql)
+    try:
+        df = _execute_query(settings.rdb.constring, sql)
+    except psycopg.Error as e:
+        console.print(f"[red]Database error: {e}[/red]")
+        raise typer.Exit(1) from None
 
     if output_format == OutputFormat.table:
         _render_rich_table(df, max_rows=max_rows)
@@ -96,6 +106,6 @@ def run_query(
     if output_format == OutputFormat.parquet:
         if output_file is None:
             console.print("[red]Error: --output is required for parquet format.[/red]")
-            raise SystemExit(1)
+            raise typer.Exit(1)
         df.write_parquet(output_file)
         console.print(f"[dim]Written {len(df)} rows to {output_file}[/dim]")

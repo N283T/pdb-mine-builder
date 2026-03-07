@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `pmb query` command for executing SQL queries with multi-format output (table, CSV, JSON, Parquet)
+- Read-only connection mode for query command to prevent accidental destructive SQL
+- Polars dependency for DataFrame-based query result handling
+
 ## [0.2.0] - 2026-03-07
 
 Initial release as an independent Python project. Rewritten from
