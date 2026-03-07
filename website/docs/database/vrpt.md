@@ -7,15 +7,6 @@ sidebar_position: 6
 - **Primary Key**: `pdbid`
 - **Tables**: 69
 
-## brief_summary
-
-| Column | Type | Description |
-|--------|------|-------------|
-| pdbid | text |  |
-| docid | bigint |  |
-| update_date | timestamp without time zone | Entry update date (within the RDB). |
-| keywords | text[] | Array of keywords. |
-
 ## audit_conform
 
 | Column | Type | Description |
@@ -24,6 +15,15 @@ sidebar_position: 6
 | dict_location | text | A file name or uniform resource locator (URL) for the dictionary to which the current data block conforms. |
 | dict_name | text | The string identifying the highest-level dictionary defining data names used in this file. |
 | dict_version | text | The version number of the dictionary to which the current data block conforms. |
+
+## brief_summary
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text |  |
+| docid | bigint |  |
+| update_date | timestamp without time zone | Entry update date (within the RDB). |
+| keywords | text[] | Array of keywords. |
 
 ## entity
 
@@ -778,12 +778,12 @@ sidebar_position: 6
 | Babinet_b | double precision | REFMAC scaling parameter as reported in log output line starting 'bulk solvent: scale'. X-ray entry specific, obtained in the EDS step from REFMAC calculation. |
 | bulk_solvent_b | double precision | REFMAC scaling parameter as reported in log output file. X-ray entry specific, obtained in the EDS step from REFMAC calculation. |
 | Wilson_B_estimate | double precision | An estimate of the overall B-value of the structure, calculated from the diffraction data. Units Angstroms squared. It serves as an indicator of the degree of order in the crystal and the value is usually not hugely different from the average B-value calculated from the model. X-ray entry specific, calculated by Phenix Xtriage program. |
-| I_over_sigma | text | Each reflection has an intensity (I) and an uncertainty in measurement (sigma(I)), so I/sigma(I) is the signal-to-noise ratio. This ratio decreases at higher resolution. &lt;I/sigma(I)&gt; is the mean of individual I/sigma(I) values. Value for outer resolution shell is given in parentheses. In case structure factor amplitudes are deposited, Xtriage estimates the intensities first and then calculates this metric. When intensities are available in the deposited file, these are converted to amplitudes and then back to intensity estimate before calculating the metric. X-ray entry specific, calculated by Phenix Xtriage program. |
+| I_over_sigma | text | Each reflection has an intensity (I) and an uncertainty in measurement (sigma(I)), so I/sigma(I) is the signal-to-noise ratio. This ratio decreases at higher resolution. <I/sigma(I)> is the mean of individual I/sigma(I) values. Value for outer resolution shell is given in parentheses. In case structure factor amplitudes are deposited, Xtriage estimates the intensities first and then calculates this metric. When intensities are available in the deposited file, these are converted to amplitudes and then back to intensity estimate before calculating the metric. X-ray entry specific, calculated by Phenix Xtriage program. |
 | num_miller_indices | integer | The number of Miller Indices reported by the Xtriage program. This should be the same as the number of _refln in the input structure factor file. X-ray entry specific, calculated by Phenix Xtriage program. |
 | Babinet_k | double precision | REFMAC scaling parameter as reported in log output line starting 'bulk solvent: scale'. X-ray entry specific, obtained in the EDS step from REFMAC calculation. |
 | bulk_solvent_k | double precision | REFMAC reported scaling parameter. X-ray entry specific, obtained in the EDS step from REFMAC calculation. |
-| Padilla_Yeates_L_mean | double precision | Padilla and Yeates twinning parameter &lt;\|L\|&gt;. Theoretical values is 0.5 in the untwinned case, and 0.375 in the perfectly twinned case. X-ray entry specific, obtained from the Xtriage program. |
-| Padilla_Yeates_L2_mean | double precision | Padilla and Yeates twinning parameter &lt;\|L**2\|&gt;. Theoretical values is 0.333 in the untwinned case, and 0.2 in the perfectly twinned case. X-ray entry specific, obtained from the Xtriage program. |
+| Padilla_Yeates_L_mean | double precision | Padilla and Yeates twinning parameter <\|L\|>. Theoretical values is 0.5 in the untwinned case, and 0.375 in the perfectly twinned case. X-ray entry specific, obtained from the Xtriage program. |
+| Padilla_Yeates_L2_mean | double precision | Padilla and Yeates twinning parameter <\|L**2\|>. Theoretical values is 0.333 in the untwinned case, and 0.2 in the perfectly twinned case. X-ray entry specific, obtained from the Xtriage program. |
 | DCC_R | double precision | The overall R-factor from a DCC recalculation of an electron density map. Currently value is rounded to 2 decimal places. X-ray entry specific, obtained from the DCC program. |
 | DCC_Rfree | double precision | Rfree as calculated by DCC. |
 | EDS_R | double precision | The overall R factor from the EDS REFMAC calculation (no free set is used in this). Currently value is rounded to 2 decimal places. X-ray entry specific, obtained in the eds step from REFMAC calculation. |
@@ -824,7 +824,7 @@ sidebar_position: 6
 | author_provided_fsc_resolution_by_cutoff_pt_5 | double precision | The resolution from the intersection of the author provided fsc and the indicator curve 0.5. |
 | author_provided_fsc_resolution_by_cutoff_halfbit | double precision | The resolution from the intersection of the author provided fsc and the indicator curve halfbit. |
 | author_provided_fsc_resolution_by_cutoff_onebit | double precision | The resolution from the intersection of the author provided fsc and the indicator curve onebit. |
-| author_provided_fsc_resolution_by_cutoff_threesigma | double precision | The resolution from the intersection of the author provided fsc and the indicator curve threesigma. |
+| author_provided_fsc_resolution_by_cutoff_threesigma | double precision |  |
 | calculated_fsc_resolution_by_cutoff_pt_143 | double precision | The resolution from the intersection of the fsc curve generated by from the provided halfmaps and the indicator curve 0.143. |
 | calculated_fsc_resolution_by_cutoff_pt_333 | double precision | The resolution from the intersection of the fsc curve generated by from the provided halfmaps and the indicator curve 0.333. |
 | calculated_fsc_resolution_by_cutoff_pt_5 | double precision | The resolution from the intersection of the fsc curve generated by from the provided halfmaps and the indicator curve 0.5. |

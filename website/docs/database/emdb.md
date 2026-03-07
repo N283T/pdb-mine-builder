@@ -7,6 +7,15 @@ sidebar_position: 8
 - **Primary Key**: `emdb_id`
 - **Tables**: 79
 
+## audit_conform
+
+| Column | Type | Description |
+|--------|------|-------------|
+| emdb_id | text |  |
+| dict_location | text | A file name or uniform resource locator (URL) for the dictionary to which the current data block conforms. |
+| dict_name | text | The string identifying the highest-level dictionary defining data names used in this file. |
+| dict_version | text | The version number of the dictionary to which the current data block conforms. |
+
 ## brief_summary
 
 | Column | Type | Description |
@@ -20,15 +29,6 @@ sidebar_position: 8
 | update_date | timestamp without time zone |  |
 | content | jsonb |  |
 | keywords | text[] |  |
-
-## audit_conform
-
-| Column | Type | Description |
-|--------|------|-------------|
-| emdb_id | text |  |
-| dict_location | text | A file name or uniform resource locator (URL) for the dictionary to which the current data block conforms. |
-| dict_name | text | The string identifying the highest-level dictionary defining data names used in this file. |
-| dict_version | text | The version number of the dictionary to which the current data block conforms. |
 
 ## chem_comp
 
@@ -97,7 +97,7 @@ sidebar_position: 8
 | length_a | double precision | Unit-cell length a in angstroms. |
 | length_b | double precision | Unit-cell length b in angstroms. |
 | length_c | double precision | Thickness of 2D crystal |
-| space_group_name_H-M | text | There are 17 plane groups classified as oblique, rectangular, square, and hexagonal. To describe the symmetry of 2D crystals of biological molecules, plane groups are expanded to equivalent noncentrosymmetric space groups. The 2D crystal plane corresponds to the 'ab' plane of the space group. Enumerated space group descriptions include the plane group number in parentheses, the H-M plane group symbol, and the plane group class. |
+| space_group_name_H-M | text |  |
 
 ## em_3d_crystal_entity
 
@@ -455,7 +455,7 @@ sidebar_position: 8
 | entity_assembly_id | text | The value of _em_helical_entity.entity_assembly_id identifies a particular assembly component. This data item is a pointer to _em_entity_assembly.id in the EM_ENTITY_ASSEMBLY category. |
 | image_processing_id | text | This data item is a pointer to _em_image_processing.id. |
 | details | text | Any other details regarding the helical assembly |
-| axial_symmetry | text | Symmetry of the helical axis, either cyclic (Cn) or dihedral (Dn), where n&gt;=1. |
+| axial_symmetry | text | Symmetry of the helical axis, either cyclic (Cn) or dihedral (Dn), where n>=1. |
 | angular_rotation_per_subunit | double precision | The angular rotation per helical subunit in degrees. Negative values indicate left-handed helices; positive values indicate right handed helices. |
 | axial_rise_per_subunit | double precision | The axial rise per subunit in the helical assembly. |
 

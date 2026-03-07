@@ -7,6 +7,30 @@ sidebar_position: 9
 - **Primary Key**: `pdbid`
 - **Tables**: 114
 
+## atom_type
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text |  |
+| symbol | text |  |
+
+## audit_author
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text |  |
+| name | text |  |
+| pdbx_ordinal | integer |  |
+
+## audit_conform
+
+| Column | Type | Description |
+|--------|------|-------------|
+| pdbid | text |  |
+| dict_location | text |  |
+| dict_name | text |  |
+| dict_version | text |  |
+
 ## brief_summary
 
 | Column | Type | Description |
@@ -53,30 +77,6 @@ sidebar_position: 9
 | update_date | timestamp without time zone |  |
 | db_pfam | text[] |  |
 | plus_fields | jsonb |  |
-
-## atom_type
-
-| Column | Type | Description |
-|--------|------|-------------|
-| pdbid | text |  |
-| symbol | text |  |
-
-## audit_author
-
-| Column | Type | Description |
-|--------|------|-------------|
-| pdbid | text |  |
-| name | text |  |
-| pdbx_ordinal | integer |  |
-
-## audit_conform
-
-| Column | Type | Description |
-|--------|------|-------------|
-| pdbid | text |  |
-| dict_location | text |  |
-| dict_name | text |  |
-| dict_version | text |  |
 
 ## chem_comp
 

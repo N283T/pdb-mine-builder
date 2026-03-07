@@ -12,7 +12,7 @@ sidebar_position: 5
 | Column | Type | Description |
 |--------|------|-------------|
 | family_prd_id | text |  |
-| name | text | The entity family name. |
+| name | text | [pmb] Name of the PRD family group (from pdbx_reference_molecule_family). |
 | pdbx_initial_date | date |  |
 | pdbx_modified_date | date |  |
 | update_date | timestamp without time zone |  |

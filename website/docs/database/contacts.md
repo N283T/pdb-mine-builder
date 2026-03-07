@@ -26,4 +26,4 @@ sidebar_position: 7
 | label_seq_id_2 | integer | Sequence ID of the second residue/molecule |
 | label_comp_id_1 | text | Residue/molecule name of the first residue |
 | label_comp_id_2 | text | Residue/molecule name of the second residue |
-| distance | float | Minimal distance between the two residues/molecules |
+| distance | real | Minimal distance between the two residues/molecules |

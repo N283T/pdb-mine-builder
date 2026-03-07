@@ -1,0 +1,279 @@
+config:
+  primaryKey: family_prd_id
+  schema: prd_family
+tables:
+- name: brief_summary
+  columns:
+  - - family_prd_id
+    - text
+    - ''
+  - - name
+    - text
+    - '[pmb] Name of the PRD family group (from pdbx_reference_molecule_family).'
+  - - pdbx_initial_date
+    - date
+    - ''
+  - - pdbx_modified_date
+    - date
+    - ''
+  - - update_date
+    - timestamp without time zone
+    - ''
+  - - keywords
+    - text[]
+    - ''
+  primary_key:
+  - family_prd_id
+  foreign_keys: []
+  desc: ''
+- name: citation
+  columns:
+  - - family_prd_id
+    - text
+    - ''
+  - - id
+    - text
+    - The value of _citation.id must uniquely identify a record in the CITATION list.
+      The _citation.id 'primary' should be used to indicate the citation that the
+      author(s) consider to be the most pertinent to the contents of the data block.
+      Note that this item need not be a number; it can be any unique identifier.
+  - - journal_abbrev
+    - text
+    - Abbreviated name of the cited journal as given in the Chemical Abstracts Service
+      Source Index.
+  - - journal_volume
+    - text
+    - Volume number of the journal cited; relevant for journal articles.
+  - - page_first
+    - text
+    - The first page of the citation; relevant for journal articles, books and book
+      chapters.
+  - - page_last
+    - text
+    - The last page of the citation; relevant for journal articles, books and book
+      chapters.
+  - - title
+    - text
+    - The title of the citation; relevant for journal articles, books and book chapters.
+  - - year
+    - integer
+    - The year of the citation; relevant for journal articles, books and book chapters.
+  - - pdbx_database_id_DOI
+    - text
+    - Document Object Identifier used by doi.org to uniquely specify bibliographic
+      entry.
+  - - pdbx_database_id_PubMed
+    - integer
+    - Ascession number used by PubMed to categorize a specific bibliographic entry.
+  primary_key:
+  - family_prd_id
+  - id
+  foreign_keys: []
+  desc: ''
+- name: citation_author
+  columns:
+  - - family_prd_id
+    - text
+    - ''
+  - - citation_id
+    - text
+    - This data item is a pointer to _citation.id in the CITATION category.
+  - - name
+    - text
+    - Name of an author of the citation; relevant for journal articles, books and
+      book chapters. The family name(s), followed by a comma and including any dynastic
+      components, precedes the first name(s) or initial(s).
+  - - ordinal
+    - integer
+    - This data item defines the order of the author's name in the list of authors
+      of a citation.
+  primary_key:
+  - family_prd_id
+  - citation_id
+  - name
+  - ordinal
+  foreign_keys: []
+  desc: ''
+- name: pdbx_family_prd_audit
+  columns:
+  - - family_prd_id
+    - text
+    - This data item is a pointer to _pdbx_reference_molecule_family.family_prd_id
+      in the pdbx_reference_molecule category.
+  - - date
+    - date
+    - The date associated with this audit record.
+  - - processing_site
+    - text
+    - An identifier for the wwPDB site creating or modifying the family.
+  - - action_type
+    - text
+    - The action associated with this audit record.
+  primary_key:
+  - family_prd_id
+  - date
+  - action_type
+  foreign_keys: []
+  desc: ''
+- name: pdbx_reference_molecule_annotation
+  columns:
+  - - family_prd_id
+    - text
+    - The value of _pdbx_reference_molecule_annotation.family_prd_id is a reference
+      to _pdbx_reference_molecule_list.family_prd_id in category PDBX_REFERENCE_MOLECULE_FAMILY_LIST.
+  - - prd_id
+    - text
+    - This data item is a pointer to _pdbx_reference_molecule.prd_id in the PDB_REFERENCE_MOLECULE
+      category.
+  - - ordinal
+    - integer
+    - This data item distinguishes anotations for this entity.
+  - - text
+    - text
+    - Text describing the annotation for this entity.
+  - - type
+    - text
+    - Type of annotation for this entity.
+  - - source
+    - text
+    - The source of the annoation for this entity.
+  primary_key:
+  - family_prd_id
+  - ordinal
+  foreign_keys: []
+  desc: ''
+- name: pdbx_reference_molecule_family
+  columns:
+  - - family_prd_id
+    - text
+    - The value of _pdbx_reference_entity.family_prd_id must uniquely identify a record
+      in the PDBX_REFERENCE_MOLECULE_FAMILY list. By convention this ID uniquely identifies
+      the reference family in in the PDB reference dictionary. The ID has the template
+      form FAM_dddddd (e.g. FAM_000001)
+  - - name
+    - text
+    - The entity family name.
+  - - release_status
+    - text
+    - Assigns the current PDB release status for this family.
+  primary_key:
+  - family_prd_id
+  foreign_keys: []
+  desc: ''
+- name: pdbx_reference_molecule_features
+  columns:
+  - - family_prd_id
+    - text
+    - The value of _pdbx_reference_molecule_features.family_prd_id is a reference
+      to _pdbx_reference_molecule_list.family_prd_id in category PDBX_REFERENCE_MOLECULE_FAMILY_LIST.
+  - - prd_id
+    - text
+    - The value of _pdbx_reference_molecule_features.prd_id is a reference _pdbx_reference_molecule.prd_id
+      in the PDBX_REFERENCE_MOLECULE category.
+  - - ordinal
+    - integer
+    - The value of _pdbx_reference_molecule_features.ordinal distinguishes each feature
+      for this entity.
+  - - source_ordinal
+    - integer
+    - The value of _pdbx_reference_molecule_features.source_ordinal provides the priority
+      order of features from a particular source or database.
+  - - type
+    - text
+    - The entity feature type.
+  - - value
+    - text
+    - The entity feature value.
+  - - source
+    - text
+    - The information source for the component feature.
+  primary_key:
+  - family_prd_id
+  - prd_id
+  - ordinal
+  foreign_keys: []
+  desc: ''
+- name: pdbx_reference_molecule_list
+  columns:
+  - - family_prd_id
+    - text
+    - The value of _pdbx_reference_molecule_list.family_prd_id is a reference to _pdbx_reference_molecule_family.family_prd_id'
+      in category PDBX_REFERENCE_MOLECULE_FAMILY.
+  - - prd_id
+    - text
+    - The value of _pdbx_reference_molecule_list.prd_id is the unique identifier for
+      the reference molecule in this family. By convention this ID uniquely identifies
+      the reference molecule in in the PDB reference dictionary. The ID has the template
+      form PRD_dddddd (e.g. PRD_000001)
+  primary_key:
+  - family_prd_id
+  - prd_id
+  foreign_keys: []
+  desc: ''
+- name: pdbx_reference_molecule_related_structures
+  columns:
+  - - family_prd_id
+    - text
+    - The value of _pdbx_reference_molecule_related_structures.family_prd_id is a
+      reference to _pdbx_reference_molecule_list.family_prd_id in category PDBX_REFERENCE_MOLECULE_FAMILY_LIST.
+  - - ordinal
+    - integer
+    - The value of _pdbx_reference_molecule_related_structures.ordinal distinguishes
+      related structural data for each entity.
+  - - db_name
+    - text
+    - The database name for the related structure reference.
+  - - db_code
+    - text
+    - The database identifier code for the related structure reference.
+  - - db_accession
+    - text
+    - The database accession code for the related structure reference.
+  - - name
+    - text
+    - The chemical name for the structure entry in the related database
+  - - formula
+    - text
+    - 'The formula for the reference entity. Formulae are written according to the
+      rules: 1. Only recognised element symbols may be used. 2. Each element symbol
+      is followed by a ''count'' number. A count of ''1'' may be omitted. 3. A space
+      or parenthesis must separate each element symbol and its count, but in general
+      parentheses are not used. 4. The order of elements depends on whether or not
+      carbon is present. If carbon is present, the order should be: C, then H, then
+      the other elements in alphabetical order of their symbol. If carbon is not present,
+      the elements are listed purely in alphabetic order of their symbol. This is
+      the ''Hill'' system used by Chemical Abstracts.'
+  - - citation_id
+    - text
+    - A link to related reference information in the citation category.
+  primary_key:
+  - family_prd_id
+  - ordinal
+  foreign_keys: []
+  desc: ''
+- name: pdbx_reference_molecule_synonyms
+  columns:
+  - - family_prd_id
+    - text
+    - The value of _pdbx_reference_molecule_synonyms.family_prd_id is a reference
+      to _pdbx_reference_molecule_list.family_prd_id in category PDBX_REFERENCE_MOLECULE_FAMILY_LIST.
+  - - prd_id
+    - text
+    - The value of _pdbx_reference_molecule_synonyms.prd_id is a reference _pdbx_reference_molecule.prd_id
+      in the PDBX_REFERENCE_MOLECULE category.
+  - - ordinal
+    - integer
+    - The value of _pdbx_reference_molecule_synonyms.ordinal is an ordinal to distinguish
+      synonyms for this entity.
+  - - name
+    - text
+    - A synonym name for the entity.
+  - - source
+    - text
+    - The source of this synonym name for the entity.
+  primary_key:
+  - family_prd_id
+  - prd_id
+  - ordinal
+  foreign_keys: []
+  desc: ''
