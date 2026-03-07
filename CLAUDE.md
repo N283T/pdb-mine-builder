@@ -6,7 +6,7 @@ PDBj (Protein Data Bank Japan) のデータを PostgreSQL にロードする CLI
 
 - **Language**: Python 3.12+
 - **Package Manager**: Pixi (Conda/PyPI hybrid)
-- **Database**: PostgreSQL 17+ (psycopg3)
+- **Database**: PostgreSQL 17+ (version managed by rdkit-postgresql, psycopg3)
 - **Schema**: SQLAlchemy Core (DDL only) + Alembic (migrations)
 - **CLI**: Typer + Rich
 - **Config**: Pydantic

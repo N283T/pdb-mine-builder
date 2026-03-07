@@ -42,25 +42,24 @@ test-unit = "pytest tests -v -m 'not integration'"
 test-integration = { cmd = "pytest tests -v -m integration", depends-on = ["test-db-up"] }
 
 [dependencies]
-postgresql = ">=17.0.0,<19"
+alembic = ">=1.13.0"
+defusedxml = ">=0.7.0"
+gemmi = ">=0.7.0"
+pydantic = ">=2.0.0"
+pydantic-settings = ">=2.0.0"
+pytest = ">=8.0.0"
 python = ">=3.12"
+pyyaml = ">=6.0.0"
 rdkit-postgresql = ">=2024.09.0"
+rich = ">=13.0.0"
+ruff = ">=0.9.0"
+sqlalchemy = ">=2.0.0"
+typer = ">=0.15.0"
 
 [pypi-dependencies]
 pdbminebuilder = { path = ".", editable = true }
 ccd2rdmol = ">=0.2.0"
-defusedxml = ">=0.7.0"
-gemmi = ">=0.7.0"
-typer = ">=0.15.0"
-rich = ">=13.0.0"
-pydantic = ">=2.0.0"
-pydantic-settings = ">=2.0.0"
 psycopg = { version = ">=3.2.0", extras = ["binary", "pool"] }
-pyyaml = ">=6.0.0"
-sqlalchemy = ">=2.0.0"
-alembic = ">=1.13.0"
-ruff = ">=0.9.0"
-pytest = ">=8.0.0"
 
 # Default environment variables (override with .env file)
 [activation.env]
