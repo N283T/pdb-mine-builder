@@ -348,6 +348,67 @@ def reset(
 
 
 @app.command()
+def query(
+    sql: Annotated[
+        Optional[str],
+        typer.Argument(help="SQL query to execute"),
+    ] = None,
+    file: Annotated[
+        Optional[Path],
+        typer.Option("--file", "-f", help="Read SQL from file"),
+    ] = None,
+    config: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Config file path"),
+    ] = Path("config.yml"),
+    format: Annotated[
+        str,
+        typer.Option("--format", "-F", help="Output format: table, csv, json, parquet"),
+    ] = "table",
+    output: Annotated[
+        Optional[Path],
+        typer.Option("--output", "-o", help="Output file path (required for parquet)"),
+    ] = None,
+    limit: Annotated[
+        Optional[int],
+        typer.Option("--limit", "-l", help="Max rows to display (table format only)"),
+    ] = None,
+) -> None:
+    """Execute SQL query and display results.
+
+    Examples:
+        pmb query "SELECT * FROM cc.brief_summary LIMIT 5"
+        pmb query -f query.sql --format csv > out.csv
+        pmb query "SELECT * FROM cc.brief_summary" -F parquet -o out.parquet
+        pmb query "SELECT * FROM cc.brief_summary LIMIT 10" -F json
+    """
+    from pdbminebuilder.commands.query import OutputFormat, run_query
+
+    if sql is None and file is None:
+        console.print("[red]Error: provide SQL as argument or use --file.[/red]")
+        raise typer.Exit(1)
+
+    if file is not None:
+        if not file.exists():
+            console.print(f"[red]Error: file not found: {file}[/red]")
+            raise typer.Exit(1)
+        sql = file.read_text(encoding="utf-8").strip()
+
+    try:
+        output_format = OutputFormat(format)
+    except ValueError:
+        console.print(
+            f"[red]Error: invalid format '{format}'. Use: table, csv, json, parquet[/red]"
+        )
+        raise typer.Exit(1)
+
+    settings = load_config(config)
+    run_query(
+        settings, sql, output_format=output_format, output_file=output, max_rows=limit
+    )
+
+
+@app.command()
 def stats(
     config: Annotated[
         Path,
