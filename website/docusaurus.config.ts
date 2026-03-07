@@ -61,6 +61,11 @@ const config: Config = {
           label: 'Database',
         },
         {
+          to: '/schema-search',
+          label: 'Schema Search',
+          position: 'left',
+        },
+        {
           href: 'https://github.com/N283T/pdb-mine-builder',
           label: 'GitHub',
           position: 'right',

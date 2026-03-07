@@ -170,7 +170,36 @@ def main() -> None:
             f"  {schema_name}: {table_count} tables -> {yaml_path.name}, {mdx_path.name}"
         )
 
-    print(f"\nGenerated {len(ALL_METADATA)} schemas (YAML + MDX)")
+    # Write combined JSON for cross-schema search page
+    all_schemas = []
+    for schema_name in sorted(ALL_METADATA.keys()):
+        data = generate_schema_data(schema_name)
+        all_schemas.append(
+            {
+                "schema": schema_name,
+                "primaryKey": data["config"]["primaryKey"],
+                "tables": [
+                    {
+                        "name": t["name"],
+                        "columns": [
+                            {"name": c[0], "type": c[1], "description": c[2]}
+                            for c in t["columns"]
+                        ],
+                    }
+                    for t in data["tables"]
+                ],
+            }
+        )
+
+    static_dir = project_root.joinpath("website", "static", "data")
+    static_dir.mkdir(parents=True, exist_ok=True)
+    all_schemas_path = static_dir.joinpath("allSchemas.json")
+    all_schemas_path.write_text(
+        json.dumps(all_schemas, ensure_ascii=False, separators=(",", ":"))
+    )
+    print(f"  allSchemas.json -> {all_schemas_path}")
+
+    print(f"\nGenerated {len(ALL_METADATA)} schemas (YAML + MDX + combined JSON)")
 
 
 if __name__ == "__main__":

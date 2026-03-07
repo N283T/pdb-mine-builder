@@ -63,3 +63,67 @@
   color: var(--ifm-color-emphasis-600);
   white-space: nowrap;
 }
+
+.schema-filter__global-link {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* Schema search page */
+.schema-search__bar {
+  margin-bottom: 1.5rem;
+}
+
+.schema-search__bar .schema-filter__input {
+  width: 100%;
+  max-width: 600px;
+  font-size: 1.1rem;
+  padding: 0.6rem 1rem;
+}
+
+.schema-search__count {
+  font-size: 0.9rem;
+  color: var(--ifm-color-emphasis-600);
+  margin-bottom: 1rem;
+}
+
+.schema-search__hint {
+  color: var(--ifm-color-emphasis-500);
+}
+
+.schema-search__group {
+  margin-bottom: 1.5rem;
+}
+
+.schema-search__group h3 {
+  margin-bottom: 0.5rem;
+}
+
+.schema-search__checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  margin-bottom: 1.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: var(--ifm-global-radius);
+  background: var(--ifm-background-surface-color);
+}
+
+.schema-search__checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.schema-search__checkbox input {
+  cursor: pointer;
+}
+
+.schema-search__table-count {
+  font-size: 0.8rem;
+  color: var(--ifm-color-emphasis-500);
+}

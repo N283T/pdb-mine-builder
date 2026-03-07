@@ -1,5 +1,6 @@
 import React, {useState, useMemo} from 'react';
 import BrowserOnly from '@docusaurus/BrowserOnly';
+import Link from '@docusaurus/Link';
 
 interface Column {
   name: string;
@@ -55,6 +56,9 @@ function SchemaFilterInner({tables}: SchemaFilterProps) {
             {filtered.length} tables, {totalCols} columns
           </span>
         )}
+        <Link to="/schema-search" className="schema-filter__global-link">
+          Search all schemas
+        </Link>
       </div>
       {filtered.map((table) => (
         <div key={table.name}>

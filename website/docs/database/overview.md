@@ -20,6 +20,8 @@ pdb-mine-builder creates a PostgreSQL database with multiple schemas, each conta
 | [emdb](./emdb.mdx) | `emdb_id` | 79 | Electron Microscopy Data Bank (experimental) |
 | [ihm](./ihm.mdx) | `pdbid` | 114 | Integrative/Hybrid Methods (experimental) |
 
+**[Schema Search](/schema-search)** — Search across all schemas, tables, and columns in one place.
+
 :::note emdb / ihm schemas
 The `emdb` and `ihm` schemas have table definitions but have not been thoroughly tested with production data. They currently have no data-loading pipeline. If there is community demand, these schemas will receive full pipeline support and validation. Feedback and contributions are welcome via [GitHub Issues](https://github.com/N283T/pdb-mine-builder/issues).
 :::
