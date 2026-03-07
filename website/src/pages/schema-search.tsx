@@ -3,17 +3,7 @@ import React, {useState, useEffect, useMemo, useCallback} from 'react';
 import Layout from '@theme/Layout';
 import Link from '@docusaurus/Link';
 import useBaseUrl from '@docusaurus/useBaseUrl';
-
-interface Column {
-  name: string;
-  type: string;
-  description: string;
-}
-
-interface Table {
-  name: string;
-  columns: Column[];
-}
+import type {Column, Table} from '@site/src/types/schema';
 
 interface Schema {
   schema: string;
@@ -27,7 +17,8 @@ interface SearchResult {
   column: Column;
 }
 
-// Display priority order (lower = higher priority)
+// Display priority order (lower = higher priority).
+// Keep in sync with SIDEBAR_POSITIONS in scripts/generate_rdb_docs.py.
 const SCHEMA_PRIORITY: Record<string, number> = {
   pdbj: 0,
   cc: 1,
@@ -165,6 +156,7 @@ export default function SchemaSearchPage(): ReactNode {
   const [allSchemas, setAllSchemas] = useState<Schema[]>([]);
   const [enabledSchemas, setEnabledSchemas] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const dataUrl = useBaseUrl('/data/allSchemas.json');
 
   // Sync query to URL parameter
@@ -180,16 +172,22 @@ export default function SchemaSearchPage(): ReactNode {
 
   useEffect(() => {
     fetch(dataUrl)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then((data: Schema[]) => {
-        // Sort by priority for consistent checkbox order
         const sorted = [...data].sort(
           (a, b) => (SCHEMA_PRIORITY[a.schema] ?? 99) - (SCHEMA_PRIORITY[b.schema] ?? 99),
         );
         setAllSchemas(sorted);
         setEnabledSchemas(new Set(sorted.map((s) => s.schema)));
-        setLoading(false);
-      });
+      })
+      .catch((err) => {
+        console.error('Failed to load schema data:', err);
+        setError(err instanceof Error ? err.message : 'Failed to load schema data.');
+      })
+      .finally(() => setLoading(false));
   }, [dataUrl]);
 
   const handleToggle = useCallback(
@@ -236,18 +234,16 @@ export default function SchemaSearchPage(): ReactNode {
             autoFocus
           />
         </div>
-        {!loading && (
+        {!loading && !error && (
           <SchemaCheckboxes
             schemas={allSchemas}
             enabled={enabledSchemas}
             onToggle={handleToggle}
           />
         )}
-        {loading ? (
-          <p>Loading schema data...</p>
-        ) : (
-          <SearchResults query={query} schemas={filteredSchemas} />
-        )}
+        {loading && <p>Loading schema data...</p>}
+        {error && <p className="schema-search__error">Error: {error}</p>}
+        {!loading && !error && <SearchResults query={query} schemas={filteredSchemas} />}
       </main>
     </Layout>
   );

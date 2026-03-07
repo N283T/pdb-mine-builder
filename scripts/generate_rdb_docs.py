@@ -20,7 +20,8 @@ from pdbminebuilder.db._type_utils import sa_type_to_pg
 from pdbminebuilder.db.loader import get_all_tables, get_entry_pk
 from pdbminebuilder.models import ALL_METADATA
 
-# Sidebar order for Docusaurus (overview.md = 0)
+# Sidebar order for Docusaurus (overview.md = 0).
+# Keep in sync with SCHEMA_PRIORITY in website/src/pages/schema-search.tsx.
 SIDEBAR_POSITIONS: dict[str, int] = {
     "pdbj": 1,
     "cc": 2,
@@ -74,13 +75,8 @@ def generate_schema_data(schema_name: str) -> dict:
     return {"config": config, "tables": tables}
 
 
-def generate_schema_mdx(schema_name: str, data: dict) -> str:
-    """Generate Docusaurus MDX for a schema reference page with search."""
-    config = data["config"]
-    tables = data["tables"]
-    position = SIDEBAR_POSITIONS.get(schema_name, 99)
-
-    # Convert column arrays to objects for the React component
+def _tables_to_component_json(tables: list[dict]) -> str:
+    """Convert column arrays to objects and serialize as JSON for React component."""
     tables_for_component = [
         {
             "name": t["name"],
@@ -90,7 +86,16 @@ def generate_schema_mdx(schema_name: str, data: dict) -> str:
         }
         for t in tables
     ]
-    tables_json = json.dumps(tables_for_component, ensure_ascii=False)
+    return json.dumps(tables_for_component, ensure_ascii=False)
+
+
+def generate_schema_mdx(schema_name: str, data: dict) -> str:
+    """Generate Docusaurus MDX for a schema reference page with search."""
+    config = data["config"]
+    tables = data["tables"]
+    position = SIDEBAR_POSITIONS.get(schema_name, 99)
+
+    tables_json = _tables_to_component_json(tables)
 
     lines = [
         "---",
@@ -99,21 +104,18 @@ def generate_schema_mdx(schema_name: str, data: dict) -> str:
         "",
         "import SchemaFilter from '@site/src/components/SchemaFilter';",
         "",
+        f"export const tables = {tables_json};",
+        "",
         f"# {schema_name} Schema",
         "",
         f"- **Primary Key**: `{config['primaryKey']}`",
         f"- **Tables**: {len(tables)}",
         "",
-        f"<SchemaFilter tables={{JSON.parse('{_escape_js_string(tables_json)}')}} />",
+        "<SchemaFilter tables={tables} />",
+        "",
     ]
 
-    lines.append("")
     return "\n".join(lines)
-
-
-def _escape_js_string(s: str) -> str:
-    """Escape a string for use inside a JS single-quoted string literal."""
-    return s.replace("\\", "\\\\").replace("'", "\\'")
 
 
 def extract_custom_content(dir_path: Path, schema_name: str) -> str | None:
@@ -139,8 +141,11 @@ def main() -> None:
     yaml_dir.mkdir(parents=True, exist_ok=True)
     mdx_dir.mkdir(parents=True, exist_ok=True)
 
+    all_schema_data: dict[str, dict] = {}
+
     for schema_name in sorted(ALL_METADATA.keys()):
         data = generate_schema_data(schema_name)
+        all_schema_data[schema_name] = data
         table_count = len(data["tables"])
 
         # Write YAML
@@ -170,24 +175,16 @@ def main() -> None:
             f"  {schema_name}: {table_count} tables -> {yaml_path.name}, {mdx_path.name}"
         )
 
-    # Write combined JSON for cross-schema search page
+    # Write combined JSON for cross-schema search page (reuse cached data)
     all_schemas = []
-    for schema_name in sorted(ALL_METADATA.keys()):
-        data = generate_schema_data(schema_name)
+    for schema_name in sorted(all_schema_data.keys()):
+        data = all_schema_data[schema_name]
+        tables_json = json.loads(_tables_to_component_json(data["tables"]))
         all_schemas.append(
             {
                 "schema": schema_name,
                 "primaryKey": data["config"]["primaryKey"],
-                "tables": [
-                    {
-                        "name": t["name"],
-                        "columns": [
-                            {"name": c[0], "type": c[1], "description": c[2]}
-                            for c in t["columns"]
-                        ],
-                    }
-                    for t in data["tables"]
-                ],
+                "tables": tables_json,
             }
         )
 

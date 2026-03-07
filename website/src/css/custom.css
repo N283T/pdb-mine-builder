@@ -91,6 +91,10 @@
   color: var(--ifm-color-emphasis-500);
 }
 
+.schema-search__error {
+  color: var(--ifm-color-danger);
+}
+
 .schema-search__group {
   margin-bottom: 1.5rem;
 }

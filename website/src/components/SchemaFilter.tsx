@@ -1,17 +1,7 @@
 import React, {useState, useMemo} from 'react';
 import BrowserOnly from '@docusaurus/BrowserOnly';
 import Link from '@docusaurus/Link';
-
-interface Column {
-  name: string;
-  type: string;
-  description: string;
-}
-
-interface Table {
-  name: string;
-  columns: Column[];
-}
+import type {Table} from '@site/src/types/schema';
 
 interface SchemaFilterProps {
   tables: Table[];
