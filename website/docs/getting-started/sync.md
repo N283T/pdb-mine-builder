@@ -77,7 +77,9 @@ See [Configuration - Sync Source Overrides](./configuration.md#sync-source-overr
 
 ## Data Directory Structure
 
-After syncing, data is stored under the `data_dir` configured in your settings. A typical layout looks like:
+Sync destinations are derived from your pipeline `data` paths in `config.yml`. This ensures sync and pipeline always point to the same location. For targets without pipeline config (mmJSON, etc.), the destination falls back to `data_dir` + a default path.
+
+A typical layout looks like:
 
 ```
 <data_dir>/

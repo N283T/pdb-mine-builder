@@ -11,23 +11,20 @@ from pdbminebuilder.config import Settings
 
 console = Console()
 
-# Default sync targets with their rsync configurations
-# CIF is default, -json suffix for mmJSON
+# Default sync targets with their rsync configurations.
+# "dest" is omitted — resolved at runtime from pipeline config or data_dir fallback.
 SYNC_TARGETS: dict[str, dict] = {
     # CIF targets
     "pdbj": {
         "source": "data.pdbj.org::ftp_data/structures/divided/mmCIF/",
-        "dest": "data/structures/divided/mmCIF/",
         "options": ["-avz", "--delete"],
     },
     "cc": {
         "source": "data.pdbj.org::ftp_data/monomers/components.cif.gz",
-        "dest": "data/monomers/",
         "options": ["-avz"],
     },
     "ccmodel": {
         "source": "data.pdbj.org::ftp_data/component-models/complete/chem_comp_model.cif.gz",
-        "dest": "data/component-models/complete/",
         "options": ["-avz"],
     },
     "prd": {
@@ -35,17 +32,14 @@ SYNC_TARGETS: dict[str, dict] = {
             "data.pdbj.org::ftp_data/bird/prd/prd-all.cif.gz",
             "data.pdbj.org::ftp_data/bird/prd/prdcc-all.cif.gz",
         ],
-        "dest": "data/bird/prd/",
         "options": ["-avz"],
     },
     "prd-family": {
         "source": "data.pdbj.org::ftp_data/bird/family/family-all.cif.gz",
-        "dest": "data/bird/family/",
         "options": ["-avz"],
     },
     "vrpt": {
         "source": "data.pdbj.org::ftp/validation_reports/",
-        "dest": "validation_reports/",
         "options": [
             "-avz",
             '--include="*/"',
@@ -56,41 +50,56 @@ SYNC_TARGETS: dict[str, dict] = {
     # mmJSON targets
     "pdbj-json": {
         "source": "data.pdbj.org::rsync/pdbjplus/data/pdb/mmjson/",
-        "dest": "data/mmjson-noatom/",
+        "fallback_dest": "data/mmjson-noatom/",
         "options": ["-avz", "--delete"],
     },
     "cc-json": {
         "source": "data.pdbj.org::rsync/pdbjplus/data/cc/mmjson/",
-        "dest": "data/cc/",
+        "fallback_dest": "data/cc/",
         "options": ["-avz", "--delete"],
     },
     "ccmodel-json": {
         "source": "data.pdbj.org::rsync/pdbjplus/data/ccmodel/",
-        "dest": "data/ccmodel/",
+        "fallback_dest": "data/ccmodel/",
         "options": ["-avz", "--delete"],
     },
     "prd-json": {
         "source": "data.pdbj.org::rsync/pdbjplus/data/prd/",
-        "dest": "data/prd/",
+        "fallback_dest": "data/prd/",
         "options": ["-avz", "--delete"],
     },
     # Plus data targets
     "pdbj-plus": {
         "source": "data.pdbj.org::rsync/pdbjplus/data/pdb/mmjson-plus/",
-        "dest": "data/mmjson-plus/",
+        "fallback_dest": "data/mmjson-plus/",
         "options": ["-avz", "--delete"],
     },
     "nextgen-plus": {
         "source": "data.pdbj.org::rsync/pdbjplus/data/pdb_nextgen/mmjson-plus/",
-        "dest": "data/pdb_nextgen/mmjson-plus/",
+        "fallback_dest": "data/pdb_nextgen/mmjson-plus/",
         "options": ["-avz", "--delete"],
     },
     # Other targets
     "contacts": {
         "source": "data.pdbj.org::rsync/pdbjplus/data/pdb/contacts/",
-        "dest": "data/contacts/",
+        "fallback_dest": "data/contacts/",
         "options": ["-avz", "--delete"],
     },
+}
+
+# Mapping from sync target to pipeline config field.
+# Value is (pipeline_name, field_name).
+# For file paths, parent directory is used as rsync dest.
+_PIPELINE_DEST_MAP: dict[str, tuple[str, str]] = {
+    "pdbj": ("pdbj", "data"),
+    "cc": ("cc", "data"),
+    "ccmodel": ("ccmodel", "data"),
+    "prd": ("prd", "data"),
+    "prd-family": ("prd_family", "data"),
+    "vrpt": ("vrpt", "data"),
+    "contacts": ("contacts", "data"),
+    "pdbj-plus": ("pdbj", "data_plus"),
+    "nextgen-plus": ("pdbj", "data_nextgen_plus"),
 }
 
 # Targets whose source URL can be overridden via config sync-sources
@@ -104,6 +113,33 @@ LEGACY_SYNC_ALIASES = {
     "ccmodel-cif": "ccmodel",
     "prd-cif": "prd",
 }
+
+
+def _resolve_dest(target: str, settings: Settings) -> Path | None:
+    """Resolve rsync destination from pipeline config or fallback.
+
+    Returns None if the target has no configured destination.
+    """
+    # Try pipeline config first
+    mapping = _PIPELINE_DEST_MAP.get(target)
+    if mapping:
+        pipeline_name, field_name = mapping
+        pipeline = settings.pipelines.get(pipeline_name)
+        if pipeline:
+            value = getattr(pipeline, field_name, None)
+            if value:
+                path = Path(value)
+                # For file paths, use parent directory as rsync dest
+                if path.suffix:
+                    return path.parent
+                return path
+
+    # Fallback to data_dir + hardcoded relative path
+    fallback = SYNC_TARGETS[target].get("fallback_dest")
+    if fallback:
+        return settings.data_dir.joinpath(fallback)
+
+    return None
 
 
 def run_rsync(
@@ -158,14 +194,14 @@ def run_sync(
     invalid_targets = [t for t in targets if t not in SYNC_TARGETS]
     if invalid_targets:
         console.print(f"[red]Invalid targets: {', '.join(invalid_targets)}[/red]")
-        console.print(f"[dim]Available targets: {', '.join(SYNC_TARGETS.keys())}[/dim]")
+        console.print(
+            f"[dim]Available targets: {', '.join(SYNC_TARGETS.keys())}[/dim]"
+        )
         return
 
     console.print(f"[bold]Syncing {len(targets)} target(s)...[/bold]")
     if dry_run:
         console.print("[yellow]Dry run mode - no changes will be made[/yellow]")
-
-    data_dir = settings.data_dir
 
     with Progress(
         SpinnerColumn(),
@@ -176,7 +212,18 @@ def run_sync(
             task = progress.add_task(f"Syncing {target}...", total=None)
 
             config = SYNC_TARGETS[target]
-            dest = data_dir.joinpath(config["dest"])
+
+            # Resolve destination from pipeline config
+            dest = _resolve_dest(target, settings)
+            if dest is None:
+                console.print(
+                    f"  [yellow]Skipping {target}: "
+                    "no pipeline config or fallback dest[/yellow]"
+                )
+                progress.update(
+                    task, description=f"[yellow]⊘[/yellow] {target} (skipped)"
+                )
+                continue
 
             # Build source list (single or multiple files)
             sources = config.get("sources", [config["source"]])
