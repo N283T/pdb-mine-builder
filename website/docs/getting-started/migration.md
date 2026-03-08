@@ -4,6 +4,10 @@ sidebar_position: 5
 
 # Migration from mine2updater
 
+:::danger Not compatible with PDBj dump files
+pdb-mine-builder is **not compatible** with the PostgreSQL dump files distributed by PDBj (e.g., `mine2_pdbj.dump`). The schema structure, column types, and data transformations differ significantly. You cannot restore a PDBj dump into a pdb-mine-builder database or vice versa. pdb-mine-builder builds its database from source data files (CIF/mmJSON), not from database dumps.
+:::
+
 pdb-mine-builder is a complete rewrite of the original [mine2updater](https://gitlab.com/pdbjapan/mine2updater) — the RDB updater for PDBj's Mine 2 system. This page covers what changed and why.
 
 ## Why Rewrite?
