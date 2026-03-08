@@ -194,9 +194,7 @@ def run_sync(
     invalid_targets = [t for t in targets if t not in SYNC_TARGETS]
     if invalid_targets:
         console.print(f"[red]Invalid targets: {', '.join(invalid_targets)}[/red]")
-        console.print(
-            f"[dim]Available targets: {', '.join(SYNC_TARGETS.keys())}[/dim]"
-        )
+        console.print(f"[dim]Available targets: {', '.join(SYNC_TARGETS.keys())}[/dim]")
         return
 
     console.print(f"[bold]Syncing {len(targets)} target(s)...[/bold]")
