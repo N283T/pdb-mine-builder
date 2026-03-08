@@ -98,7 +98,7 @@ sync:
   vrpt:
     source: "data.pdbj.org::ftp/validation_reports/"
     dest: ${DATA_DIR}/validation_reports/
-    options: ["-av", "--size-only", '--include="*/"', '--include="*_validation.cif.gz"', '--exclude="*"']
+    options: ["-av", "--size-only", "--include=*/", "--include=*_validation.cif.gz", "--exclude=*"]
 ```
 
 ## CLI Options
