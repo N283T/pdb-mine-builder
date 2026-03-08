@@ -36,5 +36,3 @@ plans/
 
 # Lock files (pixi manages dependencies)
 uv.lock
-scripts/pdbj_examples_raw.json
-scripts/pdbj_examples_processed.json

@@ -32,7 +32,6 @@ Many examples use PostgreSQL array operators on `brief_summary` columns:
 See the [brief_summary column reference](/docs/database/pdbj#brief_summary) for array column definitions and ID mappings.
 :::
 
-
 ## Basic Queries (5)
 
 Simple queries to retrieve PDB entries by ID, count, or pattern matching.
@@ -98,7 +97,7 @@ SELECT pdbid FROM pdbj.brief_summary WHERE pdbid ~ '[0-9]{4}'
 </details>
 
 
-## Author & Citation Search (15)
+## Author & Citation (15)
 
 Search entries by author names, journal information, DOIs, and PubMed IDs.
 
@@ -106,7 +105,7 @@ Search entries by author names, journal information, DOIs, and PubMed IDs.
 <details>
 <summary>Find entries by depositor or primary citation author</summary>
 
-Joins `citation_author` and `audit_author` to find entries where a specific person appears as either a primary citation author or a depositor. Uses `DISTINCT` to eliminate duplicates.
+Joins `citation_author` and `audit_author` to find entries where a specific person appears as either a primary citation author or a depositor.
 
 ```sql
 SELECT DISTINCT e1.pdbid FROM pdbj.citation_author e1
@@ -132,7 +131,7 @@ SELECT * FROM pdbj.citation_author WHERE pdbid='1gof'
 <details>
 <summary>Find entries by citation author name</summary>
 
-Uses the PostgreSQL array containment operator (`<@`) on the `citation_author` array column in `brief_summary`.
+Uses the PostgreSQL array containment operator (`&lt;@`) on the `citation_author` array column.
 
 ```sql
 SELECT pdbid
@@ -146,7 +145,7 @@ WHERE '{"Ito, N."}' <@ citation_author
 <details>
 <summary>Find entries by multiple citation authors (AND)</summary>
 
-Uses `<@` with a multi-element array to find entries where both authors appear in the citation author list.
+Uses `&lt;@` with a multi-element array to find entries where both authors appear in the citation list.
 
 ```sql
 SELECT pdbid
@@ -160,7 +159,7 @@ WHERE '{"Ito, N.","Phillips, S.E.V."}' <@ citation_author
 <details>
 <summary>Find entries by primary citation author</summary>
 
-Searches the `citation_author_pri` array column, which contains only primary citation authors.
+Searches the `citation_author_pri` array column for primary citation authors only.
 
 ```sql
 SELECT pdbid
@@ -202,7 +201,7 @@ WHERE '{"555"}' && citation_volume
 <details>
 <summary>Find entries by year, volume, and experimental method</summary>
 
-Combines multiple array operators to filter by citation year, volume, and experimental method ID simultaneously.
+Combines multiple array operators to filter by citation year, volume, and experimental method ID.
 
 ```sql
 SELECT pdbid
@@ -217,7 +216,7 @@ AND '{1}' && exptl_method_ids
 <details>
 <summary>Get DOI for a specific entry's citation</summary>
 
-Retrieves the DOI from the `citation` table. Note the quoted column name `"pdbx_database_id_DOI"` (case-sensitive).
+Retrieves the DOI from the `citation` table. Note the quoted column name (case-sensitive).
 
 ```sql
 SELECT "pdbx_database_id_DOI" FROM pdbj.citation WHERE pdbid='1iqq'
@@ -269,7 +268,7 @@ AND "pdbx_database_id_DOI" IS NOT NULL
 <details>
 <summary>Search entries by journal name</summary>
 
-Uses `ILIKE` (case-insensitive) on the `citation_journal` array cast to text to find entries published in journals containing 'molecular cell'.
+Uses `ILIKE` (case-insensitive) on the `citation_journal` array to find entries by journal name.
 
 ```sql
 SELECT pdbid, citation_journal, citation_title
@@ -283,11 +282,21 @@ WHERE CAST(citation_journal AS text) ILIKE '%molecular cell%'
 <details>
 <summary>Search entries by keyword in title with sorting</summary>
 
-Finds entries whose structure title contains 'spliceosome' and sorts by total residue count in descending order. Demonstrates `ILIKE` and `ORDER BY` on a computed column.
+Finds entries containing 'spliceosome' in the title, sorted by total residue count descending.
 
 ```sql
-SELECT pdbid, struct_title AS 構造名, deposit_author AS 登録者, deposition_date AS 登録日, release_date AS 公開日, modification_date AS 最終更新日, exptl_method AS 実験手法,
-(citation_title_pri || ' ' || citation_journal_pri || ', ' || citation_volume_pri || ', ' || citation_year_pri) AS 主引用文献,  (SELECT SUM(s) FROM UNNEST(chain_length) AS s) AS 残基数 FROM keyword_search('spliceosome') ORDER BY LENGTH(REPLACE(aaseq, '\n', '')) DESC
+SELECT pdbid,
+  struct_title AS title,
+  deposit_author AS depositor,
+  deposition_date,
+  release_date,
+  modification_date,
+  exptl_method AS method,
+  citation_title_pri AS primary_citation,
+  (SELECT SUM(s) FROM UNNEST(chain_length) AS s) AS total_residues
+FROM pdbj.brief_summary
+WHERE struct_title ILIKE '%spliceosome%'
+ORDER BY (SELECT SUM(s) FROM UNNEST(chain_length) AS s) DESC
 ```
 
 </details>
@@ -296,7 +305,7 @@ SELECT pdbid, struct_title AS 構造名, deposit_author AS 登録者, deposition
 <details>
 <summary>Search by keyword in citation or structure title</summary>
 
-Joins `brief_summary` with `struct` to search for 'spike' in both citation titles and structure titles using `ILIKE`.
+Joins `brief_summary` with `struct` to search for 'spike' in both citation and structure titles.
 
 ```sql
 SELECT b.pdbid, b.citation_title, s.title
@@ -309,7 +318,7 @@ OR s.title ILIKE '%spike%'
 </details>
 
 
-## Date-based Search (4)
+## Date Search (4)
 
 Filter entries by release date, deposition date, or publication year.
 
@@ -347,7 +356,7 @@ AND b.pdbid LIKE '2k%'
 <details>
 <summary>Find kinase entries deposited in a specific year</summary>
 
-Finds entries with EC number starting with '2.7' (kinases) deposited in 2016. Joins `entity` with `struct_asym` and filters by `deposition_date`.
+Finds entries with EC number '2.7' (kinases) deposited in 2016, joining `entity` with `struct_asym`.
 
 ```sql
 SELECT entity.pdbid, entity.id, struct_asym.id AS label_asym_id, entity.pdbx_description FROM pdbj.entity
@@ -374,15 +383,15 @@ WHERE pdbid IN ('1crn','2prg','1gof','1ubq')
 </details>
 
 
-## Entity & Chain Information (21)
+## Entity & Chain (21)
 
-Query polymer chains, chain types, residue counts, molecular weights, and sequence information.
+Query polymer chains, chain types, residue counts, molecular weights, and sequences.
 
 
 <details>
 <summary>Find entries containing both synthetic and natural polymers</summary>
 
-Uses a CTE with `LEFT JOIN` across three source tables (`pdbx_entity_src_syn`, `entity_src_nat`, `entity_src_gen`) to identify entries with both synthetic and non-synthetic polymer entities.
+Uses a CTE with `LEFT JOIN` across three source tables to identify entries with both synthetic and non-synthetic polymer entities.
 
 ```sql
 WITH pdbent AS (SELECT e1.pdbid, COUNT(e2.entity_id) syncount,
@@ -403,7 +412,7 @@ AND (natcount + gencount) > 0
 <details>
 <summary>Find entries with the highest molecule copy counts</summary>
 
-Retrieves the top 5 polymer entities by `pdbx_number_of_molecules`, sorted in descending order using `ORDER BY ... DESC LIMIT`.
+Retrieves the top 5 polymer entities by `pdbx_number_of_molecules` using `ORDER BY ... DESC LIMIT`.
 
 ```sql
 SELECT pdbid,id,pdbx_number_of_molecules FROM pdbj.entity
@@ -416,7 +425,7 @@ WHERE type='polymer' ORDER BY pdbx_number_of_molecules DESC LIMIT 5
 <details>
 <summary>Find entries by EC number with chain IDs</summary>
 
-Uses `LEFT JOIN` between `entity` and `struct_asym` to get chain identifiers for entities with EC number 1.1.1.1.
+Uses `LEFT JOIN` between `entity` and `struct_asym` to get chain identifiers for entities with a specific EC number.
 
 ```sql
 SELECT entity.pdbid, entity.id, struct_asym.id AS label_asym_id, entity.pdbx_description FROM pdbj.entity
@@ -430,7 +439,7 @@ WHERE entity.pdbx_ec='1.1.1.1'
 <details>
 <summary>Find entries containing D-polypeptide chains</summary>
 
-Uses the array containment operator (`<@`) to find entries where `chain_type_ids` contains type 1 (polypeptide(D)).
+Uses the array containment operator (`&lt;@`) to find entries where `chain_type_ids` contains type 1.
 
 ```sql
 SELECT pdbid FROM pdbj.brief_summary WHERE '{1}' <@ chain_type_ids
@@ -442,7 +451,7 @@ SELECT pdbid FROM pdbj.brief_summary WHERE '{1}' <@ chain_type_ids
 <details>
 <summary>Find entries containing both D- and L-polypeptide chains</summary>
 
-Uses `<@` with a two-element array `{1,2}` to require both chain types.
+Uses `&lt;@` with `\{1,2\}` to require both chain types are present.
 
 ```sql
 SELECT pdbid FROM pdbj.brief_summary WHERE '{1,2}' <@ chain_type_ids
@@ -466,7 +475,7 @@ SELECT pdbid FROM pdbj.brief_summary WHERE ('{1,2}' && chain_type_ids)
 <details>
 <summary>Find entries without DNA chains</summary>
 
-Uses `NOT` with `&&` to exclude entries whose `chain_type_ids` contains type 3 (polydeoxyribonucleotide).
+Uses `NOT` with `&&` to exclude entries whose `chain_type_ids` contains type 3 (DNA).
 
 ```sql
 SELECT pdbid FROM pdbj.brief_summary WHERE NOT ('{3}' && chain_type_ids)
@@ -492,7 +501,7 @@ WHERE NOT ('{3,4}' && chain_type_ids)
 <details>
 <summary>Find entries containing only D-polypeptide chains</summary>
 
-Combines `<@` (must contain type 1) with `NOT ... &&` (must not contain any other types) to find entries with exclusively D-polypeptide chains.
+Combines `&lt;@` (must contain type 1) with `NOT ... &&` (must not contain any other types).
 
 ```sql
 SELECT pdbid
@@ -506,7 +515,7 @@ WHERE ('{1}' <@ chain_type_ids) AND NOT ('{2,3,4,5,6,7,8,9}' && chain_type_ids)
 <details>
 <summary>Calculate total molecular weight per entry</summary>
 
-Computes the sum of `pdbx_number_of_molecules * formula_weight` for polymer entities, grouped by PDB ID, ordered by weight descending.
+Computes `SUM(pdbx_number_of_molecules * formula_weight)` for polymer entities, grouped by PDB ID.
 
 ```sql
 SELECT pdbid, SUM(pdbx_number_of_molecules*formula_weight) AS weight
@@ -522,7 +531,7 @@ ORDER BY weight DESC
 <details>
 <summary>Get entry metadata with unit cell and molecular weight</summary>
 
-Joins `cell`, `struct`, `struct_keywords`, and `entity` to produce a comprehensive summary including titles, unit cell parameters, chain count, and total molecular weight.
+Joins `cell`, `struct`, `struct_keywords`, and `entity` for a comprehensive summary with unit cell parameters.
 
 ```sql
 SELECT cell.pdbid, struct.pdbx_descriptor, struct_keywords.pdbx_keywords,
@@ -546,7 +555,7 @@ cell.angle_beta, cell.angle_gamma
 <details>
 <summary>Count residues in a specific entry</summary>
 
-Uses a CTE to count residues per entity from `entity_poly_seq`, then multiplies by molecule count to get the total residue count.
+Uses a CTE to count residues per entity from `entity_poly_seq`, then multiplies by molecule count.
 
 ```sql
 WITH slen(pdbid, entity_id, len) AS
@@ -564,9 +573,9 @@ GROUP BY entity.pdbid
 
 
 <details>
-<summary>Map entity IDs to chain IDs (label_asym_id / auth_asym_id)</summary>
+<summary>Map entity IDs to chain IDs (label/auth)</summary>
 
-Joins `entity_poly` with `pdbx_poly_seq_scheme` to show the correspondence between entity IDs and both systematic (label) and author-assigned chain IDs.
+Joins `entity_poly` with `pdbx_poly_seq_scheme` to map entity IDs to both systematic and author chain IDs.
 
 ```sql
 SELECT DISTINCT e1.entity_id,
@@ -584,7 +593,7 @@ ORDER BY e1.entity_id ASC
 <details>
 <summary>Get detailed chain mapping for specific entities</summary>
 
-Uses a CTE to build a chain mapping from `struct_asym`, then joins with `pdbx_poly_seq_scheme` to get author chain IDs and non-polymer scheme information for specific entity IDs.
+Uses a CTE to build a chain mapping from `struct_asym` with non-polymer scheme information.
 
 ```sql
 WITH chain(pdbid,entity_id,label_asym_id) AS
@@ -603,7 +612,7 @@ JOIN chain ON chain.pdbid = e2.pdbid AND chain.label_asym_id=e2.asym_id
 <details>
 <summary>List large structure entries with polymer chain counts</summary>
 
-Joins `pdbx_database_status` (filtering `pdb_format_compatible='N'`) with `entity` to count polymer chains in large structures, sorted by chain count ascending.
+Joins `pdbx_database_status` with `entity` to count polymer chains in large structures.
 
 ```sql
 SELECT e1.pdbid, SUM(e2.pdbx_number_of_molecules) FROM pdbj.pdbx_database_status e1
@@ -620,7 +629,7 @@ ORDER BY SUM(e2.pdbx_number_of_molecules) ASC
 <details>
 <summary>List large structure entries with total molecular weight</summary>
 
-Similar to the chain count query, but sums `formula_weight` for polymer entities in large structures, sorted by weight descending.
+Sums `formula_weight` for polymer entities in large structures, sorted by weight descending.
 
 ```sql
 SELECT e1.pdbid, SUM(e2.formula_weight) AS total_formula_weight
@@ -637,7 +646,7 @@ ORDER BY total_formula_weight DESC
 <details>
 <summary>Search entries by amino acid sequence and organism</summary>
 
-Finds entries containing a specific peptide sequence from a particular organism by joining `entity_poly` with `brief_summary` and filtering with `LIKE`.
+Finds entries containing a specific peptide sequence from a particular organism using `LIKE`.
 
 ```sql
 SELECT b.pdbid, e.pdbx_strand_id FROM pdbj.entity_poly e
@@ -652,7 +661,7 @@ AND b.biol_species LIKE '%Glycine max%'
 <details>
 <summary>Find entries with both peptide chains and non-water ligands</summary>
 
-Joins `brief_summary`, `entity`, and `pdbx_nonpoly_scheme` to find entries containing both polymer and non-polymer (non-water) components.
+Joins `brief_summary`, `entity`, and `pdbx_nonpoly_scheme` to find entries with polymer and non-polymer components.
 
 ```sql
 SELECT DISTINCT b.pdbid FROM pdbj.brief_summary b LEFT JOIN pdbj.entity e1 ON b.pdbid=e1.pdbid LEFT JOIN pdbj.pdbx_nonpoly_scheme e2 ON e1.pdbid=e2.pdbid AND e1.id=e2.entity_id WHERE ('{1,2}' && b.chain_type_ids) AND e1.type='non-polymer' AND NOT (e2.mon_id = ANY(array['HOH','DOD']))
@@ -664,7 +673,7 @@ SELECT DISTINCT b.pdbid FROM pdbj.brief_summary b LEFT JOIN pdbj.entity e1 ON b.
 <details>
 <summary>Find entries by entity name with chain IDs</summary>
 
-Uses a CTE and `ILIKE` to find entities named 'phospholipase C', then joins to get chain IDs from `struct_asym` and `pdbx_poly_seq_scheme`.
+Uses a CTE and `ILIKE` to find entities named 'phospholipase C', then joins to get chain IDs.
 
 ```sql
 WITH t1 AS
@@ -682,7 +691,7 @@ AND t1.entity_id=e2.entity_id GROUP BY t1.pdbid, t1.entity_id, t1.chain_name
 <details>
 <summary>Find entries by entity name and organism</summary>
 
-Extends the entity name search with an additional join to `entity_src_gen` or `entity_src_nat` to filter by source organism (rat).
+Extends the entity name search with a join to filter by source organism (rat).
 
 ```sql
 WITH t1 AS
@@ -702,7 +711,7 @@ GROUP BY t1.pdbid,t1.entity_id,t1.chain_name,b.biol_species
 <details>
 <summary>Get chain details and entity types for a specific entry</summary>
 
-Uses a CTE to retrieve all entities (polymer and non-polymer) for a specific entry, showing chain IDs, entity names, and entity types.
+Uses a CTE to retrieve all entities (polymer and non-polymer) with chain IDs and entity types.
 
 ```sql
 WITH t1 AS
@@ -722,15 +731,15 @@ GROUP BY t1.pdbid, t1.entity_id, t1.chain_name, t1.type
 </details>
 
 
-## Structural Properties (7)
+## Structure (7)
 
-Look up experimental methods, resolution, unit cell parameters, keywords, and refinement statistics.
+Experimental methods, resolution, unit cell parameters, keywords, and refinement.
 
 
 <details>
 <summary>Count entries per keyword (case-insensitive)</summary>
 
-Uses `LOWER()` and `GROUP BY` to aggregate keywords case-insensitively, then sorts by frequency using `ORDER BY COUNT(...) DESC`.
+Uses `LOWER()` and `GROUP BY` to aggregate keywords, sorted by frequency with `ORDER BY COUNT(...) DESC`.
 
 ```sql
 SELECT LOWER(pdbx_keywords), COUNT(entry_id) AS noe FROM pdbj.struct_keywords
@@ -743,7 +752,7 @@ GROUP BY LOWER(pdbx_keywords) ORDER BY COUNT(entry_id) DESC
 <details>
 <summary>Find entries by experimental method</summary>
 
-Uses `ANY()` on the `exptl_method_ids` integer array to find entries determined by solution NMR (method ID 6). See `brief_summary` docs for the full method ID mapping.
+Uses `ANY()` on `exptl_method_ids` to find entries by solution NMR (method ID 6).
 
 ```sql
 SELECT pdbid
@@ -767,9 +776,9 @@ SELECT density_percent_sol FROM pdbj.exptl_crystal WHERE pdbid='1iqq'
 
 
 <details>
-<summary>Get experimental method, unit cell, and crystal density for multiple entries</summary>
+<summary>Get experimental method, unit cell, and crystal density</summary>
 
-Joins `exptl`, `cell`, and `exptl_crystal` to retrieve experimental details for two specific entries.
+Joins `exptl`, `cell`, and `exptl_crystal` to retrieve experimental details for specific entries.
 
 ```sql
 SELECT exptl.pdbid, exptl.method, cell.length_a, cell.length_b, cell.length_c, exptl_crystal.density_percent_sol
@@ -783,9 +792,9 @@ WHERE exptl.pdbid = '1iqq' OR exptl.pdbid = '1ioo'
 
 
 <details>
-<summary>Find entries with resolution better than 2.0 Angstroms</summary>
+<summary>Find entries with resolution better than 2.0 angstroms</summary>
 
-Filters the `refine` table by `ls_d_res_high <= 2.0`. Note that lower values indicate higher resolution.
+Filters the `refine` table by `ls_d_res_high &lt;= 2.0`. Lower values = higher resolution.
 
 ```sql
 SELECT pdbid, ls_d_res_high AS "resolution" FROM pdbj.refine WHERE ls_d_res_high <= 2.0
@@ -795,9 +804,9 @@ SELECT pdbid, ls_d_res_high AS "resolution" FROM pdbj.refine WHERE ls_d_res_high
 
 
 <details>
-<summary>Count entries per keyword (top N, case-insensitive)</summary>
+<summary>Count entries per keyword (top N)</summary>
 
-Same approach as example 1 but with `LIMIT` to restrict output to the top results.
+Same approach as keyword counting but with `LIMIT` to restrict output to top results.
 
 ```sql
 SELECT LOWER(pdbx_keywords), COUNT(entry_id) AS noe FROM pdbj.struct_keywords
@@ -811,7 +820,7 @@ LIMIT 10
 <details>
 <summary>Get resolution and R-free values</summary>
 
-Retrieves resolution and R-free refinement statistics. Uses quoted column names for case-sensitive identifiers.
+Retrieves resolution and R-free refinement statistics with quoted column names.
 
 ```sql
 SELECT pdbid, ls_d_res_high AS "Resolution", "ls_R_factor_R_free" AS "R_free" FROM pdbj.refine
@@ -822,13 +831,13 @@ SELECT pdbid, ls_d_res_high AS "Resolution", "ls_R_factor_R_free" AS "R_free" FR
 
 ## Biological Assembly (3)
 
-Retrieve biological assembly information including oligomeric state and generation details.
+Biological assembly information including oligomeric state and generation details.
 
 
 <details>
 <summary>List biological assembly information for all entries</summary>
 
-Joins `pdbx_struct_assembly` with `pdbx_struct_assembly_gen` to get oligomeric state, chain lists, and symmetry operations. Filters out entries without assembly details.
+Joins `pdbx_struct_assembly` with `pdbx_struct_assembly_gen` to get oligomeric state and chain lists.
 
 ```sql
 SELECT pdbx_struct_assembly.pdbid, pdbx_struct_assembly.details,
@@ -846,9 +855,9 @@ WHERE pdbx_struct_assembly.details IS NOT NULL
 
 
 <details>
-<summary>Get biological assembly information for a specific entry</summary>
+<summary>Get biological assembly for a specific entry</summary>
 
-Same join as the all-entries query, but filtered to a single PDB entry (1nov).
+Same assembly join as above, filtered to a single PDB entry (1nov).
 
 ```sql
 SELECT pdbx_struct_assembly.pdbid, pdbx_struct_assembly.details,
@@ -866,9 +875,9 @@ WHERE pdbx_struct_assembly.pdbid='1nov'
 
 
 <details>
-<summary>Get biological assembly generation details for a specific entry</summary>
+<summary>Get assembly generation details for a specific entry</summary>
 
-Retrieves assembly generation information including chain lists and operator expressions for entry 1bbt.
+Retrieves assembly chain lists and operator expressions for entry 1bbt.
 
 ```sql
 SELECT e1.assembly_id, e1.asym_id_list, e1.oper_expression,
@@ -882,15 +891,15 @@ WHERE e1.pdbid='1bbt'
 </details>
 
 
-## Cross-references (UniProt, GO, EC) (4)
+## Cross-references (4)
 
-Find entries by cross-reference identifiers such as UniProt, Gene Ontology, and EC numbers.
+Find entries by UniProt, Gene Ontology, and EC number identifiers.
 
 
 <details>
 <summary>Find entries by Gene Ontology biological process</summary>
 
-Queries the `gene_ontology_pdbmlplus` table to find entries annotated with a specific GO biological process (tricarboxylic acid cycle).
+Queries `gene_ontology_pdbmlplus` to find entries annotated with a specific GO process.
 
 ```sql
 SELECT DISTINCT e.pdbid FROM pdbj.gene_ontology_pdbmlplus e
@@ -904,7 +913,7 @@ AND e.name='tricarboxylic acid cycle'
 <details>
 <summary>Map PDB entries to UniProt IDs</summary>
 
-Queries `struct_ref` to build a mapping between PDB entries and UniProt accession codes. Uses `DISTINCT` to remove duplicate rows.
+Queries `struct_ref` to build PDB-to-UniProt mapping using `DISTINCT`.
 
 ```sql
 SELECT DISTINCT pdbid, entity_id, db_code, pdbx_db_accession
@@ -930,7 +939,7 @@ SELECT pdbid FROM pdbj.struct_ref WHERE struct_ref.db_name='UNP' AND struct_ref.
 <details>
 <summary>Find entries by UniProt database code</summary>
 
-Similar to accession search, but uses `db_code` (e.g., 'CDK3_HUMAN') instead of accession number.
+Uses `db_code` (e.g., 'CDK3_HUMAN') instead of accession number.
 
 ```sql
 SELECT pdbid FROM pdbj.struct_ref WHERE struct_ref.db_name='UNP' AND struct_ref.db_code='CDK3_HUMAN'
@@ -947,7 +956,7 @@ Search chemical components, ligands, and small molecules by various identifiers.
 <details>
 <summary>Find entries containing a specific ligand</summary>
 
-Searches the `chem_comp` table for entries containing heme (HEM).
+Searches `chem_comp` for entries containing heme (HEM).
 
 ```sql
 SELECT pdbid FROM pdbj.chem_comp WHERE id='HEM'
@@ -959,7 +968,7 @@ SELECT pdbid FROM pdbj.chem_comp WHERE id='HEM'
 <details>
 <summary>Find non-polymer entities missing from pdbx_nonpoly_scheme</summary>
 
-Uses `LEFT JOIN` and `IS NULL` to find non-polymer entities that have no corresponding entry in `pdbx_nonpoly_scheme`.
+Uses `LEFT JOIN` and `IS NULL` to find non-polymer entities without corresponding scheme entries.
 
 ```sql
 SELECT DISTINCT e1.pdbid, e1.id AS entity_id, e1.pdbx_description
@@ -976,7 +985,7 @@ ORDER BY e1.pdbid ASC
 <details>
 <summary>Get non-polymer component details with chain mapping</summary>
 
-Extends the chain mapping CTE to include non-polymer scheme information, showing component IDs and sequence numbers alongside chain identifiers.
+Extends chain mapping CTE to include non-polymer component IDs and sequence numbers.
 
 ```sql
 WITH chain(pdbid,entity_id,label_asym_id) AS
@@ -999,7 +1008,7 @@ GROUP BY chain.entity_id
 <details>
 <summary>Find entries containing a compound by InChIKey</summary>
 
-Joins `pdbj.chem_comp` with `cc.pdbx_chem_comp_descriptor` to find entries containing a compound identified by its InChIKey. Demonstrates cross-schema joins.
+Cross-schema join between `pdbj.chem_comp` and `cc.pdbx_chem_comp_descriptor` to search by InChIKey.
 
 ```sql
 SELECT p.pdbid, p.id
@@ -1013,9 +1022,9 @@ AND   cc.descriptor = 'ZKHQWZAMYRWXGA-KQYNXXCUSA-N'
 
 
 <details>
-<summary>Find entries by CSD (Cambridge Structural Database) compound ID</summary>
+<summary>Find entries by CSD compound ID</summary>
 
-Joins across `pdbj`, `ccmodel`, and cross-references to find entries containing a compound identified by its CSD ID. Demonstrates multi-schema joins.
+Multi-schema join across `pdbj`, `ccmodel`, and cross-references to find entries by CSD ID.
 
 ```sql
 SELECT p.pdbid, p.id, p.name, r.db_code
@@ -1031,7 +1040,7 @@ WHERE r.db_name = 'CSD' AND r.db_code = 'YARXEW'
 <details>
 <summary>Find antibody entries with low molecular weight</summary>
 
-Joins `pdbx_molecule_features` with `prd.pdbx_reference_molecule` to find antibody entries where the formula weight is at most 1000 Da. Demonstrates cross-schema joins with the PRD schema.
+Joins `pdbx_molecule_features` with `prd.pdbx_reference_molecule` for antibodies &lt;= 1000 Da.
 
 ```sql
 SELECT mf.pdbid, rm.name
@@ -1047,7 +1056,7 @@ AND rm.formula_weight < 1000.0
 <details>
 <summary>List all chemical components with names, formulas, and InChIKeys</summary>
 
-Queries the `cc` schema to get a comprehensive listing of chemical components by joining `chem_comp` with `pdbx_chem_comp_descriptor` (filtered to InChIKey type).
+Queries the `cc` schema joining `chem_comp` with `pdbx_chem_comp_descriptor` (InChIKey type).
 
 ```sql
 SELECT c.id, c.name, c.formula, c.formula_weight, d.descriptor AS "InChIKey"
@@ -1059,7 +1068,7 @@ WHERE d.type = 'InChIKey'
 </details>
 
 
-## Advanced Queries (1)
+## Advanced (1)
 
 Complex queries combining multiple criteria or using advanced SQL features.
 
@@ -1067,7 +1076,7 @@ Complex queries combining multiple criteria or using advanced SQL features.
 <details>
 <summary>Find large structure entries incompatible with PDB format</summary>
 
-Queries `pdbx_database_status` for entries where `pdb_format_compatible='N'`, identifying structures too large for the legacy PDB format.
+Queries `pdbx_database_status` for entries where `pdb_format_compatible='N'`.
 
 ```sql
 SELECT pdbid FROM pdbj.pdbx_database_status AS e
