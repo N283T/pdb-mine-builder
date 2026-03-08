@@ -79,25 +79,25 @@ Data files must be mounted as volumes. The `pmb-data` volume or a host directory
 ```bash
 git clone https://github.com/N283T/pdb-mine-builder.git
 cd pdb-mine-builder
-cp config.docker.yml config.yml  # Edit data paths if needed
-docker compose up -d             # Start PostgreSQL+RDKit and pmb
+cp config.example.yml config.yml  # Edit data paths if needed
+docker compose -f docker/docker-compose.yml up -d  # Start PostgreSQL+RDKit and pmb
 ```
 
 Run pipelines with `docker compose run`:
 
 ```bash
 # Sync data from PDBj
-docker compose run --rm pmb sync pdbj
+docker compose -f docker/docker-compose.yml run --rm pmb sync pdbj
 
 # Load data
-docker compose run --rm pmb load pdbj --force
+docker compose -f docker/docker-compose.yml run --rm pmb load pdbj --force
 
 # Check stats
-docker compose run --rm pmb stats
+docker compose -f docker/docker-compose.yml run --rm pmb stats
 ```
 
 :::tip
-Podman users can replace `docker` with `podman` — the same `Dockerfile` and `docker-compose.yml` work with both.
+Podman users can replace `docker` with `podman` — the same `Dockerfile` and compose files work with both.
 :::
 
 ## Environment Variables
