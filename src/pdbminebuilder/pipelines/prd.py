@@ -380,26 +380,30 @@ class PrdCifPipeline(BaseCifBatchPipeline):
     def _find_cif_files(self) -> tuple[Path | None, Path | None]:
         """Find prd-all.cif.gz and prdcc-all.cif.gz files.
 
-        Config data can be a file path (prd-all.cif.gz) or directory path.
+        Config data/prdcc can be file paths or directory paths.
         """
+        # Resolve PRD file
         data_path = Path(self.config.data)
-
-        # If config points directly to prd-all.cif.gz
         if data_path.is_file():
-            prdcc_path = self._find_file(data_path.parent, "prdcc-all.cif.gz")
-            return data_path, prdcc_path
-
-        # Otherwise treat as directory and search
-        if not data_path.exists():
+            prd_path = data_path
+        elif data_path.exists():
+            prd_path = self._find_file(data_path, "prd-all.cif.gz")
+        else:
             console.print(f"  [red]Data path not found: {data_path}[/red]")
             return None, None
 
-        prd_path = self._find_file(data_path, "prd-all.cif.gz")
         if not prd_path:
             console.print(f"  [red]prd-all.cif.gz not found in: {data_path}[/red]")
             return None, None
 
-        prdcc_path = self._find_file(data_path, "prdcc-all.cif.gz")
+        # Resolve PRDCC file
+        if self.config.prdcc:
+            prdcc_path_cfg = Path(self.config.prdcc)
+            prdcc_path = prdcc_path_cfg if prdcc_path_cfg.is_file() else None
+        else:
+            # Fallback: search in same directory as PRD file
+            prdcc_path = self._find_file(prd_path.parent, "prdcc-all.cif.gz")
+
         return prd_path, prdcc_path
 
     def _find_file(self, directory: Path, filename: str) -> Path | None:

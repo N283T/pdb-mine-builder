@@ -49,10 +49,11 @@ pipelines:
     format: cif
     data: ${DATA_DIR}/data/component-models/complete/chem_comp_model.cif.gz
 
-  # BIRD reference dictionary (prd-all.cif.gz + prdcc-all.cif.gz in same directory)
+  # BIRD reference dictionary
   prd:
     format: cif
     data: ${DATA_DIR}/data/bird/prd/prd-all.cif.gz
+    prdcc: ${DATA_DIR}/data/bird/prd/prdcc-all.cif.gz
 
   # BIRD family data (single file)
   prd_family:

@@ -49,6 +49,7 @@ pipelines:
   prd:
     format: cif
     data: ${DATA_DIR}/data/bird/prd/prd-all.cif.gz
+    prdcc: ${DATA_DIR}/data/bird/prd/prdcc-all.cif.gz
   prd_family:
     data: ${DATA_DIR}/data/bird/family/family-all.cif.gz
   vrpt:
@@ -90,6 +91,7 @@ Each pipeline entry under `pipelines` defines where to find the source data and 
 | `format` | `cif` (default) or `mmjson` -- only for dual-format pipelines |
 | `data-plus` | PDBjPlus supplementary data directory (pdbj pipeline only, optional) |
 | `data-nextgen-plus` | Nextgen PDBjPlus supplementary data directory (pdbj pipeline only, optional) |
+| `prdcc` | PRDCC CIF file path (prd pipeline only, optional) |
 
 ### Format Selection
 

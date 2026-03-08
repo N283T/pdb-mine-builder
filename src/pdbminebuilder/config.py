@@ -57,6 +57,10 @@ class PipelineConfig(BaseModel):
         alias="data-nextgen-plus",
         description="Nextgen plus data directory (SIFTS)",
     )
+    prdcc: str | None = Field(
+        default=None,
+        description="PRDCC CIF file path (prd pipeline only, optional)",
+    )
 
     model_config = {"populate_by_name": True}
 
