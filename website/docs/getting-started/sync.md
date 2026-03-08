@@ -32,9 +32,9 @@ pixi run pmb sync pdbj --dry-run
 |--------|--------|-------------|
 | `pdbj` | `data.pdbj.org::ftp_data/structures/divided/mmCIF/` | mmCIF structure files (~248k files) |
 | `cc` | `data.pdbj.org::ftp_data/monomers/components.cif.gz` | Chemical component dictionary (single file) |
-| `ccmodel` | `data.pdbj.org::ftp_data/component-models/complete/` | Chemical component models |
-| `prd` | `data.pdbj.org::ftp_data/bird/prd/` | BIRD reference dictionary |
-| `prd-family` | `data.pdbj.org::ftp_data/bird/family/` | BIRD family data |
+| `ccmodel` | `data.pdbj.org::...complete/chem_comp_model.cif.gz` | Chemical component models (single file) |
+| `prd` | `data.pdbj.org::...bird/prd/{prd,prdcc}-all.cif.gz` | BIRD reference dictionary (2 files) |
+| `prd-family` | `data.pdbj.org::...bird/family/family-all.cif.gz` | BIRD family data (single file) |
 | `vrpt` | `data.pdbj.org::ftp/validation_reports/` | Validation reports (`*_validation.cif.gz` only) |
 
 ### mmJSON Targets

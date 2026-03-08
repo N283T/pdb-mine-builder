@@ -1,4 +1,4 @@
-"""Sync command - rsync data from PDBj."""
+"""Sync command - rsync data from wwPDB mirrors (PDBj by default)."""
 
 import subprocess
 from pathlib import Path
@@ -129,8 +129,8 @@ def _resolve_dest(target: str, settings: Settings) -> Path | None:
             value = getattr(pipeline, field_name, None)
             if value:
                 path = Path(value)
-                # For file paths, use parent directory as rsync dest
-                if path.suffix:
+                # For file paths (.gz, .cif), use parent directory as rsync dest
+                if path.suffix in {".gz", ".cif"}:
                     return path.parent
                 return path
 
@@ -201,6 +201,10 @@ def run_sync(
     if dry_run:
         console.print("[yellow]Dry run mode - no changes will be made[/yellow]")
 
+    succeeded = 0
+    failed = 0
+    skipped = 0
+
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -221,29 +225,48 @@ def run_sync(
                 progress.update(
                     task, description=f"[yellow]⊘[/yellow] {target} (skipped)"
                 )
+                skipped += 1
                 continue
 
             # Build source list (single or multiple files)
             sources = config.get("sources", [config["source"]])
 
             # Allow config override for wwPDB-mirrored targets
+            # For multi-source targets (prd), override should be a directory URL
             if target in CONFIGURABLE_TARGETS and target in settings.sync_sources:
                 sources = [settings.sync_sources[target]]
                 console.print("  [dim](using config override)[/dim]")
 
-            success = all(
+            # Use list comprehension to avoid short-circuit (sync all files)
+            results = [
                 run_rsync(
-                    source=source,
+                    source=src_url,
                     dest=dest,
                     options=config["options"],
                     dry_run=dry_run,
                 )
-                for source in sources
-            )
+                for src_url in sources
+            ]
+            success = all(results)
 
             if success:
                 progress.update(task, description=f"[green]✓[/green] {target}")
+                succeeded += 1
             else:
                 progress.update(task, description=f"[red]✗[/red] {target}")
+                failed += 1
 
-    console.print("[bold green]Sync completed![/bold green]")
+    if failed:
+        console.print(
+            f"[bold red]Sync finished: {succeeded} ok, {failed} failed, "
+            f"{skipped} skipped[/bold red]"
+        )
+    elif skipped:
+        console.print(
+            f"[bold yellow]Sync finished: {succeeded} ok, "
+            f"{skipped} skipped[/bold yellow]"
+        )
+    else:
+        console.print(
+            f"[bold green]Sync completed: {succeeded} target(s) synced[/bold green]"
+        )

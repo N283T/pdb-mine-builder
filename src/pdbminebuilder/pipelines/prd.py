@@ -399,7 +399,14 @@ class PrdCifPipeline(BaseCifBatchPipeline):
         # Resolve PRDCC file
         if self.config.prdcc:
             prdcc_path_cfg = Path(self.config.prdcc)
-            prdcc_path = prdcc_path_cfg if prdcc_path_cfg.is_file() else None
+            if prdcc_path_cfg.is_file():
+                prdcc_path = prdcc_path_cfg
+            else:
+                console.print(
+                    f"  [yellow]Warning: configured prdcc path not found: "
+                    f"{prdcc_path_cfg}[/yellow]"
+                )
+                prdcc_path = None
         else:
             # Fallback: search in same directory as PRD file
             prdcc_path = self._find_file(prd_path.parent, "prdcc-all.cif.gz")
