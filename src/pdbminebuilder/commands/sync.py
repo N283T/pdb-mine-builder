@@ -179,7 +179,7 @@ def run_sync(
             source = config["source"]
             if target in CONFIGURABLE_TARGETS and target in settings.sync_sources:
                 source = settings.sync_sources[target]
-                console.print(f"  [dim](using config override)[/dim]")
+                console.print("  [dim](using config override)[/dim]")
 
             success = run_rsync(
                 source=source,
