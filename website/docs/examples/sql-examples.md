@@ -1084,3 +1084,128 @@ WHERE e.pdb_format_compatible='N'
 ```
 
 </details>
+
+
+## Chemical Search (RDKit) (8)
+
+Structure-based chemical searches using the RDKit PostgreSQL cartridge. These queries use the `cc.brief_summary` table with its `mol` column and custom search functions.
+
+
+<details>
+<summary>Substructure search for benzene ring</summary>
+
+Uses the RDKit substructure operator (`@&gt;`) to find chemical components containing a benzene ring.
+
+```sql
+SELECT comp_id, name, canonical_smiles
+FROM cc.brief_summary
+WHERE mol @> 'c1ccccc1'::qmol
+LIMIT 20
+```
+
+</details>
+
+
+<details>
+<summary>Tanimoto similarity search (aspirin-like compounds)</summary>
+
+Uses the `cc.similar_compounds` function to find compounds similar to aspirin (acetylsalicylic acid) using Tanimoto similarity with Morgan fingerprints. Default threshold is 0.7.
+
+```sql
+SELECT * FROM cc.similar_compounds(
+  'CC(=O)Oc1ccccc1C(=O)O',  -- aspirin SMILES
+  0.5,                       -- similarity threshold
+  20                         -- max results
+)
+```
+
+</details>
+
+
+<details>
+<summary>Dice similarity search (fragment-based)</summary>
+
+Uses the `cc.similar_compounds_dice` function for fragment-based similarity search. Dice coefficient is often preferred over Tanimoto for small fragments.
+
+```sql
+SELECT * FROM cc.similar_compounds_dice(
+  'c1ccccc1',  -- benzene SMILES
+  0.5,         -- Dice similarity threshold
+  20           -- max results
+)
+```
+
+</details>
+
+
+<details>
+<summary>SMARTS substructure search (carboxylic acid)</summary>
+
+Uses the `cc.substructure_search` function with a SMARTS pattern to find compounds containing a carboxylic acid group.
+
+```sql
+SELECT * FROM cc.substructure_search(
+  '[CX3](=O)[OX2H1]',  -- carboxylic acid SMARTS
+  50                    -- max results
+)
+```
+
+</details>
+
+
+<details>
+<summary>Exact structure match by SMILES</summary>
+
+Uses the `cc.exact_match` function to find the chemical component that exactly matches a given SMILES structure (ethanol in this example).
+
+```sql
+SELECT * FROM cc.exact_match('CCO')
+```
+
+</details>
+
+
+<details>
+<summary>Find compounds similar to an existing component (ATP)</summary>
+
+Uses the `cc.similar_to_compound` function to find compounds structurally similar to ATP. The function looks up the reference SMILES automatically by component ID.
+
+```sql
+SELECT * FROM cc.similar_to_compound(
+  'ATP',  -- reference component ID
+  0.6,   -- Tanimoto similarity threshold
+  20     -- max results
+)
+```
+
+</details>
+
+
+<details>
+<summary>Calculate similarity between two compounds</summary>
+
+Uses the `cc.compound_similarity` function to compute the Tanimoto similarity between ADP and ATP's SMILES structure.
+
+```sql
+SELECT cc.compound_similarity(
+  'ADP',
+  (SELECT canonical_smiles FROM cc.brief_summary WHERE comp_id = 'ATP')
+)
+```
+
+</details>
+
+
+<details>
+<summary>Find PDB entries containing ligands similar to a query</summary>
+
+Combines RDKit similarity search on `cc.brief_summary` with `pdbj.chem_comp` to find PDB entries that contain ligands structurally similar to a given SMILES.
+
+```sql
+SELECT DISTINCT pc.pdbid, sc.comp_id, sc.name, sc.similarity
+FROM cc.similar_compounds('CC(=O)Oc1ccccc1C(=O)O', 0.6, 50) sc
+JOIN pdbj.chem_comp pc ON pc.id = sc.comp_id
+ORDER BY sc.similarity DESC
+```
+
+</details>

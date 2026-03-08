@@ -472,5 +472,61 @@
         "sql": "SELECT pdbid FROM pdbj.pdbx_database_status AS e\nWHERE e.pdb_format_compatible='N'"
       }
     ]
+  },
+  {
+    "id": "rdkit",
+    "label": "Chemical Search (RDKit)",
+    "description": "Structure-based chemical searches using the RDKit PostgreSQL cartridge. These queries use the `cc.brief_summary` table with its `mol` column and custom search functions.",
+    "count": 8,
+    "examples": [
+      {
+        "id": 101,
+        "title": "Substructure search for benzene ring",
+        "description": "Uses the RDKit substructure operator (`@>`) to find chemical components containing a benzene ring.",
+        "sql": "SELECT comp_id, name, canonical_smiles\nFROM cc.brief_summary\nWHERE mol @> 'c1ccccc1'::qmol\nLIMIT 20"
+      },
+      {
+        "id": 102,
+        "title": "Tanimoto similarity search (aspirin-like compounds)",
+        "description": "Uses the `cc.similar_compounds` function to find compounds similar to aspirin (acetylsalicylic acid) using Tanimoto similarity with Morgan fingerprints. Default threshold is 0.7.",
+        "sql": "SELECT * FROM cc.similar_compounds(\n  'CC(=O)Oc1ccccc1C(=O)O',  -- aspirin SMILES\n  0.5,                       -- similarity threshold\n  20                         -- max results\n)"
+      },
+      {
+        "id": 103,
+        "title": "Dice similarity search (fragment-based)",
+        "description": "Uses the `cc.similar_compounds_dice` function for fragment-based similarity search. Dice coefficient is often preferred over Tanimoto for small fragments.",
+        "sql": "SELECT * FROM cc.similar_compounds_dice(\n  'c1ccccc1',  -- benzene SMILES\n  0.5,         -- Dice similarity threshold\n  20           -- max results\n)"
+      },
+      {
+        "id": 104,
+        "title": "SMARTS substructure search (carboxylic acid)",
+        "description": "Uses the `cc.substructure_search` function with a SMARTS pattern to find compounds containing a carboxylic acid group.",
+        "sql": "SELECT * FROM cc.substructure_search(\n  '[CX3](=O)[OX2H1]',  -- carboxylic acid SMARTS\n  50                    -- max results\n)"
+      },
+      {
+        "id": 105,
+        "title": "Exact structure match by SMILES",
+        "description": "Uses the `cc.exact_match` function to find the chemical component that exactly matches a given SMILES structure (ethanol in this example).",
+        "sql": "SELECT * FROM cc.exact_match('CCO')"
+      },
+      {
+        "id": 106,
+        "title": "Find compounds similar to an existing component (ATP)",
+        "description": "Uses the `cc.similar_to_compound` function to find compounds structurally similar to ATP. The function looks up the reference SMILES automatically by component ID.",
+        "sql": "SELECT * FROM cc.similar_to_compound(\n  'ATP',  -- reference component ID\n  0.6,   -- Tanimoto similarity threshold\n  20     -- max results\n)"
+      },
+      {
+        "id": 107,
+        "title": "Calculate similarity between two compounds",
+        "description": "Uses the `cc.compound_similarity` function to compute the Tanimoto similarity between ADP and ATP's SMILES structure.",
+        "sql": "SELECT cc.compound_similarity(\n  'ADP',\n  (SELECT canonical_smiles FROM cc.brief_summary WHERE comp_id = 'ATP')\n)"
+      },
+      {
+        "id": 108,
+        "title": "Find PDB entries containing ligands similar to a query",
+        "description": "Combines RDKit similarity search on `cc.brief_summary` with `pdbj.chem_comp` to find PDB entries that contain ligands structurally similar to a given SMILES.",
+        "sql": "SELECT DISTINCT pc.pdbid, sc.comp_id, sc.name, sc.similarity\nFROM cc.similar_compounds('CC(=O)Oc1ccccc1C(=O)O', 0.6, 50) sc\nJOIN pdbj.chem_comp pc ON pc.id = sc.comp_id\nORDER BY sc.similarity DESC"
+      }
+    ]
   }
 ]
