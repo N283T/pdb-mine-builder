@@ -304,36 +304,30 @@ class CcmodelCifPipeline(BaseCifBatchPipeline):
         return results
 
     def _find_cif_file(self) -> Path | None:
-        """Find chem_comp_model.cif.gz file in data directory."""
-        data_dir = Path(self.config.data)
+        """Find chem_comp_model.cif.gz file.
 
-        if not data_dir.exists():
-            console.print(f"  [red]Data directory not found: {data_dir}[/red]")
+        Config data can be a file path or directory path.
+        """
+        data_path = Path(self.config.data)
+
+        # If config points directly to the file
+        if data_path.is_file():
+            return data_path
+
+        # Otherwise treat as directory and search
+        if not data_path.exists():
+            console.print(f"  [red]Data path not found: {data_path}[/red]")
             return None
 
-        # Try direct path first
-        cif_path = data_dir.joinpath("chem_comp_model.cif.gz")
+        cif_path = data_path.joinpath("chem_comp_model.cif.gz")
         if cif_path.is_file():
             return cif_path
 
-        # Handle rsync quirk where filename becomes directory
-        nested_path = data_dir.joinpath(
-            "chem_comp_model.cif.gz", "chem_comp_model.cif.gz"
-        )
-        if nested_path.is_file():
-            return nested_path
-
-        # Also check 'complete' subdirectory (rsync quirk)
-        complete_path = data_dir.joinpath("complete", "chem_comp_model.cif.gz")
-        if complete_path.is_file():
-            return complete_path
-
-        # Search recursively
-        for path in data_dir.rglob("chem_comp_model.cif.gz"):
+        for path in data_path.rglob("chem_comp_model.cif.gz"):
             if path.is_file():
                 return path
 
-        console.print(f"  [red]CIF file not found in: {data_dir}[/red]")
+        console.print(f"  [red]chem_comp_model.cif.gz not found in: {data_path}[/red]")
         return None
 
 

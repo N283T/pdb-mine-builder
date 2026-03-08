@@ -26,17 +26,20 @@ SYNC_TARGETS: dict[str, dict] = {
         "options": ["-avz"],
     },
     "ccmodel": {
-        "source": "data.pdbj.org::ftp_data/component-models/complete/",
+        "source": "data.pdbj.org::ftp_data/component-models/complete/chem_comp_model.cif.gz",
         "dest": "data/component-models/complete/",
         "options": ["-avz"],
     },
     "prd": {
-        "source": "data.pdbj.org::ftp_data/bird/prd/",
+        "sources": [
+            "data.pdbj.org::ftp_data/bird/prd/prd-all.cif.gz",
+            "data.pdbj.org::ftp_data/bird/prd/prdcc-all.cif.gz",
+        ],
         "dest": "data/bird/prd/",
         "options": ["-avz"],
     },
     "prd-family": {
-        "source": "data.pdbj.org::ftp_data/bird/family/",
+        "source": "data.pdbj.org::ftp_data/bird/family/family-all.cif.gz",
         "dest": "data/bird/family/",
         "options": ["-avz"],
     },
@@ -175,17 +178,22 @@ def run_sync(
             config = SYNC_TARGETS[target]
             dest = data_dir.joinpath(config["dest"])
 
+            # Build source list (single or multiple files)
+            sources = config.get("sources", [config["source"]])
+
             # Allow config override for wwPDB-mirrored targets
-            source = config["source"]
             if target in CONFIGURABLE_TARGETS and target in settings.sync_sources:
-                source = settings.sync_sources[target]
+                sources = [settings.sync_sources[target]]
                 console.print("  [dim](using config override)[/dim]")
 
-            success = run_rsync(
-                source=source,
-                dest=dest,
-                options=config["options"],
-                dry_run=dry_run,
+            success = all(
+                run_rsync(
+                    source=source,
+                    dest=dest,
+                    options=config["options"],
+                    dry_run=dry_run,
+                )
+                for source in sources
             )
 
             if success:

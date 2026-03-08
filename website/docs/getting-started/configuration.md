@@ -42,15 +42,15 @@ pipelines:
     data-nextgen-plus: ${DATA_DIR}/data/pdb_nextgen/mmjson-plus/
   cc:
     format: cif
-    data: ${DATA_DIR}/data/monomers/
+    data: ${DATA_DIR}/data/monomers/components.cif.gz
   ccmodel:
     format: cif
-    data: ${DATA_DIR}/data/component-models/complete/
+    data: ${DATA_DIR}/data/component-models/complete/chem_comp_model.cif.gz
   prd:
     format: cif
-    data: ${DATA_DIR}/data/bird/prd/
+    data: ${DATA_DIR}/data/bird/prd/prd-all.cif.gz
   prd_family:
-    data: ${DATA_DIR}/data/bird/family/
+    data: ${DATA_DIR}/data/bird/family/family-all.cif.gz
   vrpt:
     data: ${DATA_DIR}/validation_reports/
   contacts:
@@ -86,7 +86,7 @@ Each pipeline entry under `pipelines` defines where to find the source data and 
 
 | Field | Description |
 |-------|-------------|
-| `data` | Path to the data directory or file |
+| `data` | Path to data file or directory (file path recommended for single-file pipelines) |
 | `format` | `cif` (default) or `mmjson` -- only for dual-format pipelines |
 | `data-plus` | PDBjPlus supplementary data directory (pdbj pipeline only, optional) |
 | `data-nextgen-plus` | Nextgen PDBjPlus supplementary data directory (pdbj pipeline only, optional) |

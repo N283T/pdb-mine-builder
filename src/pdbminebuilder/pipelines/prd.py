@@ -378,38 +378,37 @@ class PrdCifPipeline(BaseCifBatchPipeline):
         return results
 
     def _find_cif_files(self) -> tuple[Path | None, Path | None]:
-        """Find prd-all.cif.gz and prdcc-all.cif.gz files."""
-        data_dir = Path(self.config.data)
+        """Find prd-all.cif.gz and prdcc-all.cif.gz files.
 
-        if not data_dir.exists():
-            console.print(f"  [red]Data directory not found: {data_dir}[/red]")
+        Config data can be a file path (prd-all.cif.gz) or directory path.
+        """
+        data_path = Path(self.config.data)
+
+        # If config points directly to prd-all.cif.gz
+        if data_path.is_file():
+            prdcc_path = self._find_file(data_path.parent, "prdcc-all.cif.gz")
+            return data_path, prdcc_path
+
+        # Otherwise treat as directory and search
+        if not data_path.exists():
+            console.print(f"  [red]Data path not found: {data_path}[/red]")
             return None, None
 
-        # Find PRD file
-        prd_path = self._find_file(data_dir, "prd-all.cif.gz")
+        prd_path = self._find_file(data_path, "prd-all.cif.gz")
         if not prd_path:
-            console.print(f"  [red]prd-all.cif.gz not found in: {data_dir}[/red]")
+            console.print(f"  [red]prd-all.cif.gz not found in: {data_path}[/red]")
             return None, None
 
-        # Find PRDCC file (optional)
-        prdcc_path = self._find_file(data_dir, "prdcc-all.cif.gz")
-
+        prdcc_path = self._find_file(data_path, "prdcc-all.cif.gz")
         return prd_path, prdcc_path
 
-    def _find_file(self, data_dir: Path, filename: str) -> Path | None:
-        """Find a CIF file, handling rsync quirks."""
-        # Try direct path
-        direct_path = data_dir.joinpath(filename)
+    def _find_file(self, directory: Path, filename: str) -> Path | None:
+        """Find a CIF file in directory."""
+        direct_path = directory.joinpath(filename)
         if direct_path.is_file():
             return direct_path
 
-        # Handle rsync quirk (filename becomes directory)
-        nested_path = data_dir.joinpath(filename, filename)
-        if nested_path.is_file():
-            return nested_path
-
-        # Search recursively
-        for path in data_dir.rglob(filename):
+        for path in directory.rglob(filename):
             if path.is_file():
                 return path
 
