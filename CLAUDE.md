@@ -303,6 +303,16 @@ pixi run db-init
 - `.env` - Environment variables (gitignored)
 - `.env.example` - Template
 
+## Release Checklist
+
+When bumping the version in `pyproject.toml`:
+
+1. Update `version` in `pyproject.toml`
+2. Run `pixi install` to regenerate `pixi.lock` (CI uses `--locked` and will fail if out of sync)
+3. Update `CHANGELOG.md`
+4. Commit both `pyproject.toml` and `pixi.lock` together
+5. After merge, tag with `git tag v<version>` and `git push --tags`
+
 ## Known Issues
 
 - Global connection pool is for main process only; workers use direct connections
