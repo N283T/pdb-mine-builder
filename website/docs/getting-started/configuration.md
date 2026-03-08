@@ -27,6 +27,7 @@ pipelines:
     format: cif
     data: /data/pdb/structures/divided/mmCIF/
     data-plus: /data/pdb/mmjson-plus/
+    data-nextgen-plus: /data/pdb_nextgen/mmjson-plus/
   cc:
     format: cif
     data: /data/pdb/monomers/
@@ -65,6 +66,8 @@ Each pipeline entry under `pipelines` defines where to find the source data and 
 |-------|-------------|
 | `data` | Path to the data directory or file |
 | `format` | `cif` (default) or `mmjson` -- only for dual-format pipelines |
+| `data-plus` | PDBjPlus supplementary data directory (pdbj pipeline only, optional) |
+| `data-nextgen-plus` | Nextgen PDBjPlus supplementary data directory (pdbj pipeline only, optional) |
 
 ### Format Selection
 
@@ -86,17 +89,23 @@ Other pipelines (`vrpt`, `contacts`) use a fixed format and ignore the `format` 
 
 ### Plus Data (pdbj pipeline)
 
-The `pdbj` pipeline optionally merges PDBj-specific annotations (Gene Ontology, UniProt references, etc.) from plus data:
+The `pdbj` pipeline optionally merges PDBj-specific annotations from supplementary mmJSON files. There are two sources:
+
+| Field | Description | Data Source |
+|-------|-------------|-------------|
+| `data-plus` | PDBjPlus annotations (Gene Ontology, citation metadata, etc.) | `mmjson-plus/` directory |
+| `data-nextgen-plus` | Nextgen PDBjPlus annotations (SIFTS cross-references, etc.) | `pdb_nextgen/mmjson-plus/` directory |
 
 ```yaml
 pipelines:
   pdbj:
     format: cif
     data: /data/pdb/structures/divided/mmCIF/
-    data-plus: /data/pdb/mmjson-plus/          # Optional
+    data-plus: /data/pdb/mmjson-plus/                    # Optional
+    data-nextgen-plus: /data/pdb_nextgen/mmjson-plus/    # Optional
 ```
 
-When `data-plus` is omitted, only standard structure data is loaded.
+Both are optional. When omitted, only standard structure data is loaded. When both are specified, data is merged sequentially (`data-plus` first, then `data-nextgen-plus`).
 
 ## Variable Expansion
 
