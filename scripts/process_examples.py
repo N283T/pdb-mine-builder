@@ -254,8 +254,8 @@ def add_schema_prefix(sql: str) -> str:
     result = sql
 
     result = re.sub(
-        r"((?:FROM|JOIN))\s+([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?)",
-        lambda m: replace_table_match(m),
+        r"((?:FROM|JOIN))(\s+)([a-zA-Z_][a-zA-Z0-9_]*(?:\.[a-zA-Z_][a-zA-Z0-9_]*)?)",
+        _replace_table_match,
         result,
         flags=re.IGNORECASE,
     )
@@ -263,17 +263,18 @@ def add_schema_prefix(sql: str) -> str:
     return result
 
 
-def replace_table_match(match):
+def _replace_table_match(match: re.Match) -> str:
     keyword = match.group(1)
-    table = match.group(2)
+    whitespace = match.group(2)
+    table = match.group(3)
 
     if "." in table:
-        return f"{keyword} {table}"
+        return f"{keyword}{whitespace}{table}"
 
     if table in PDBJ_TABLES:
-        return f"{keyword} pdbj.{table}"
+        return f"{keyword}{whitespace}pdbj.{table}"
 
-    return f"{keyword} {table}"
+    return f"{keyword}{whitespace}{table}"
 
 
 def check_table_availability(sql: str) -> tuple[bool, list[str]]:
