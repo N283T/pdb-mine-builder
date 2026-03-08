@@ -205,29 +205,30 @@ class PrdFamilyCifPipeline(BaseCifBatchPipeline):
         return results
 
     def _find_cif_file(self) -> Path | None:
-        """Find family-all.cif.gz file in data directory."""
-        data_dir = Path(self.config.data)
+        """Find family-all.cif.gz file.
 
-        if not data_dir.exists():
-            console.print(f"  [red]Data directory not found: {data_dir}[/red]")
+        Config data can be a file path or directory path.
+        """
+        data_path = Path(self.config.data)
+
+        # If config points directly to the file
+        if data_path.is_file():
+            return data_path
+
+        # Otherwise treat as directory and search
+        if not data_path.exists():
+            console.print(f"  [red]Data path not found: {data_path}[/red]")
             return None
 
-        # Try direct path first
-        cif_path = data_dir.joinpath("family-all.cif.gz")
+        cif_path = data_path.joinpath("family-all.cif.gz")
         if cif_path.is_file():
             return cif_path
 
-        # Handle rsync quirk where filename becomes directory
-        nested_path = data_dir.joinpath("family-all.cif.gz", "family-all.cif.gz")
-        if nested_path.is_file():
-            return nested_path
-
-        # Search recursively
-        for path in data_dir.rglob("family-all.cif.gz"):
+        for path in data_path.rglob("family-all.cif.gz"):
             if path.is_file():
                 return path
 
-        console.print(f"  [red]family-all.cif.gz not found in: {data_dir}[/red]")
+        console.print(f"  [red]family-all.cif.gz not found in: {data_path}[/red]")
         return None
 
 

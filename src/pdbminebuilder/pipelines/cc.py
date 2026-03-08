@@ -392,30 +392,30 @@ class CcCifPipeline(BaseCifBatchPipeline):
         return results
 
     def _find_cif_file(self) -> Path | None:
-        """Find components.cif.gz file in data directory."""
-        data_dir = Path(self.config.data)
+        """Find components.cif.gz file.
 
-        if not data_dir.exists():
-            console.print(f"  [red]Data directory not found: {data_dir}[/red]")
+        Config data can be a file path or directory path.
+        """
+        data_path = Path(self.config.data)
+
+        # If config points directly to the file
+        if data_path.is_file():
+            return data_path
+
+        # Otherwise treat as directory and search
+        if not data_path.exists():
+            console.print(f"  [red]Data path not found: {data_path}[/red]")
             return None
 
-        # Try direct path first
-        cif_path = data_dir.joinpath("components.cif.gz")
+        cif_path = data_path.joinpath("components.cif.gz")
         if cif_path.is_file():
             return cif_path
 
-        # Handle rsync quirk where filename becomes directory
-        # e.g., data/monomers/components.cif.gz/components.cif.gz
-        nested_path = data_dir.joinpath("components.cif.gz", "components.cif.gz")
-        if nested_path.is_file():
-            return nested_path
-
-        # Search for any components.cif.gz in data dir
-        for path in data_dir.rglob("components.cif.gz"):
+        for path in data_path.rglob("components.cif.gz"):
             if path.is_file():
                 return path
 
-        console.print(f"  [red]CIF file not found in: {data_dir}[/red]")
+        console.print(f"  [red]components.cif.gz not found in: {data_path}[/red]")
         return None
 
 

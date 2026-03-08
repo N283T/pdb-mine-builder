@@ -27,16 +27,6 @@ class RdbConfig(BaseModel):
         return min(os.cpu_count() or 4, 32)
 
 
-class SyncTarget(BaseModel):
-    """Sync target configuration."""
-
-    source: str = Field(description="rsync source URL")
-    dest: str = Field(description="Local destination path")
-    options: list[str] = Field(
-        default_factory=list, description="Additional rsync options"
-    )
-
-
 class PipelineConfig(BaseModel):
     """Pipeline configuration."""
 
@@ -57,6 +47,10 @@ class PipelineConfig(BaseModel):
         alias="data-nextgen-plus",
         description="Nextgen plus data directory (SIFTS)",
     )
+    prdcc: str | None = Field(
+        default=None,
+        description="PRDCC CIF file path (prd pipeline only, optional)",
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -65,12 +59,22 @@ class Settings(BaseModel):
     """Application settings."""
 
     rdb: RdbConfig = Field(default_factory=RdbConfig)
-    sync: dict[str, SyncTarget] = Field(default_factory=dict)
     pipelines: dict[str, PipelineConfig] = Field(default_factory=dict)
+
+    # Sync source URL overrides (only for wwPDB-mirrored CIF targets)
+    sync_sources: dict[str, str] = Field(
+        default_factory=dict,
+        alias="sync-sources",
+        description="Override default rsync source URLs for sync targets",
+    )
 
     # Runtime settings
     cwd: Path = Field(default_factory=Path.cwd)
-    data_dir: Path = Field(default=Path("/mnt/c/pdb"))
+    data_dir: Path = Field(
+        default_factory=Path.cwd,
+        alias="data-dir",
+        description="Base directory for synced data",
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -120,9 +124,18 @@ def load_config(config_path: Path) -> Settings:
     with open(config_path) as f:
         raw_config = yaml.safe_load(f)
 
-    # Define variables for resolution
+    # Determine data_dir: config > DATA_DIR env > CWD
     cwd = Path.cwd()
-    data_dir = Path(os.environ.get("DATA_DIR", "/mnt/c/pdb"))
+    raw_data_dir = raw_config.get("data-dir") or raw_config.get("data_dir")
+    if raw_data_dir:
+        # Resolve ${HOME} and ${CWD} in data-dir itself
+        resolved_data_dir = str(raw_data_dir).replace("${HOME}", str(Path.home()))
+        resolved_data_dir = resolved_data_dir.replace("${CWD}", str(cwd))
+        data_dir = Path(resolved_data_dir)
+    elif os.environ.get("DATA_DIR"):
+        data_dir = Path(os.environ["DATA_DIR"])
+    else:
+        data_dir = cwd
 
     variables = {
         "CWD": str(cwd),
@@ -135,6 +148,6 @@ def load_config(config_path: Path) -> Settings:
 
     # Add runtime settings
     resolved_config["cwd"] = cwd
-    resolved_config["data_dir"] = data_dir
+    resolved_config["data-dir"] = data_dir
 
     return Settings.model_validate(resolved_config)

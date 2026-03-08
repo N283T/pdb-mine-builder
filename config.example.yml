@@ -3,45 +3,66 @@
 #
 # Available variables:
 #   ${CWD}      - Current working directory
-#   ${DATA_DIR} - DATA_DIR environment variable (default: /mnt/c/pdb)
+#   ${DATA_DIR} - Resolved from data-dir config or DATA_DIR env variable
 #   ${HOME}     - User home directory
+
+# Base directory for synced data (used by pmb sync)
+# Also available as ${DATA_DIR} in path values below.
+# Priority: data-dir config > DATA_DIR env variable > current directory
+data-dir: /path/to/data
 
 rdb:
   # Number of worker processes (omit for auto-detect, or override with --workers)
   # nworkers: 8
   constring: "host=localhost port=5433 dbname=pmb user=pdbj"
 
+# Optional: override sync source URLs for regional mirrors
+# Only CIF targets (pdbj, cc, ccmodel, prd, prd-family, vrpt) are configurable.
+# Default source is data.pdbj.org (PDBj, Japan).
+# sync-sources:
+#   # RCSB (US)
+#   pdbj: "rsync.rcsb.org::ftp_data/structures/divided/mmCIF/"
+#   cc: "rsync.rcsb.org::ftp_data/monomers/components.cif.gz"
+#   ccmodel: "rsync.rcsb.org::ftp_data/component-models/complete/"
+#   prd: "rsync.rcsb.org::ftp_data/bird/prd/"
+#   prd-family: "rsync.rcsb.org::ftp_data/bird/family/"
+#   vrpt: "rsync.rcsb.org::ftp/validation_reports/"
+#
+#   # PDBe (Europe)
+#   pdbj: "rsync.ebi.ac.uk::pub/databases/pdb/data/structures/divided/mmCIF/"
+
 pipelines:
   # Main PDB structure data (~248k entries)
   pdbj:
     format: cif  # "cif" (default) or "mmjson"
-    data: /path/to/data/structures/divided/mmCIF/
-    # data-plus: /path/to/pdbj/pdbjplus/data/pdb/mmjson-plus/
-    # data-nextgen-plus: /path/to/pdbj/pdbjplus/data/pdb_nextgen/mmjson-plus/
+    data: ${DATA_DIR}/data/structures/divided/mmCIF/
+    # data-plus: ${DATA_DIR}/data/mmjson-plus/
+    # data-nextgen-plus: ${DATA_DIR}/data/pdb_nextgen/mmjson-plus/
 
-  # Chemical component dictionary (single file: components.cif.gz)
+  # Chemical component dictionary (single file)
   cc:
     format: cif
-    data: /path/to/data/monomers/
+    data: ${DATA_DIR}/data/monomers/components.cif.gz
 
-  # Chemical component models (single file: chem_comp_model.cif.gz)
+  # Chemical component models (single file)
   ccmodel:
     format: cif
-    data: /path/to/data/component-models/complete/complete/
+    data: ${DATA_DIR}/data/component-models/complete/chem_comp_model.cif.gz
 
-  # BIRD reference dictionary (dual file: prd-all.cif.gz + prdcc-all.cif.gz)
+  # BIRD reference dictionary
   prd:
     format: cif
-    data: /path/to/data/bird/prd/
+    data: ${DATA_DIR}/data/bird/prd/prd-all.cif.gz
+    prdcc: ${DATA_DIR}/data/bird/prd/prdcc-all.cif.gz
 
-  # BIRD family data (single file: family-all.cif.gz)
+  # BIRD family data (single file)
   prd_family:
-    data: /path/to/data/bird/family/
+    data: ${DATA_DIR}/data/bird/family/family-all.cif.gz
 
   # Validation reports (nested directory structure)
   vrpt:
-    data: /path/to/validation_reports/
+    data: ${DATA_DIR}/validation_reports/
 
   # Protein-protein contact data (JSON array format)
   contacts:
-    data: /path/to/pdbj/pdbjplus/data/pdb/contacts/
+    data: ${DATA_DIR}/data/contacts/

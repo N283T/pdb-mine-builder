@@ -717,7 +717,9 @@ class TestProcessJobWithPlusData:
         )
 
         # Mock bulk_upsert to capture what gets loaded
-        with patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables") as mock_sync_entry_tables:
+        with patch(
+            "pdbminebuilder.pipelines.pdbj.sync_entry_tables"
+        ) as mock_sync_entry_tables:
             mock_sync_entry_tables.return_value = (1, 0, 0)
             result = pipeline.process_job(job, "pdbj", "test_conninfo")
 
@@ -748,7 +750,9 @@ class TestProcessJobWithPlusData:
         )
 
         # Mock bulk_upsert
-        with patch("pdbminebuilder.pipelines.pdbj.sync_entry_tables") as mock_sync_entry_tables:
+        with patch(
+            "pdbminebuilder.pipelines.pdbj.sync_entry_tables"
+        ) as mock_sync_entry_tables:
             mock_sync_entry_tables.return_value = (1, 0, 0)
             result = pipeline.process_job(job, "pdbj", "test_conninfo")
 

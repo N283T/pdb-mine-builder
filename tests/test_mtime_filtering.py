@@ -1,11 +1,8 @@
 """Tests for mtime-based skip optimization."""
 
 import os
-import tempfile
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from pdbminebuilder.db.loader import Job
 from pdbminebuilder.pipelines.base import compute_effective_mtime
 
 

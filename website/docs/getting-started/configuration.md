@@ -18,32 +18,55 @@ cp config.example.yml config.yml
 `config.yml` is gitignored. Here is a full example:
 
 ```yaml
+# Base directory for synced data (used by pmb sync)
+# Also available as ${DATA_DIR} in path values below.
+# Priority: data-dir config > DATA_DIR env variable > current directory
+data-dir: /path/to/data
+
 rdb:
   nworkers: 8
   constring: "host=localhost port=5433 dbname=pmb user=pdbj"
 
+# Optional: override sync source URLs for regional mirrors
+# Only CIF targets (pdbj, cc, ccmodel, prd, prd-family, vrpt) are configurable.
+# Default source is data.pdbj.org (PDBj, Japan).
+# sync-sources:
+#   pdbj: "rsync.rcsb.org::ftp_data/structures/divided/mmCIF/"
+#   cc: "rsync.rcsb.org::ftp_data/monomers/components.cif.gz"
+
 pipelines:
   pdbj:
     format: cif
-    data: /data/pdb/structures/divided/mmCIF/
-    data-plus: /data/pdb/mmjson-plus/
-    data-nextgen-plus: /data/pdb_nextgen/mmjson-plus/
+    data: ${DATA_DIR}/data/structures/divided/mmCIF/
+    data-plus: ${DATA_DIR}/data/mmjson-plus/
+    data-nextgen-plus: ${DATA_DIR}/data/pdb_nextgen/mmjson-plus/
   cc:
     format: cif
-    data: /data/pdb/monomers/
+    data: ${DATA_DIR}/data/monomers/components.cif.gz
   ccmodel:
     format: cif
-    data: /data/pdb/component-models/complete/
+    data: ${DATA_DIR}/data/component-models/complete/chem_comp_model.cif.gz
   prd:
     format: cif
-    data: /data/pdb/bird/prd/
+    data: ${DATA_DIR}/data/bird/prd/prd-all.cif.gz
+    prdcc: ${DATA_DIR}/data/bird/prd/prdcc-all.cif.gz
   prd_family:
-    data: /data/pdb/bird/family/
+    data: ${DATA_DIR}/data/bird/family/family-all.cif.gz
   vrpt:
-    data: /data/pdb/validation_reports/
+    data: ${DATA_DIR}/validation_reports/
   contacts:
-    data: /data/pdb/contacts/
+    data: ${DATA_DIR}/data/contacts/
 ```
+
+## Data Directory
+
+The `data-dir` field sets the base directory for synced data. It is also available as `${DATA_DIR}` in path values.
+
+| Priority | Source | Description |
+|----------|--------|-------------|
+| 1 | `data-dir` in config | Explicit path in config.yml |
+| 2 | `DATA_DIR` env variable | Environment variable |
+| 3 | Current directory | Fallback to CWD |
 
 ## Database Connection
 
@@ -64,10 +87,11 @@ Each pipeline entry under `pipelines` defines where to find the source data and 
 
 | Field | Description |
 |-------|-------------|
-| `data` | Path to the data directory or file |
+| `data` | Path to data file or directory (file path recommended for single-file pipelines) |
 | `format` | `cif` (default) or `mmjson` -- only for dual-format pipelines |
 | `data-plus` | PDBjPlus supplementary data directory (pdbj pipeline only, optional) |
 | `data-nextgen-plus` | Nextgen PDBjPlus supplementary data directory (pdbj pipeline only, optional) |
+| `prdcc` | PRDCC CIF file path (prd pipeline only, optional) |
 
 ### Format Selection
 
@@ -107,6 +131,26 @@ pipelines:
 
 Both are optional. When omitted, only standard structure data is loaded. When both are specified, data is merged sequentially (`data-plus` first, then `data-nextgen-plus`).
 
+## Sync Source Overrides
+
+By default, `pmb sync` downloads from PDBj (Japan) servers. You can override the source URLs for CIF targets to use a regional wwPDB mirror:
+
+```yaml
+sync-sources:
+  # RCSB (US)
+  pdbj: "rsync.rcsb.org::ftp_data/structures/divided/mmCIF/"
+  cc: "rsync.rcsb.org::ftp_data/monomers/components.cif.gz"
+  ccmodel: "rsync.rcsb.org::ftp_data/component-models/complete/"
+  prd: "rsync.rcsb.org::ftp_data/bird/prd/"
+  prd-family: "rsync.rcsb.org::ftp_data/bird/family/"
+  vrpt: "rsync.rcsb.org::ftp/validation_reports/"
+
+  # PDBe (Europe)
+  # pdbj: "rsync.ebi.ac.uk::pub/databases/pdb/data/structures/divided/mmCIF/"
+```
+
+Only the following CIF targets can be overridden (they have wwPDB regional mirrors): `pdbj`, `cc`, `ccmodel`, `prd`, `prd-family`, `vrpt`. mmJSON and Plus data targets are PDBj-specific and cannot be overridden.
+
 ## Variable Expansion
 
 Config values support `${VAR}` placeholders that are resolved at load time:
@@ -114,7 +158,7 @@ Config values support `${VAR}` placeholders that are resolved at load time:
 | Variable | Description |
 |----------|-------------|
 | `${CWD}` | Current working directory |
-| `${DATA_DIR}` | `DATA_DIR` environment variable (default: `/mnt/c/pdb`) |
+| `${DATA_DIR}` | Resolved from `data-dir` config or `DATA_DIR` env variable |
 | `${HOME}` | User home directory |
 
 ```yaml

@@ -378,38 +378,48 @@ class PrdCifPipeline(BaseCifBatchPipeline):
         return results
 
     def _find_cif_files(self) -> tuple[Path | None, Path | None]:
-        """Find prd-all.cif.gz and prdcc-all.cif.gz files."""
-        data_dir = Path(self.config.data)
+        """Find prd-all.cif.gz and prdcc-all.cif.gz files.
 
-        if not data_dir.exists():
-            console.print(f"  [red]Data directory not found: {data_dir}[/red]")
+        Config data/prdcc can be file paths or directory paths.
+        """
+        # Resolve PRD file
+        data_path = Path(self.config.data)
+        if data_path.is_file():
+            prd_path = data_path
+        elif data_path.exists():
+            prd_path = self._find_file(data_path, "prd-all.cif.gz")
+        else:
+            console.print(f"  [red]Data path not found: {data_path}[/red]")
             return None, None
 
-        # Find PRD file
-        prd_path = self._find_file(data_dir, "prd-all.cif.gz")
         if not prd_path:
-            console.print(f"  [red]prd-all.cif.gz not found in: {data_dir}[/red]")
+            console.print(f"  [red]prd-all.cif.gz not found in: {data_path}[/red]")
             return None, None
 
-        # Find PRDCC file (optional)
-        prdcc_path = self._find_file(data_dir, "prdcc-all.cif.gz")
+        # Resolve PRDCC file
+        if self.config.prdcc:
+            prdcc_path_cfg = Path(self.config.prdcc)
+            if prdcc_path_cfg.is_file():
+                prdcc_path = prdcc_path_cfg
+            else:
+                console.print(
+                    f"  [yellow]Warning: configured prdcc path not found: "
+                    f"{prdcc_path_cfg}[/yellow]"
+                )
+                prdcc_path = None
+        else:
+            # Fallback: search in same directory as PRD file
+            prdcc_path = self._find_file(prd_path.parent, "prdcc-all.cif.gz")
 
         return prd_path, prdcc_path
 
-    def _find_file(self, data_dir: Path, filename: str) -> Path | None:
-        """Find a CIF file, handling rsync quirks."""
-        # Try direct path
-        direct_path = data_dir.joinpath(filename)
+    def _find_file(self, directory: Path, filename: str) -> Path | None:
+        """Find a CIF file in directory."""
+        direct_path = directory.joinpath(filename)
         if direct_path.is_file():
             return direct_path
 
-        # Handle rsync quirk (filename becomes directory)
-        nested_path = data_dir.joinpath(filename, filename)
-        if nested_path.is_file():
-            return nested_path
-
-        # Search recursively
-        for path in data_dir.rglob(filename):
+        for path in directory.rglob(filename):
             if path.is_file():
                 return path
 
