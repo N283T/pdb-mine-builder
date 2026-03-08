@@ -44,19 +44,21 @@ function CopyButton({text}: {text: string}) {
   const handleCopy = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback
+      // Fallback for older browsers or restrictive contexts
       const textarea = document.createElement('textarea');
       textarea.value = text;
       document.body.appendChild(textarea);
       textarea.select();
-      document.execCommand('copy');
+      const success = document.execCommand('copy');
       document.body.removeChild(textarea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (!success) {
+        console.warn('All clipboard copy methods failed');
+        return;
+      }
     }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }, [text]);
 
   return (

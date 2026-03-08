@@ -8,8 +8,10 @@
 import json
 from pathlib import Path
 
-INPUT_FILE = Path(__file__).parent / "pdbj_examples_processed.json"
-OUTPUT_FILE = Path(__file__).parent.parent / "website" / "docs" / "examples" / "sql-examples.md"
+INPUT_FILE = Path(__file__).parent.joinpath("pdbj_examples_processed.json")
+OUTPUT_FILE = Path(__file__).parent.parent.joinpath(
+    "website", "docs", "examples", "sql-examples.md"
+)
 
 # Category order
 CATEGORY_ORDER = [
@@ -71,7 +73,6 @@ EXAMPLES_EN: dict[int, tuple[str, str]] = {
         "Find PDB IDs consisting of all numeric characters",
         "Uses a regular expression (`~`) to match PDB IDs where all four characters are digits.",
     ),
-
     # Author & Citation
     3: (
         "Find entries by depositor or primary citation author",
@@ -107,7 +108,7 @@ EXAMPLES_EN: dict[int, tuple[str, str]] = {
     ),
     21: (
         "Get DOI for a specific entry's citation",
-        "Retrieves the DOI from the `citation` table. Note the quoted column name `\"pdbx_database_id_DOI\"` (case-sensitive).",
+        'Retrieves the DOI from the `citation` table. Note the quoted column name `"pdbx_database_id_DOI"` (case-sensitive).',
     ),
     22: (
         "Get PubMed ID for a specific entry's citation",
@@ -133,7 +134,6 @@ EXAMPLES_EN: dict[int, tuple[str, str]] = {
         "Search by keyword in citation or structure title",
         "Joins `brief_summary` with `struct` to search for 'spike' in both citation titles and structure titles using `ILIKE`.",
     ),
-
     # Date-based
     25: (
         "Find entries released after a specific date",
@@ -151,7 +151,6 @@ EXAMPLES_EN: dict[int, tuple[str, str]] = {
         "Get release dates for specific PDB IDs",
         "Uses `IN` to retrieve release dates for a list of specific PDB IDs.",
     ),
-
     # Entity & Chain
     4: (
         "Find entries containing both synthetic and natural polymers",
@@ -237,7 +236,6 @@ EXAMPLES_EN: dict[int, tuple[str, str]] = {
         "Get chain details and entity types for a specific entry",
         "Uses a CTE to retrieve all entities (polymer and non-polymer) for a specific entry, showing chain IDs, entity names, and entity types.",
     ),
-
     # Structural Properties
     1: (
         "Count entries per keyword (case-insensitive)",
@@ -267,7 +265,6 @@ EXAMPLES_EN: dict[int, tuple[str, str]] = {
         "Get resolution and R-free values",
         "Retrieves resolution and R-free refinement statistics. Uses quoted column names for case-sensitive identifiers.",
     ),
-
     # Biological Assembly
     37: (
         "List biological assembly information for all entries",
@@ -281,7 +278,6 @@ EXAMPLES_EN: dict[int, tuple[str, str]] = {
         "Get biological assembly generation details for a specific entry",
         "Retrieves assembly generation information including chain lists and operator expressions for entry 1bbt.",
     ),
-
     # Cross-references
     2: (
         "Find entries by Gene Ontology biological process",
@@ -299,7 +295,6 @@ EXAMPLES_EN: dict[int, tuple[str, str]] = {
         "Find entries by UniProt database code",
         "Similar to accession search, but uses `db_code` (e.g., 'CDK3_HUMAN') instead of accession number.",
     ),
-
     # Chemical Components
     13: (
         "Find entries containing a specific ligand",
@@ -329,7 +324,6 @@ EXAMPLES_EN: dict[int, tuple[str, str]] = {
         "List all chemical components with names, formulas, and InChIKeys",
         "Queries the `cc` schema to get a comprehensive listing of chemical components by joining `chem_comp` with `pdbx_chem_comp_descriptor` (filtered to InChIKey type).",
     ),
-
     # Advanced
     45: (
         "Find large structure entries incompatible with PDB format",

@@ -35,5 +35,6 @@ plans/
 *.egg-info/
 
 # Lock files (pixi manages dependencies)
-uv.lockscripts/pdbj_examples_raw.json
+uv.lock
+scripts/pdbj_examples_raw.json
 scripts/pdbj_examples_processed.json

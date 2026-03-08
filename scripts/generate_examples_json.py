@@ -8,9 +8,9 @@
 import json
 from pathlib import Path
 
-INPUT_FILE = Path(__file__).parent / "pdbj_examples_processed.json"
-OUTPUT_FILE = (
-    Path(__file__).parent.parent / "website" / "static" / "data" / "sqlExamples.json"
+INPUT_FILE = Path(__file__).parent.joinpath("pdbj_examples_processed.json")
+OUTPUT_FILE = Path(__file__).parent.parent.joinpath(
+    "website", "static", "data", "sqlExamples.json"
 )
 
 CATEGORY_ORDER = [
@@ -346,6 +346,7 @@ def main():
                 continue
             num = ex["number"]
             if num not in EXAMPLES_EN:
+                print(f"  WARNING: No English translation for ex{num:03d}, skipping")
                 continue
             title, description = EXAMPLES_EN[num]
             examples.append(

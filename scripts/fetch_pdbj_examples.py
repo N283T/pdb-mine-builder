@@ -17,7 +17,7 @@ import httpx
 from bs4 import BeautifulSoup
 
 BASE_URL = "https://pdbj.org/help/mine-sql-ex{num:03d}"
-OUTPUT_FILE = Path(__file__).parent.parent / "scripts" / "pdbj_examples_raw.json"
+OUTPUT_FILE = Path(__file__).parent.parent.joinpath("scripts", "pdbj_examples_raw.json")
 MAX_CONSECUTIVE_404 = 5
 
 
@@ -29,7 +29,11 @@ def fetch_example(client: httpx.Client, num: int) -> dict | None:
         if resp.status_code == 404:
             return None
         resp.raise_for_status()
-    except httpx.HTTPStatusError:
+    except httpx.HTTPStatusError as e:
+        print(f"  HTTP {e.response.status_code} for {url}", file=sys.stderr)
+        return None
+    except httpx.HTTPError as e:
+        print(f"  Network error for {url}: {e}", file=sys.stderr)
         return None
 
     soup = BeautifulSoup(resp.text, "html.parser")
@@ -124,6 +128,9 @@ def main():
             num += 1
 
     print(f"\nTotal examples found: {len(results)}")
+    if not results:
+        print("No examples found.", file=sys.stderr)
+        return
     print(f"Range: ex001 to ex{results[-1]['number']:03d}")
 
     OUTPUT_FILE.parent.mkdir(parents=True, exist_ok=True)
