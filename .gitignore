@@ -28,6 +28,7 @@ dist
 .cursor
 
 # Claude Code
+CLAUDE.md
 plans/
 
 # Build artifacts
