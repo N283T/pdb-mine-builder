@@ -4,16 +4,16 @@ sidebar_position: 3
 
 # Syncing Data
 
-The `sync` command downloads data from wwPDB mirrors using rsync. By default, it uses PDBj (Protein Data Bank Japan) servers. Source URLs can be overridden to use regional mirrors (RCSB, PDBe).
+The `sync` command downloads data using rsync. All sync targets (source URLs, destinations, and rsync options) are defined in `config.yml` under the `sync` section. There are no hardcoded defaults -- you have full control.
 
 ## How It Works
 
-pdb-mine-builder mirrors data from PDBj's public rsync servers into your local data directory. Only changed files are transferred on subsequent runs, making incremental syncs fast.
+pdb-mine-builder runs rsync for each configured sync target. Only changed files are transferred on subsequent runs, making incremental syncs fast.
 
 ## Usage
 
 ```bash
-# Sync all targets
+# Sync all configured targets
 pixi run pmb sync
 
 # Sync specific targets
@@ -24,79 +24,81 @@ pixi run pmb sync --dry-run
 pixi run pmb sync pdbj --dry-run
 ```
 
-## Available Sync Targets
+## Configuring Sync Targets
 
-### CIF Targets (Default)
+All sync targets are defined in the `sync` section of `config.yml`. Each target specifies:
 
-| Target | Source | Description |
-|--------|--------|-------------|
-| `pdbj` | `data.pdbj.org::ftp_data/structures/divided/mmCIF/` | mmCIF structure files (~248k files) |
-| `cc` | `data.pdbj.org::ftp_data/monomers/components.cif.gz` | Chemical component dictionary (single file) |
-| `ccmodel` | `data.pdbj.org::...complete/chem_comp_model.cif.gz` | Chemical component models (single file) |
-| `prd` | `data.pdbj.org::...bird/prd/{prd,prdcc}-all.cif.gz` | BIRD reference dictionary (2 files) |
-| `prd-family` | `data.pdbj.org::...bird/family/family-all.cif.gz` | BIRD family data (single file) |
-| `vrpt` | `data.pdbj.org::ftp/validation_reports/` | Validation reports (`*_validation.cif.gz` only) |
+- **source** (or **sources**): rsync source URL(s)
+- **dest**: local destination directory
+- **options**: rsync options (default: `["-av", "--size-only"]`)
 
-### mmJSON Targets
+```yaml
+sync:
+  pdbj:
+    source: "data.pdbj.org::ftp_data/structures/divided/mmCIF/"
+    dest: ${DATA_DIR}/data/structures/divided/mmCIF/
+    options: ["-av", "--delete", "--size-only"]
+  cc:
+    source: "data.pdbj.org::ftp_data/monomers/components.cif.gz"
+    dest: ${DATA_DIR}/data/monomers/
+  prd:
+    sources:
+      - "data.pdbj.org::ftp_data/bird/prd/prd-all.cif.gz"
+      - "data.pdbj.org::ftp_data/bird/prd/prdcc-all.cif.gz"
+    dest: ${DATA_DIR}/data/bird/prd/
+```
 
-| Target | Source | Description |
-|--------|--------|-------------|
-| `pdbj-json` | `data.pdbj.org::rsync/pdbjplus/data/pdb/mmjson/` | Structure data in mmJSON format |
-| `cc-json` | `data.pdbj.org::rsync/pdbjplus/data/cc/mmjson/` | Chemical components in mmJSON |
-| `ccmodel-json` | `data.pdbj.org::rsync/pdbjplus/data/ccmodel/` | Component models in mmJSON |
-| `prd-json` | `data.pdbj.org::rsync/pdbjplus/data/prd/` | BIRD data in mmJSON |
-
-### Plus Data Targets
-
-| Target | Source | Description |
-|--------|--------|-------------|
-| `pdbj-plus` | `data.pdbj.org::rsync/pdbjplus/data/pdb/mmjson-plus/` | PDBjPlus annotations (Gene Ontology, citation metadata, etc.) |
-| `nextgen-plus` | `data.pdbj.org::rsync/pdbjplus/data/pdb_nextgen/mmjson-plus/` | Nextgen PDBjPlus annotations (SIFTS cross-references, etc.) |
-
-### Other Targets
-
-| Target | Source | Description |
-|--------|--------|-------------|
-| `contacts` | `data.pdbj.org::rsync/pdbjplus/data/pdb/contacts/` | Protein-protein contact data (JSON) |
+See [Configuration - Sync Targets](./configuration.md#sync-targets) and `config.example.yml` for the full list of available targets.
 
 :::tip
-You only need to sync the targets that match your chosen format. If you use CIF (the default), you do not need the `-json` targets.
+You only need to configure the targets that match your chosen format. If you use CIF (the default), you do not need the mmJSON targets.
 :::
 
 ### Regional Mirrors
 
-CIF targets default to PDBj (Japan) servers. If you prefer a different wwPDB mirror (e.g., RCSB for US, PDBe for Europe), you can override the source URLs in `config.yml`:
+The default `config.example.yml` uses PDBj (Japan) servers. For CIF targets, you can use a regional wwPDB mirror by changing the source URLs:
+
+| Region | Server |
+|--------|--------|
+| Japan (PDBj) | `data.pdbj.org::ftp_data/...` |
+| US (RCSB) | `rsync.rcsb.org::ftp_data/...` |
+| Europe (PDBe) | `rsync.ebi.ac.uk::pub/databases/pdb/data/...` |
 
 ```yaml
-sync-sources:
-  pdbj: "rsync.rcsb.org::ftp_data/structures/divided/mmCIF/"
-  cc: "rsync.rcsb.org::ftp_data/monomers/components.cif.gz"
+sync:
+  pdbj:
+    # Change source to RCSB (US)
+    source: "rsync.rcsb.org::ftp_data/structures/divided/mmCIF/"
+    dest: ${DATA_DIR}/data/structures/divided/mmCIF/
 ```
 
-See [Configuration - Sync Source Overrides](./configuration.md#sync-source-overrides) for details.
+### Multiple Sources
 
-## Data Directory Structure
+Some targets (e.g., `prd`) need multiple files. Use the `sources` field (list) instead of `source`:
 
-Sync destinations are derived from your pipeline `data` paths in `config.yml`. This ensures sync and pipeline always point to the same location. For targets without pipeline config (mmJSON, etc.), the destination falls back to `data_dir` + a default path.
-
-A typical layout looks like:
-
+```yaml
+sync:
+  prd:
+    sources:
+      - "data.pdbj.org::ftp_data/bird/prd/prd-all.cif.gz"
+      - "data.pdbj.org::ftp_data/bird/prd/prdcc-all.cif.gz"
+    dest: ${DATA_DIR}/data/bird/prd/
 ```
-<data_dir>/
-├── data/
-│   ├── structures/divided/mmCIF/       # pdbj (CIF)
-│   ├── monomers/                       # cc (CIF)
-│   ├── component-models/complete/      # ccmodel (CIF)
-│   ├── bird/prd/                       # prd (CIF)
-│   ├── bird/family/                    # prd-family (CIF)
-│   ├── mmjson-noatom/                  # pdbj-json
-│   ├── cc/                             # cc-json
-│   ├── ccmodel/                        # ccmodel-json
-│   ├── prd/                            # prd-json
-│   ├── mmjson-plus/                    # pdbj-plus
-│   ├── pdb_nextgen/mmjson-plus/        # nextgen-plus
-│   └── contacts/                       # contacts
-└── validation_reports/                 # vrpt
+
+### Custom rsync Options
+
+Each target can have custom rsync options. The default is `["-av", "--size-only"]`:
+
+```yaml
+sync:
+  pdbj:
+    source: "data.pdbj.org::ftp_data/structures/divided/mmCIF/"
+    dest: ${DATA_DIR}/data/structures/divided/mmCIF/
+    options: ["-av", "--delete", "--size-only"]  # add --delete to remove stale files
+  vrpt:
+    source: "data.pdbj.org::ftp/validation_reports/"
+    dest: ${DATA_DIR}/validation_reports/
+    options: ["-av", "--size-only", '--include="*/"', '--include="*_validation.cif.gz"', '--exclude="*"']
 ```
 
 ## CLI Options

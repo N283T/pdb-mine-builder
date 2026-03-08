@@ -1,4 +1,4 @@
-"""Sync command - rsync data from wwPDB mirrors (PDBj by default)."""
+"""Sync command - rsync data from configured sources."""
 
 import subprocess
 from pathlib import Path
@@ -6,140 +6,9 @@ from pathlib import Path
 from rich.console import Console
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
-from pdbminebuilder.commands.utils import resolve_legacy_aliases
-from pdbminebuilder.config import Settings
+from pdbminebuilder.config import Settings, SyncTarget
 
 console = Console()
-
-# Default sync targets with their rsync configurations.
-# "dest" is omitted — resolved at runtime from pipeline config or data_dir fallback.
-SYNC_TARGETS: dict[str, dict] = {
-    # CIF targets
-    "pdbj": {
-        "source": "data.pdbj.org::ftp_data/structures/divided/mmCIF/",
-        "options": ["-avz", "--delete"],
-    },
-    "cc": {
-        "source": "data.pdbj.org::ftp_data/monomers/components.cif.gz",
-        "options": ["-avz"],
-    },
-    "ccmodel": {
-        "source": "data.pdbj.org::ftp_data/component-models/complete/chem_comp_model.cif.gz",
-        "options": ["-avz"],
-    },
-    "prd": {
-        "sources": [
-            "data.pdbj.org::ftp_data/bird/prd/prd-all.cif.gz",
-            "data.pdbj.org::ftp_data/bird/prd/prdcc-all.cif.gz",
-        ],
-        "options": ["-avz"],
-    },
-    "prd-family": {
-        "source": "data.pdbj.org::ftp_data/bird/family/family-all.cif.gz",
-        "options": ["-avz"],
-    },
-    "vrpt": {
-        "source": "data.pdbj.org::ftp/validation_reports/",
-        "options": [
-            "-avz",
-            '--include="*/"',
-            '--include="*_validation.cif.gz"',
-            '--exclude="*"',
-        ],
-    },
-    # mmJSON targets
-    "pdbj-json": {
-        "source": "data.pdbj.org::rsync/pdbjplus/data/pdb/mmjson/",
-        "fallback_dest": "data/mmjson-noatom/",
-        "options": ["-avz", "--delete"],
-    },
-    "cc-json": {
-        "source": "data.pdbj.org::rsync/pdbjplus/data/cc/mmjson/",
-        "fallback_dest": "data/cc/",
-        "options": ["-avz", "--delete"],
-    },
-    "ccmodel-json": {
-        "source": "data.pdbj.org::rsync/pdbjplus/data/ccmodel/",
-        "fallback_dest": "data/ccmodel/",
-        "options": ["-avz", "--delete"],
-    },
-    "prd-json": {
-        "source": "data.pdbj.org::rsync/pdbjplus/data/prd/",
-        "fallback_dest": "data/prd/",
-        "options": ["-avz", "--delete"],
-    },
-    # Plus data targets
-    "pdbj-plus": {
-        "source": "data.pdbj.org::rsync/pdbjplus/data/pdb/mmjson-plus/",
-        "fallback_dest": "data/mmjson-plus/",
-        "options": ["-avz", "--delete"],
-    },
-    "nextgen-plus": {
-        "source": "data.pdbj.org::rsync/pdbjplus/data/pdb_nextgen/mmjson-plus/",
-        "fallback_dest": "data/pdb_nextgen/mmjson-plus/",
-        "options": ["-avz", "--delete"],
-    },
-    # Other targets
-    "contacts": {
-        "source": "data.pdbj.org::rsync/pdbjplus/data/pdb/contacts/",
-        "fallback_dest": "data/contacts/",
-        "options": ["-avz", "--delete"],
-    },
-}
-
-# Mapping from sync target to pipeline config field.
-# Value is (pipeline_name, field_name).
-# For file paths, parent directory is used as rsync dest.
-_PIPELINE_DEST_MAP: dict[str, tuple[str, str]] = {
-    "pdbj": ("pdbj", "data"),
-    "cc": ("cc", "data"),
-    "ccmodel": ("ccmodel", "data"),
-    "prd": ("prd", "data"),
-    "prd-family": ("prd_family", "data"),
-    "vrpt": ("vrpt", "data"),
-    "contacts": ("contacts", "data"),
-    "pdbj-plus": ("pdbj", "data_plus"),
-    "nextgen-plus": ("pdbj", "data_nextgen_plus"),
-}
-
-# Targets whose source URL can be overridden via config sync-sources
-# (these have wwPDB regional mirrors: PDBj, RCSB, PDBe)
-CONFIGURABLE_TARGETS = {"pdbj", "cc", "ccmodel", "prd", "prd-family", "vrpt"}
-
-# Legacy aliases for backward compatibility (deprecated)
-LEGACY_SYNC_ALIASES = {
-    "pdbj-cif": "pdbj",
-    "cc-cif": "cc",
-    "ccmodel-cif": "ccmodel",
-    "prd-cif": "prd",
-}
-
-
-def _resolve_dest(target: str, settings: Settings) -> Path | None:
-    """Resolve rsync destination from pipeline config or fallback.
-
-    Returns None if the target has no configured destination.
-    """
-    # Try pipeline config first
-    mapping = _PIPELINE_DEST_MAP.get(target)
-    if mapping:
-        pipeline_name, field_name = mapping
-        pipeline = settings.pipelines.get(pipeline_name)
-        if pipeline:
-            value = getattr(pipeline, field_name, None)
-            if value:
-                path = Path(value)
-                # For file paths (.gz, .cif), use parent directory as rsync dest
-                if path.suffix in {".gz", ".cif"}:
-                    return path.parent
-                return path
-
-    # Fallback to data_dir + hardcoded relative path
-    fallback = SYNC_TARGETS[target].get("fallback_dest")
-    if fallback:
-        return settings.data_dir.joinpath(fallback)
-
-    return None
 
 
 def run_rsync(
@@ -169,6 +38,9 @@ def run_rsync(
             console.print(f"  [red]Error: {result.stderr}[/red]")
             return False
         return True
+    except FileNotFoundError:
+        console.print("  [red]Error: rsync is not installed[/red]")
+        return False
     except subprocess.TimeoutExpired:
         console.print("  [red]Error: rsync timed out[/red]")
         return False
@@ -177,24 +49,49 @@ def run_rsync(
         return False
 
 
+def _sync_target(target: SyncTarget, dry_run: bool) -> bool:
+    """Sync a single target (may have multiple sources)."""
+    dest = Path(target.dest)
+    results = [
+        run_rsync(
+            source=src_url,
+            dest=dest,
+            options=target.options,
+            dry_run=dry_run,
+        )
+        for src_url in target.get_sources()
+    ]
+    return all(results)
+
+
 def run_sync(
     settings: Settings,
     targets: list[str],
     dry_run: bool = False,
 ) -> None:
-    """Run sync for specified targets."""
-    # If no targets specified, sync all
+    """Run sync for specified targets.
+
+    All sync targets must be defined in config.yml under the 'sync' section.
+    """
+    if not settings.sync:
+        console.print(
+            "[red]No sync targets configured.[/red]\n"
+            "[dim]Add sync targets to the 'sync' section in config.yml. "
+            "See config.example.yml for examples.[/dim]"
+        )
+        return
+
+    # If no targets specified, sync all configured targets
     if not targets:
-        targets = list(SYNC_TARGETS.keys())
+        targets = list(settings.sync.keys())
 
-    # Resolve legacy aliases with deprecation warnings
-    targets = resolve_legacy_aliases(targets, LEGACY_SYNC_ALIASES, "Sync target")
-
-    # Validate targets
-    invalid_targets = [t for t in targets if t not in SYNC_TARGETS]
+    # Validate targets exist in config
+    invalid_targets = [t for t in targets if t not in settings.sync]
     if invalid_targets:
         console.print(f"[red]Invalid targets: {', '.join(invalid_targets)}[/red]")
-        console.print(f"[dim]Available targets: {', '.join(SYNC_TARGETS.keys())}[/dim]")
+        console.print(
+            f"[dim]Configured targets: {', '.join(settings.sync.keys())}[/dim]"
+        )
         return
 
     console.print(f"[bold]Syncing {len(targets)} target(s)...[/bold]")
@@ -203,68 +100,28 @@ def run_sync(
 
     succeeded = 0
     failed = 0
-    skipped = 0
 
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        for target in targets:
-            task = progress.add_task(f"Syncing {target}...", total=None)
+        for name in targets:
+            task = progress.add_task(f"Syncing {name}...", total=None)
+            target = settings.sync[name]
 
-            config = SYNC_TARGETS[target]
-
-            # Resolve destination from pipeline config
-            dest = _resolve_dest(target, settings)
-            if dest is None:
-                console.print(
-                    f"  [yellow]Skipping {target}: "
-                    "no pipeline config or fallback dest[/yellow]"
-                )
-                progress.update(
-                    task, description=f"[yellow]⊘[/yellow] {target} (skipped)"
-                )
-                skipped += 1
-                continue
-
-            # Build source list (single or multiple files)
-            sources = config.get("sources", [config["source"]])
-
-            # Allow config override for wwPDB-mirrored targets
-            # For multi-source targets (prd), override should be a directory URL
-            if target in CONFIGURABLE_TARGETS and target in settings.sync_sources:
-                sources = [settings.sync_sources[target]]
-                console.print("  [dim](using config override)[/dim]")
-
-            # Use list comprehension to avoid short-circuit (sync all files)
-            results = [
-                run_rsync(
-                    source=src_url,
-                    dest=dest,
-                    options=config["options"],
-                    dry_run=dry_run,
-                )
-                for src_url in sources
-            ]
-            success = all(results)
+            success = _sync_target(target, dry_run)
 
             if success:
-                progress.update(task, description=f"[green]✓[/green] {target}")
+                progress.update(task, description=f"[green]✓[/green] {name}")
                 succeeded += 1
             else:
-                progress.update(task, description=f"[red]✗[/red] {target}")
+                progress.update(task, description=f"[red]✗[/red] {name}")
                 failed += 1
 
     if failed:
         console.print(
-            f"[bold red]Sync finished: {succeeded} ok, {failed} failed, "
-            f"{skipped} skipped[/bold red]"
-        )
-    elif skipped:
-        console.print(
-            f"[bold yellow]Sync finished: {succeeded} ok, "
-            f"{skipped} skipped[/bold yellow]"
+            f"[bold red]Sync finished: {succeeded} ok, {failed} failed[/bold red]"
         )
     else:
         console.print(

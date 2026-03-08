@@ -16,8 +16,8 @@ from pdbminebuilder.commands.update import (
 )
 from pdbminebuilder.config import PipelineConfig
 from pdbminebuilder.models import ALL_METADATA
-from pdbminebuilder.commands.sync import LEGACY_SYNC_ALIASES, SYNC_TARGETS
 from pdbminebuilder.commands.utils import resolve_legacy_aliases
+from pdbminebuilder.config import SyncTarget
 
 
 class TestLegacyAliases:
@@ -30,13 +30,6 @@ class TestLegacyAliases:
                 f"Legacy alias '{legacy}' maps to invalid pipeline '{new_name}'"
             )
 
-    def test_all_sync_legacy_aliases_resolve_to_valid_targets(self) -> None:
-        """All legacy sync aliases should map to valid sync targets."""
-        for legacy, new_name in LEGACY_SYNC_ALIASES.items():
-            assert new_name in SYNC_TARGETS, (
-                f"Legacy alias '{legacy}' maps to invalid sync target '{new_name}'"
-            )
-
     def test_legacy_aliases_include_cif_suffix(self) -> None:
         """Legacy aliases should include -cif suffix entries."""
         cif_aliases = {k for k in LEGACY_ALIASES if k.endswith("-cif")}
@@ -46,13 +39,6 @@ class TestLegacyAliases:
         """Legacy aliases should include -json suffix entries."""
         json_aliases = {k for k in LEGACY_ALIASES if k.endswith("-json")}
         assert len(json_aliases) > 0, "Should have -json legacy aliases"
-
-    def test_sync_legacy_aliases_follow_naming_pattern(self) -> None:
-        """Sync legacy aliases should follow the -cif suffix pattern."""
-        for legacy in LEGACY_SYNC_ALIASES:
-            assert legacy.endswith("-cif"), (
-                f"Legacy sync alias '{legacy}' should end with '-cif'"
-            )
 
 
 class TestResolveLegacyAliases:
@@ -267,13 +253,49 @@ class TestLoadPipelineConsistency:
             )
 
 
-class TestSyncTargetNamingConsistency:
-    """Tests for sync target naming consistency."""
+class TestSyncTargetConfig:
+    """Tests for SyncTarget config model."""
 
-    def test_no_cif_suffix_in_sync_targets(self) -> None:
-        """Sync targets should not have -cif suffix (use legacy aliases)."""
-        for name in SYNC_TARGETS:
-            assert not name.endswith("-cif"), (
-                f"Sync target '{name}' should not use -cif suffix; "
-                "CIF is now the default"
+    def test_single_source(self) -> None:
+        """SyncTarget with single source should work."""
+        target = SyncTarget(source="rsync://example.com/data/", dest="/tmp/data")
+        assert target.get_sources() == ["rsync://example.com/data/"]
+
+    def test_multiple_sources(self) -> None:
+        """SyncTarget with multiple sources should work."""
+        target = SyncTarget(
+            sources=["rsync://example.com/a.gz", "rsync://example.com/b.gz"],
+            dest="/tmp/data",
+        )
+        assert target.get_sources() == [
+            "rsync://example.com/a.gz",
+            "rsync://example.com/b.gz",
+        ]
+
+    def test_both_source_and_sources_raises(self) -> None:
+        """Setting both source and sources should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            SyncTarget(
+                source="rsync://example.com/a/",
+                sources=["rsync://example.com/b/"],
+                dest="/tmp/data",
             )
+
+    def test_neither_source_nor_sources_raises(self) -> None:
+        """Setting neither source nor sources should raise ValidationError."""
+        with pytest.raises(ValidationError):
+            SyncTarget(dest="/tmp/data")
+
+    def test_default_options(self) -> None:
+        """Default rsync options should be -av --size-only."""
+        target = SyncTarget(source="rsync://example.com/data/", dest="/tmp/data")
+        assert target.options == ["-av", "--size-only"]
+
+    def test_custom_options(self) -> None:
+        """Custom rsync options should override defaults."""
+        target = SyncTarget(
+            source="rsync://example.com/data/",
+            dest="/tmp/data",
+            options=["-avz", "--delete"],
+        )
+        assert target.options == ["-avz", "--delete"]

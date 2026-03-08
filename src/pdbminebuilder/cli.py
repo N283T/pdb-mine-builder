@@ -76,9 +76,7 @@ def main(
 def sync(
     targets: Annotated[
         Optional[list[str]],
-        typer.Argument(
-            help="Sync targets: pdbj, pdbj-json, cc, cc-json, ccmodel, ccmodel-json, prd, prd-json, prd-family, vrpt, contacts, schemas"
-        ),
+        typer.Argument(help="Sync targets (as defined in config.yml sync section)"),
     ] = None,
     config: Annotated[
         Path,
@@ -91,7 +89,7 @@ def sync(
         ),
     ] = False,
 ) -> None:
-    """Synchronize data from PDBj via rsync."""
+    """Synchronize data via rsync (targets defined in config.yml)."""
     from pdbminebuilder.commands.sync import run_sync
 
     settings = load_config(config)
