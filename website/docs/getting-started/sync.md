@@ -30,28 +30,34 @@ pixi run pmb sync pdbj --dry-run
 
 | Target | Source | Description |
 |--------|--------|-------------|
-| `pdbj` | `rsync.pdbj.org::ftp_data/structures/divided/mmCIF/` | mmCIF structure files (~248k files) |
-| `cc` | `rsync.pdbj.org::ftp_data/monomers/components.cif.gz` | Chemical component dictionary (single file) |
-| `ccmodel` | `rsync.pdbj.org::ftp_data/component-models/complete/chem_comp_model.cif.gz` | Chemical component models (single file) |
-| `prd` | `rsync.pdbj.org::ftp_data/bird/prd/` | BIRD reference dictionary |
-| `vrpt` | `rsync.pdbj.org::ftp_data/validation_reports/` | Validation reports (`*_validation.cif.gz` only) |
+| `pdbj` | `data.pdbj.org::ftp_data/structures/divided/mmCIF/` | mmCIF structure files (~248k files) |
+| `cc` | `data.pdbj.org::ftp_data/monomers/components.cif.gz` | Chemical component dictionary (single file) |
+| `ccmodel` | `data.pdbj.org::ftp_data/component-models/complete/` | Chemical component models |
+| `prd` | `data.pdbj.org::ftp_data/bird/prd/` | BIRD reference dictionary |
+| `prd-family` | `data.pdbj.org::ftp_data/bird/family/` | BIRD family data |
+| `vrpt` | `data.pdbj.org::ftp/validation_reports/` | Validation reports (`*_validation.cif.gz` only) |
 
 ### mmJSON Targets
 
 | Target | Source | Description |
 |--------|--------|-------------|
-| `pdbj-json` | `rsync.pdbj.org::ftp_data/structures/divided/mmjson-noatom/` | Structure data in mmJSON format |
-| `cc-json` | `rsync.pdbj.org::ftp_data/component-models/complete/chem_comp-mmjson/` | Chemical components in mmJSON |
-| `ccmodel-json` | `rsync.pdbj.org::ftp_data/component-models/complete/chem_comp_model-mmjson/` | Component models in mmJSON |
-| `prd-json` | `rsync.pdbj.org::ftp_data/bird/mmjson/` | BIRD data in mmJSON |
+| `pdbj-json` | `data.pdbj.org::rsync/pdbjplus/data/pdb/mmjson/` | Structure data in mmJSON format |
+| `cc-json` | `data.pdbj.org::rsync/pdbjplus/data/cc/mmjson/` | Chemical components in mmJSON |
+| `ccmodel-json` | `data.pdbj.org::rsync/pdbjplus/data/ccmodel/` | Component models in mmJSON |
+| `prd-json` | `data.pdbj.org::rsync/pdbjplus/data/prd/` | BIRD data in mmJSON |
+
+### Plus Data Targets
+
+| Target | Source | Description |
+|--------|--------|-------------|
+| `pdbj-plus` | `data.pdbj.org::rsync/pdbjplus/data/pdb/mmjson-plus/` | PDBjPlus annotations (Gene Ontology, citation metadata, etc.) |
+| `nextgen-plus` | `data.pdbj.org::rsync/pdbjplus/data/pdb_nextgen/mmjson-plus/` | Nextgen PDBjPlus annotations (SIFTS cross-references, etc.) |
 
 ### Other Targets
 
 | Target | Source | Description |
 |--------|--------|-------------|
-| `pdbj-plus` | `rsync.pdbj.org::mine/ftp_data/mine_data/mmjson-plus/` | PDBj-specific plus annotations (mmJSON) |
-| `contacts` | `rsync.pdbj.org::mine/ftp_data/mine_data/contacts/` | Protein-protein contact data (JSON) |
-| `schemas` | `rsync.pdbj.org::mine/ftp_data/mine_data/sql/pdb/schemas/` | Database schema definitions |
+| `contacts` | `data.pdbj.org::rsync/pdbjplus/data/pdb/contacts/` | Protein-protein contact data (JSON) |
 
 :::tip
 You only need to sync the targets that match your chosen format. If you use CIF (the default), you do not need the `-json` targets.
@@ -64,18 +70,19 @@ After syncing, data is stored under the `data_dir` configured in your settings. 
 ```
 <data_dir>/
 ├── data/
-│   ├── structures/divided/mmCIF/   # pdbj (CIF)
-│   ├── mmjson-noatom/              # pdbj-json
-│   ├── monomers/                   # cc (CIF)
-│   ├── cc/                         # cc-json
-│   ├── component-models/complete/  # ccmodel (CIF)
-│   ├── ccmodel/                    # ccmodel-json
-│   ├── bird/prd/                   # prd (CIF)
-│   ├── prd/                        # prd-json
-│   └── contacts/                   # contacts
-├── pdbj/pdbjplus/                  # pdbj-plus
-├── validation_reports/             # vrpt
-└── schemas/                        # schemas
+│   ├── structures/divided/mmCIF/       # pdbj (CIF)
+│   ├── monomers/                       # cc (CIF)
+│   ├── component-models/complete/      # ccmodel (CIF)
+│   ├── bird/prd/                       # prd (CIF)
+│   ├── bird/family/                    # prd-family (CIF)
+│   ├── mmjson-noatom/                  # pdbj-json
+│   ├── cc/                             # cc-json
+│   ├── ccmodel/                        # ccmodel-json
+│   ├── prd/                            # prd-json
+│   ├── mmjson-plus/                    # pdbj-plus
+│   ├── pdb_nextgen/mmjson-plus/        # nextgen-plus
+│   └── contacts/                       # contacts
+└── validation_reports/                 # vrpt
 ```
 
 ## CLI Options

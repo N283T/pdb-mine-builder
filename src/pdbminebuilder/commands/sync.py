@@ -14,59 +14,34 @@ console = Console()
 # Default sync targets with their rsync configurations
 # CIF is default, -json suffix for mmJSON
 SYNC_TARGETS: dict[str, dict] = {
-    "pdbj": {  # CIF (default)
-        "source": "rsync.pdbj.org::ftp_data/structures/divided/mmCIF/",
+    # CIF targets
+    "pdbj": {
+        "source": "data.pdbj.org::ftp_data/structures/divided/mmCIF/",
         "dest": "data/structures/divided/mmCIF/",
         "options": ["-avz", "--delete"],
     },
-    "pdbj-json": {  # mmJSON (requires suffix)
-        "source": "rsync.pdbj.org::ftp_data/structures/divided/mmjson-noatom/",
-        "dest": "data/mmjson-noatom/",
-        "options": ["-avz", "--delete"],
-    },
-    "pdbj-plus": {  # mmJSON plus data
-        "source": "rsync.pdbj.org::mine/ftp_data/mine_data/mmjson-plus/",
-        "dest": "pdbj/pdbjplus/",
-        "options": ["-avz", "--delete"],
-    },
-    "cc": {  # CIF (default)
-        "source": "rsync.pdbj.org::ftp_data/monomers/components.cif.gz",
+    "cc": {
+        "source": "data.pdbj.org::ftp_data/monomers/components.cif.gz",
         "dest": "data/monomers/",
         "options": ["-avz"],
     },
-    "cc-json": {  # mmJSON (requires suffix)
-        "source": "rsync.pdbj.org::ftp_data/component-models/complete/chem_comp-mmjson/",
-        "dest": "data/cc/",
-        "options": ["-avz", "--delete"],
-    },
-    "ccmodel": {  # CIF (default)
-        "source": "rsync.pdbj.org::ftp_data/component-models/complete/chem_comp_model.cif.gz",
+    "ccmodel": {
+        "source": "data.pdbj.org::ftp_data/component-models/complete/",
         "dest": "data/component-models/complete/",
         "options": ["-avz"],
     },
-    "ccmodel-json": {  # mmJSON (requires suffix)
-        "source": "rsync.pdbj.org::ftp_data/component-models/complete/chem_comp_model-mmjson/",
-        "dest": "data/ccmodel/",
-        "options": ["-avz", "--delete"],
-    },
-    "prd": {  # CIF (default)
-        "source": "rsync.pdbj.org::ftp_data/bird/prd/",
+    "prd": {
+        "source": "data.pdbj.org::ftp_data/bird/prd/",
         "dest": "data/bird/prd/",
         "options": ["-avz"],
     },
-    "prd-family": {  # CIF (family-all.cif.gz)
-        "source": "rsync.pdbj.org::ftp_data/bird/family/",
+    "prd-family": {
+        "source": "data.pdbj.org::ftp_data/bird/family/",
         "dest": "data/bird/family/",
         "options": ["-avz"],
     },
-    "prd-json": {  # mmJSON (requires suffix)
-        "source": "rsync.pdbj.org::ftp_data/bird/mmjson/",
-        "dest": "data/prd/",
-        "options": ["-avz", "--delete"],
-    },
     "vrpt": {
-        # Fixed: use include/exclude pattern to avoid timeout
-        "source": "rsync.pdbj.org::ftp_data/validation_reports/",
+        "source": "data.pdbj.org::ftp/validation_reports/",
         "dest": "validation_reports/",
         "options": [
             "-avz",
@@ -75,14 +50,42 @@ SYNC_TARGETS: dict[str, dict] = {
             '--exclude="*"',
         ],
     },
-    "contacts": {
-        "source": "rsync.pdbj.org::mine/ftp_data/mine_data/contacts/",
-        "dest": "data/contacts/",
+    # mmJSON targets
+    "pdbj-json": {
+        "source": "data.pdbj.org::rsync/pdbjplus/data/pdb/mmjson/",
+        "dest": "data/mmjson-noatom/",
         "options": ["-avz", "--delete"],
     },
-    "schemas": {
-        "source": "rsync.pdbj.org::mine/ftp_data/mine_data/sql/pdb/schemas/",
-        "dest": "schemas/",
+    "cc-json": {
+        "source": "data.pdbj.org::rsync/pdbjplus/data/cc/mmjson/",
+        "dest": "data/cc/",
+        "options": ["-avz", "--delete"],
+    },
+    "ccmodel-json": {
+        "source": "data.pdbj.org::rsync/pdbjplus/data/ccmodel/",
+        "dest": "data/ccmodel/",
+        "options": ["-avz", "--delete"],
+    },
+    "prd-json": {
+        "source": "data.pdbj.org::rsync/pdbjplus/data/prd/",
+        "dest": "data/prd/",
+        "options": ["-avz", "--delete"],
+    },
+    # Plus data targets
+    "pdbj-plus": {
+        "source": "data.pdbj.org::rsync/pdbjplus/data/pdb/mmjson-plus/",
+        "dest": "data/mmjson-plus/",
+        "options": ["-avz", "--delete"],
+    },
+    "nextgen-plus": {
+        "source": "data.pdbj.org::rsync/pdbjplus/data/pdb_nextgen/mmjson-plus/",
+        "dest": "data/pdb_nextgen/mmjson-plus/",
+        "options": ["-avz", "--delete"],
+    },
+    # Other targets
+    "contacts": {
+        "source": "data.pdbj.org::rsync/pdbjplus/data/pdb/contacts/",
+        "dest": "data/contacts/",
         "options": ["-avz", "--delete"],
     },
 }
