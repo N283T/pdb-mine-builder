@@ -61,6 +61,11 @@ const config: Config = {
           label: 'Database',
         },
         {
+          to: '/sql-examples',
+          label: 'Examples',
+          position: 'left',
+        },
+        {
           to: '/schema-search',
           label: 'Schema Search',
           position: 'left',
