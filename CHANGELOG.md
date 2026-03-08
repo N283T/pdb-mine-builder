@@ -7,30 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-03-08
+
 ### Added
 
 - Interactive SQL query examples page with 75 examples across 10 categories (#95)
 - RDKit chemical search examples: substructure, similarity, SMARTS patterns (#97)
-- Fully config-driven sync: all targets defined in `config.yml` `sync` section
-- `SyncTarget` model with `source`/`sources`, `dest`, and `options` fields
-- Configurable rsync options per target (default: `["-av", "--size-only"]`)
+- Fully config-driven sync: all targets defined in `config.yml` `sync` section (#102)
+- `SyncTarget` model with `source`/`sources`, `dest`, and `options` fields (#102)
+- Configurable rsync options per target (default: `["-av", "--size-only"]`) (#102)
 - `data-dir` config field with priority resolution (config > env > CWD) (#100)
 - `prdcc` config field for explicit PRDCC file path in prd pipeline (#100)
 - PDBj dump file incompatibility warning in migration docs (#98)
+- Database size and entry count statistics (#93)
+- Missing `data-nextgen-plus` configuration documentation (#99)
 
 ### Changed
 
-- Sync command is now purely config-driven: no hardcoded URLs, destinations, or options
-- `config.example.yml` rewritten with full `sync` section and all available targets
+- Sync command is now purely config-driven: no hardcoded URLs, destinations, or options (#102)
+- `config.example.yml` rewritten with full `sync` section and all available targets (#102)
 - Sync URLs updated from `rsync.pdbj.org` to `data.pdbj.org` (#100)
 - Sync targets cc, ccmodel, prd, prd-family now download only required files (#100)
 - SQL examples pipeline simplified to use `sqlExamples.json` as single source of truth (#96)
 
+### Fixed
+
+- vrpt rsync include/exclude options had embedded quotes that broke filtering (#103)
+
 ### Removed
 
-- Hardcoded sync target definitions (`SYNC_TARGETS`, `_PIPELINE_DEST_MAP`, etc.)
-- `sync-sources` config field (replaced by `sync` section)
-- Legacy sync alias resolution
+- Hardcoded sync target definitions (`SYNC_TARGETS`, `_PIPELINE_DEST_MAP`, etc.) (#102)
+- `sync-sources` config field (replaced by `sync` section) (#102)
+- Legacy sync alias resolution (#102)
 - PDBj example fetching scripts (`fetch_pdbj_examples.py`, `process_examples.py`, `generate_examples_json.py`) (#96)
 
 ## [0.2.1] - 2026-03-08
