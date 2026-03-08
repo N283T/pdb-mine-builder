@@ -4,7 +4,7 @@ sidebar_position: 3
 
 # Syncing Data
 
-The `sync` command downloads data from PDBj (Protein Data Bank Japan) servers using rsync.
+The `sync` command downloads data from wwPDB mirrors using rsync. By default, it uses PDBj (Protein Data Bank Japan) servers. Source URLs can be overridden to use regional mirrors (RCSB, PDBe).
 
 ## How It Works
 
