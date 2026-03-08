@@ -90,6 +90,10 @@ SYNC_TARGETS: dict[str, dict] = {
     },
 }
 
+# Targets whose source URL can be overridden via config sync-sources
+# (these have wwPDB regional mirrors: PDBj, RCSB, PDBe)
+CONFIGURABLE_TARGETS = {"pdbj", "cc", "ccmodel", "prd", "prd-family", "vrpt"}
+
 # Legacy aliases for backward compatibility (deprecated)
 LEGACY_SYNC_ALIASES = {
     "pdbj-cif": "pdbj",
@@ -171,8 +175,14 @@ def run_sync(
             config = SYNC_TARGETS[target]
             dest = data_dir.joinpath(config["dest"])
 
+            # Allow config override for wwPDB-mirrored targets
+            source = config["source"]
+            if target in CONFIGURABLE_TARGETS and target in settings.sync_sources:
+                source = settings.sync_sources[target]
+                console.print(f"  [dim](using config override)[/dim]")
+
             success = run_rsync(
-                source=config["source"],
+                source=source,
                 dest=dest,
                 options=config["options"],
                 dry_run=dry_run,

@@ -1,7 +1,6 @@
 """Tests for the query command."""
 
 import json
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import polars as pl

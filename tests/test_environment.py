@@ -29,7 +29,9 @@ class TestPostgreSQLVersion:
             check=True,
         )
         match = re.search(r"(\d+)\.\d+", result.stdout)
-        assert match, f"Could not parse PostgreSQL version from: {result.stdout.strip()}"
+        assert match, (
+            f"Could not parse PostgreSQL version from: {result.stdout.strip()}"
+        )
         major = int(match.group(1))
         assert major >= 17, f"PostgreSQL >=17 required, got {result.stdout.strip()}"
 

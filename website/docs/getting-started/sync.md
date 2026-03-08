@@ -63,6 +63,18 @@ pixi run pmb sync pdbj --dry-run
 You only need to sync the targets that match your chosen format. If you use CIF (the default), you do not need the `-json` targets.
 :::
 
+### Regional Mirrors
+
+CIF targets default to PDBj (Japan) servers. If you prefer a different wwPDB mirror (e.g., RCSB for US, PDBe for Europe), you can override the source URLs in `config.yml`:
+
+```yaml
+sync-sources:
+  pdbj: "rsync.rcsb.org::ftp_data/structures/divided/mmCIF/"
+  cc: "rsync.rcsb.org::ftp_data/monomers/components.cif.gz"
+```
+
+See [Configuration - Sync Source Overrides](./configuration.md#sync-source-overrides) for details.
+
 ## Data Directory Structure
 
 After syncing, data is stored under the `data_dir` configured in your settings. A typical layout looks like:
