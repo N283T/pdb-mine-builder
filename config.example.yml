@@ -16,20 +16,74 @@ rdb:
   # nworkers: 8
   constring: "host=localhost port=5433 dbname=pmb user=pdbj"
 
-# Optional: override sync source URLs for regional mirrors
-# Only CIF targets (pdbj, cc, ccmodel, prd, prd-family, vrpt) are configurable.
-# Default source is data.pdbj.org (PDBj, Japan).
-# sync-sources:
-#   # RCSB (US)
-#   pdbj: "rsync.rcsb.org::ftp_data/structures/divided/mmCIF/"
-#   cc: "rsync.rcsb.org::ftp_data/monomers/components.cif.gz"
-#   ccmodel: "rsync.rcsb.org::ftp_data/component-models/complete/"
-#   prd: "rsync.rcsb.org::ftp_data/bird/prd/"
-#   prd-family: "rsync.rcsb.org::ftp_data/bird/family/"
-#   vrpt: "rsync.rcsb.org::ftp/validation_reports/"
-#
-#   # PDBe (Europe)
-#   pdbj: "rsync.ebi.ac.uk::pub/databases/pdb/data/structures/divided/mmCIF/"
+# Sync targets - define rsync sources, destinations, and options.
+# Only targets listed here will be synced by `pmb sync`.
+# Remove targets you don't need.
+sync:
+  # --- CIF targets (wwPDB data) ---
+  # Default sources use PDBj (Japan). For other regions, replace the source URL:
+  #   RCSB (US):  rsync.rcsb.org::ftp_data/structures/divided/mmCIF/
+  #   PDBe (EU):  rsync.ebi.ac.uk::pub/databases/pdb/data/structures/divided/mmCIF/
+  pdbj:
+    source: "data.pdbj.org::ftp_data/structures/divided/mmCIF/"
+    dest: ${DATA_DIR}/data/structures/divided/mmCIF/
+    options: ["-av", "--delete", "--size-only"]
+  cc:
+    source: "data.pdbj.org::ftp_data/monomers/components.cif.gz"
+    dest: ${DATA_DIR}/data/monomers/
+    options: ["-av", "--size-only"]
+  ccmodel:
+    source: "data.pdbj.org::ftp_data/component-models/complete/chem_comp_model.cif.gz"
+    dest: ${DATA_DIR}/data/component-models/complete/
+    options: ["-av", "--size-only"]
+  prd:
+    sources:
+      - "data.pdbj.org::ftp_data/bird/prd/prd-all.cif.gz"
+      - "data.pdbj.org::ftp_data/bird/prd/prdcc-all.cif.gz"
+    dest: ${DATA_DIR}/data/bird/prd/
+    options: ["-av", "--size-only"]
+  prd-family:
+    source: "data.pdbj.org::ftp_data/bird/family/family-all.cif.gz"
+    dest: ${DATA_DIR}/data/bird/family/
+    options: ["-av", "--size-only"]
+  vrpt:
+    source: "data.pdbj.org::ftp/validation_reports/"
+    dest: ${DATA_DIR}/validation_reports/
+    options: ["-av", "--size-only", '--include="*/"', '--include="*_validation.cif.gz"', '--exclude="*"']
+
+  # --- mmJSON targets (PDBj-specific) ---
+  # pdbj-json:
+  #   source: "data.pdbj.org::rsync/pdbjplus/data/pdb/mmjson/"
+  #   dest: ${DATA_DIR}/data/mmjson-noatom/
+  #   options: ["-av", "--delete", "--size-only"]
+  # cc-json:
+  #   source: "data.pdbj.org::rsync/pdbjplus/data/cc/mmjson/"
+  #   dest: ${DATA_DIR}/data/cc/
+  #   options: ["-av", "--delete", "--size-only"]
+  # ccmodel-json:
+  #   source: "data.pdbj.org::rsync/pdbjplus/data/ccmodel/"
+  #   dest: ${DATA_DIR}/data/ccmodel/
+  #   options: ["-av", "--delete", "--size-only"]
+  # prd-json:
+  #   source: "data.pdbj.org::rsync/pdbjplus/data/prd/"
+  #   dest: ${DATA_DIR}/data/prd/
+  #   options: ["-av", "--delete", "--size-only"]
+
+  # --- Plus data targets (PDBj-specific) ---
+  # pdbj-plus:
+  #   source: "data.pdbj.org::rsync/pdbjplus/data/pdb/mmjson-plus/"
+  #   dest: ${DATA_DIR}/data/mmjson-plus/
+  #   options: ["-av", "--delete", "--size-only"]
+  # nextgen-plus:
+  #   source: "data.pdbj.org::rsync/pdbjplus/data/pdb_nextgen/mmjson-plus/"
+  #   dest: ${DATA_DIR}/data/pdb_nextgen/mmjson-plus/
+  #   options: ["-av", "--delete", "--size-only"]
+
+  # --- Other targets ---
+  # contacts:
+  #   source: "data.pdbj.org::rsync/pdbjplus/data/pdb/contacts/"
+  #   dest: ${DATA_DIR}/data/contacts/
+  #   options: ["-av", "--delete", "--size-only"]
 
 pipelines:
   # Main PDB structure data (~248k entries)

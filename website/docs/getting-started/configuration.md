@@ -27,12 +27,17 @@ rdb:
   nworkers: 8
   constring: "host=localhost port=5433 dbname=pmb user=pdbj"
 
-# Optional: override sync source URLs for regional mirrors
-# Only CIF targets (pdbj, cc, ccmodel, prd, prd-family, vrpt) are configurable.
-# Default source is data.pdbj.org (PDBj, Japan).
-# sync-sources:
-#   pdbj: "rsync.rcsb.org::ftp_data/structures/divided/mmCIF/"
-#   cc: "rsync.rcsb.org::ftp_data/monomers/components.cif.gz"
+# Sync targets - define rsync sources, destinations, and options.
+# Only targets listed here will be synced by `pmb sync`.
+sync:
+  pdbj:
+    source: "data.pdbj.org::ftp_data/structures/divided/mmCIF/"
+    dest: ${DATA_DIR}/data/structures/divided/mmCIF/
+    options: ["-av", "--delete", "--size-only"]
+  cc:
+    source: "data.pdbj.org::ftp_data/monomers/components.cif.gz"
+    dest: ${DATA_DIR}/data/monomers/
+  # ... see config.example.yml for all targets
 
 pipelines:
   pdbj:
@@ -131,25 +136,37 @@ pipelines:
 
 Both are optional. When omitted, only standard structure data is loaded. When both are specified, data is merged sequentially (`data-plus` first, then `data-nextgen-plus`).
 
-## Sync Source Overrides
+## Sync Targets
 
-By default, `pmb sync` downloads from PDBj (Japan) servers. You can override the source URLs for CIF targets to use a regional wwPDB mirror:
+The `sync` section defines all rsync targets for `pmb sync`. Each target specifies source URL(s), destination, and rsync options. Only targets listed here will be synced.
+
+### Target Fields
+
+| Field | Description |
+|-------|-------------|
+| `source` | rsync source URL (single source) |
+| `sources` | rsync source URLs (list, for targets with multiple files) |
+| `dest` | Local destination directory |
+| `options` | rsync options (default: `["-av", "--size-only"]`) |
+
+Use either `source` (single URL) or `sources` (list of URLs), not both.
+
+### Example
 
 ```yaml
-sync-sources:
-  # RCSB (US)
-  pdbj: "rsync.rcsb.org::ftp_data/structures/divided/mmCIF/"
-  cc: "rsync.rcsb.org::ftp_data/monomers/components.cif.gz"
-  ccmodel: "rsync.rcsb.org::ftp_data/component-models/complete/"
-  prd: "rsync.rcsb.org::ftp_data/bird/prd/"
-  prd-family: "rsync.rcsb.org::ftp_data/bird/family/"
-  vrpt: "rsync.rcsb.org::ftp/validation_reports/"
-
-  # PDBe (Europe)
-  # pdbj: "rsync.ebi.ac.uk::pub/databases/pdb/data/structures/divided/mmCIF/"
+sync:
+  pdbj:
+    source: "data.pdbj.org::ftp_data/structures/divided/mmCIF/"
+    dest: ${DATA_DIR}/data/structures/divided/mmCIF/
+    options: ["-av", "--delete", "--size-only"]
+  prd:
+    sources:
+      - "data.pdbj.org::ftp_data/bird/prd/prd-all.cif.gz"
+      - "data.pdbj.org::ftp_data/bird/prd/prdcc-all.cif.gz"
+    dest: ${DATA_DIR}/data/bird/prd/
 ```
 
-Only the following CIF targets can be overridden (they have wwPDB regional mirrors): `pdbj`, `cc`, `ccmodel`, `prd`, `prd-family`, `vrpt`. mmJSON and Plus data targets are PDBj-specific and cannot be overridden.
+See `config.example.yml` for a complete list of all available targets with their default URLs and options. See [Syncing Data](./sync.md) for usage details and regional mirror configuration.
 
 ## Variable Expansion
 

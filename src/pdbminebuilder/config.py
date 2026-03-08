@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Literal
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class RdbConfig(BaseModel):
@@ -25,6 +25,41 @@ class RdbConfig(BaseModel):
         if self.nworkers is not None:
             return self.nworkers
         return min(os.cpu_count() or 4, 32)
+
+
+class SyncTarget(BaseModel):
+    """Sync target configuration.
+
+    Each target defines an rsync source (or multiple sources), a local
+    destination, and rsync options. All fields are user-defined in config.yml.
+    """
+
+    source: str | None = Field(
+        default=None, description="rsync source URL (single source)"
+    )
+    sources: list[str] | None = Field(
+        default=None, description="rsync source URLs (multiple sources)"
+    )
+    dest: str = Field(description="Local destination directory")
+    options: list[str] = Field(
+        default_factory=lambda: ["-av", "--size-only"],
+        description="rsync options",
+    )
+
+    @model_validator(mode="after")
+    def validate_source(self) -> "SyncTarget":
+        """Ensure exactly one of source or sources is set."""
+        if self.source and self.sources:
+            raise ValueError("Cannot set both 'source' and 'sources'")
+        if not self.source and not self.sources:
+            raise ValueError("Either 'source' or 'sources' must be set")
+        return self
+
+    def get_sources(self) -> list[str]:
+        """Return source URLs as a list."""
+        if self.sources:
+            return self.sources
+        return [self.source]  # type: ignore[list-item]
 
 
 class PipelineConfig(BaseModel):
@@ -59,14 +94,8 @@ class Settings(BaseModel):
     """Application settings."""
 
     rdb: RdbConfig = Field(default_factory=RdbConfig)
+    sync: dict[str, SyncTarget] = Field(default_factory=dict)
     pipelines: dict[str, PipelineConfig] = Field(default_factory=dict)
-
-    # Sync source URL overrides (only for wwPDB-mirrored CIF targets)
-    sync_sources: dict[str, str] = Field(
-        default_factory=dict,
-        alias="sync-sources",
-        description="Override default rsync source URLs for sync targets",
-    )
 
     # Runtime settings
     cwd: Path = Field(default_factory=Path.cwd)
