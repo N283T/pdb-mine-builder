@@ -58,8 +58,9 @@ class SyncTarget(BaseModel):
     def get_sources(self) -> list[str]:
         """Return source URLs as a list."""
         if self.sources:
-            return self.sources
-        return [self.source]  # type: ignore[list-item]
+            return list(self.sources)
+        assert self.source is not None  # guaranteed by validator
+        return [self.source]
 
 
 class PipelineConfig(BaseModel):
