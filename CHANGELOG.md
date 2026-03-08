@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Interactive SQL query examples page with 75 examples across 10 categories (#95)
+- RDKit chemical search examples: substructure, similarity, SMARTS patterns (#97)
+- Configurable sync source URLs for regional wwPDB mirrors (RCSB, PDBe) (#100)
+- `data-dir` config field with priority resolution (config > env > CWD) (#100)
+- `prdcc` config field for explicit PRDCC file path in prd pipeline (#100)
+- PDBj dump file incompatibility warning in migration docs (#98)
+
+### Changed
+
+- Sync URLs updated from `rsync.pdbj.org` to `data.pdbj.org` (#100)
+- Sync targets cc, ccmodel, prd, prd-family now download only required files (#100)
+- Sync destinations derived from pipeline config (single source of truth) (#100)
+- Sync completion message now shows success/failure/skip counts (#100)
+- SQL examples pipeline simplified to use `sqlExamples.json` as single source of truth (#96)
+
+### Removed
+
+- Unused `SyncTarget` class and `sync` field from Settings (#100)
+- PDBj example fetching scripts (`fetch_pdbj_examples.py`, `process_examples.py`, `generate_examples_json.py`) (#96)
+
 ## [0.2.1] - 2026-03-08
 
 ### Added

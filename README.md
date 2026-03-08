@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Pixi Badge](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/prefix-dev/pixi/main/assets/badge/v0.json)](https://pixi.sh)
 
-Build a Mine-schema database from PDB data. Synchronizes structural biology data from PDBj (Protein Data Bank Japan) via rsync and loads it into PostgreSQL.
+Build a Mine-schema database from PDB data. Synchronizes structural biology data from wwPDB mirrors (PDBj by default) via rsync and loads it into PostgreSQL.
 
 This project is based on PDBj's [mine2updater](https://gitlab.com/pdbjapan/mine2updater). Thanks to the PDBj team for the original implementation and the [Mine](https://doi.org/10.1093/database/baq021) relational database design.
 
@@ -16,8 +16,10 @@ This project is based on PDBj's [mine2updater](https://gitlab.com/pdbjapan/mine2
 
 - Multi-process parallel data loading with configurable workers
 - Support for multiple data formats (CIF default, mmJSON optional)
+- Configurable sync sources with regional wwPDB mirror support (PDBj, RCSB, PDBe)
 - RDKit chemical search integration (substructure, similarity)
 - SQL query interface with multi-format output (table, CSV, JSON, Parquet)
+- [Interactive SQL examples](https://n283t.github.io/pdb-mine-builder/sql-examples) with 75+ queries across 10 categories
 - 9 database schemas covering PDB structures, chemical components, validation reports, and more
 
 ## Installation
@@ -36,7 +38,7 @@ cp config.example.yml config.yml  # Edit with your data paths
 ```bash
 pixi run db-init       # Initialize PostgreSQL
 pixi run db-start      # Start PostgreSQL
-pixi run pmb sync      # Sync data from PDBj
+pixi run pmb sync      # Sync data from wwPDB (PDBj by default)
 pixi run pmb load pdbj --force  # Load data
 pixi run pmb stats     # Check database statistics
 ```

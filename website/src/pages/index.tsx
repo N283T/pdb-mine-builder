@@ -40,6 +40,12 @@ function HomepageHeader() {
             to="/table-relations">
             Table Relations
           </Link>
+          <Link
+            className="button button--secondary button--lg"
+            style={{marginLeft: '1rem'}}
+            to="/sql-examples">
+            SQL Examples
+          </Link>
         </div>
       </div>
     </header>
@@ -61,7 +67,7 @@ export default function Home(): ReactNode {
                 <Heading as="h2">Getting Started</Heading>
                 <p>
                   Install pdb-mine-builder, configure your environment,
-                  sync data from PDBj, and load it into PostgreSQL.
+                  sync data from wwPDB mirrors, and load it into PostgreSQL.
                 </p>
                 <Link to="/docs/getting-started/installation">Read the guide →</Link>
               </div>
@@ -76,6 +82,14 @@ export default function Home(): ReactNode {
             </div>
             <div className="row" style={{marginTop: '2rem'}}>
               <div className="col col--6">
+                <Heading as="h2">SQL Examples</Heading>
+                <p>
+                  Browse 75+ ready-to-use SQL queries across 10 categories including
+                  structure search, chemical components, and RDKit similarity search.
+                </p>
+                <Link to="/sql-examples">Browse examples →</Link>
+              </div>
+              <div className="col col--6">
                 <Heading as="h2">Schema Search</Heading>
                 <p>
                   Search across all schemas, tables, and columns in one place.
@@ -83,6 +97,8 @@ export default function Home(): ReactNode {
                 </p>
                 <Link to="/schema-search">Search schemas →</Link>
               </div>
+            </div>
+            <div className="row" style={{marginTop: '2rem'}}>
               <div className="col col--6">
                 <Heading as="h2">Table Relations</Heading>
                 <p>
