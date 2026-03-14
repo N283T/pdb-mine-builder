@@ -89,6 +89,21 @@ Show database statistics (table counts, row counts, sizes).
 pmb stats
 ```
 
+### `pmb config`
+
+Display active configuration and resolved settings. Useful for verifying which config file is being used.
+
+```bash
+pmb config                  # Show config summary
+pmb config --json           # JSON output
+pmb config -c /path/to/config.yml  # Show specific config
+pmb config --init           # Generate config at ~/.config/pmb/config.yml
+pmb config --init -c ./     # Generate config.yml in current directory
+```
+
+Config file is discovered automatically: `./config.yml` → `~/.config/pmb/config.yml`.
+Use `--init` to generate a config file from the bundled template.
+
 ## Administration Commands
 
 ### `pmb reset`
@@ -139,6 +154,6 @@ These options are available for most commands:
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--config` | `-c` | Config file path (default: `config.yml`) |
+| `--config` | `-c` | Config file path (auto-discovered if not set) |
 | `--version` | `-v` | Show version |
 | `--help` | | Show help |

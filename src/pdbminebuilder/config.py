@@ -146,6 +146,38 @@ def resolve_variables(
     return value
 
 
+CONFIG_SEARCH_PATHS: tuple[Path, ...] = (
+    Path("config.yml"),
+    Path.home().joinpath(".config", "pmb", "config.yml"),
+)
+
+
+def find_config(explicit: Path | None = None) -> Path | None:
+    """Find config file from explicit path or standard locations.
+
+    Search order:
+        1. Explicit path (--config flag) -- must exist, raises if not found
+        2. ./config.yml (CWD)
+        3. ~/.config/pmb/config.yml
+
+    Returns:
+        Path to config file, or None if no config found in standard locations.
+
+    Raises:
+        FileNotFoundError: If explicit path is given but does not exist.
+    """
+    if explicit is not None:
+        if not explicit.exists():
+            raise FileNotFoundError(f"Config file not found: {explicit}")
+        return explicit
+
+    for candidate in CONFIG_SEARCH_PATHS:
+        if candidate.exists():
+            return candidate
+
+    return None
+
+
 def load_config(config_path: Path) -> Settings:
     """Load configuration from YAML file."""
     if not config_path.exists():
