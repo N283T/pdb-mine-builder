@@ -434,6 +434,12 @@ def schema(
         Path,
         typer.Option("--config", "-c", help="Config file path"),
     ] = Path("config.yml"),
+    search: Annotated[
+        Optional[str],
+        typer.Option(
+            "--search", "-s", help="Search column names and comments across all schemas"
+        ),
+    ] = None,
 ) -> None:
     """Inspect database schema definitions.
 
@@ -445,13 +451,30 @@ def schema(
         pmb schema pdbj                       # List tables in pdbj
         pmb schema pdbj.brief_summary         # Show columns in table
         pmb schema pdbj.brief_summary.pdbid   # Show single column detail
+        pmb schema -s resolution              # Search for 'resolution'
+        pmb schema -s "deposition date"       # Search comments
     """
     from pdbminebuilder.commands.schema import (
         render_column_detail,
         render_columns,
         render_schemas,
+        render_search_results,
         render_tables,
+        search_columns,
     )
+
+    if search is not None:
+        if name is not None:
+            console.print(
+                "[red]Error: cannot use --search with a positional name.[/red]"
+            )
+            raise typer.Exit(1)
+        if not search.strip():
+            console.print("[red]Error: search query must not be empty.[/red]")
+            raise typer.Exit(1)
+        results = search_columns(search)
+        render_search_results(search, results)
+        return
 
     if name is None:
         # Parse conninfo from config (best-effort, no DB needed)

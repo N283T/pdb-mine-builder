@@ -116,6 +116,40 @@ def describe_column(
     )
 
 
+@dataclass(frozen=True)
+class SearchResult:
+    """A column matching a search query."""
+
+    schema: str
+    table: str
+    column: str
+    type_str: str
+    comment: str | None
+
+
+def search_columns(query: str) -> list[SearchResult]:
+    """Search column names and comments across all schemas."""
+    query_lower = query.lower()
+    results = []
+    for schema_name in sorted(ALL_METADATA):
+        meta = ALL_METADATA[schema_name]
+        for table in meta.sorted_tables:
+            for col in table.columns:
+                name_match = query_lower in col.name.lower()
+                comment_match = col.comment and query_lower in col.comment.lower()
+                if name_match or comment_match:
+                    results.append(
+                        SearchResult(
+                            schema=schema_name,
+                            table=table.name,
+                            column=col.name,
+                            type_str=_type_to_str(col.type),
+                            comment=col.comment,
+                        )
+                    )
+    return results
+
+
 console = Console()
 
 
@@ -195,3 +229,28 @@ def render_column_detail(schema_name: str, table_name: str, column_name: str) ->
         console.print()
         console.print("[bold]Comment:[/bold]")
         console.print(f"  {col.comment}")
+
+
+def render_search_results(query: str, results: list[SearchResult]) -> None:
+    """Render search results."""
+    if not results:
+        console.print(f"[dim]No matches for '{query}'.[/dim]")
+        return
+
+    table = RichTable(title=f"Search: '{query}' ({len(results)} matches)")
+    table.add_column("Schema", style="cyan")
+    table.add_column("Table", style="cyan")
+    table.add_column("Column", style="bold")
+    table.add_column("Type")
+    table.add_column("Comment", style="dim", max_width=50)
+
+    for r in results:
+        table.add_row(
+            r.schema,
+            r.table,
+            r.column,
+            r.type_str,
+            r.comment or "",
+        )
+
+    console.print(table)
