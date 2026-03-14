@@ -146,10 +146,10 @@ def resolve_variables(
     return value
 
 
-CONFIG_SEARCH_PATHS: list[Path] = [
+CONFIG_SEARCH_PATHS: tuple[Path, ...] = (
     Path("config.yml"),
     Path.home().joinpath(".config", "pmb", "config.yml"),
-]
+)
 
 
 def find_config(explicit: Path | None = None) -> Path | None:

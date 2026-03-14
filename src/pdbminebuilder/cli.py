@@ -449,8 +449,13 @@ def config(
     """
     import json
     import re
+    import sys
 
-    found = find_config(config_path)
+    try:
+        found = find_config(config_path)
+    except FileNotFoundError:
+        console.print(f"[red]Config file not found: {config_path}[/red]")
+        raise typer.Exit(1)
 
     if found is None:
         console.print("[dim]No config file found.[/dim]")
@@ -465,51 +470,50 @@ def config(
         )
         raise typer.Exit(1)
 
-    if json_output:
+    try:
         settings = load_config(found)
+    except FileNotFoundError as e:
+        console.print(f"[red]Config file not found: {e}[/red]")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[red]Error loading config: {e}[/red]")
+        raise typer.Exit(1) from e
+
+    def _redact_password(s: str) -> str:
+        return re.sub(r"password=\S+", "password=****", s)
+
+    if json_output:
         data = {
             "config_path": str(found.resolve()),
-            "connection": re.sub(
-                r"password=\S+", "password=****", settings.rdb.constring
-            ),
+            "connection": _redact_password(settings.rdb.constring),
             "data_dir": str(settings.data_dir),
             "workers": settings.rdb.get_workers(),
             "pipelines": list(settings.pipelines.keys()),
             "sync_targets": list(settings.sync.keys()),
         }
-        import sys
-
         sys.stdout.write(json.dumps(data, ensure_ascii=False, indent=2))
         sys.stdout.write("\n")
         return
 
     console.print(f"[bold]Config:[/bold] {found.resolve()}")
     console.print()
+    conninfo = _redact_password(settings.rdb.constring)
+    console.print(f"[bold]Connection:[/bold] {conninfo}")
+    console.print(f"[bold]Data dir:[/bold] {settings.data_dir}")
+    console.print(f"[bold]Workers:[/bold] {settings.rdb.get_workers()}")
 
-    try:
-        settings = load_config(found)
-        conninfo = re.sub(r"password=\S+", "password=****", settings.rdb.constring)
-        console.print(f"[bold]Connection:[/bold] {conninfo}")
-        console.print(f"[bold]Data dir:[/bold] {settings.data_dir}")
-        console.print(f"[bold]Workers:[/bold] {settings.rdb.get_workers()}")
+    if settings.pipelines:
+        console.print()
+        console.print(f"[bold]Pipelines ({len(settings.pipelines)}):[/bold]")
+        for name, pipeline in settings.pipelines.items():
+            console.print(f"  {name}: format={pipeline.format}, data={pipeline.data}")
 
-        if settings.pipelines:
-            console.print()
-            console.print(f"[bold]Pipelines ({len(settings.pipelines)}):[/bold]")
-            for name, pipeline in settings.pipelines.items():
-                console.print(
-                    f"  {name}: format={pipeline.format}, data={pipeline.data}"
-                )
-
-        if settings.sync:
-            console.print()
-            console.print(f"[bold]Sync targets ({len(settings.sync)}):[/bold]")
-            for name, target in settings.sync.items():
-                sources = target.get_sources()
-                console.print(f"  {name}: {sources[0]} → {target.dest}")
-    except Exception as e:
-        console.print(f"[red]Error loading config: {e}[/red]")
-        raise typer.Exit(1) from None
+    if settings.sync:
+        console.print()
+        console.print(f"[bold]Sync targets ({len(settings.sync)}):[/bold]")
+        for name, target in settings.sync.items():
+            sources = target.get_sources()
+            console.print(f"  {name}: {sources[0]} → {target.dest}")
 
 
 @app.command()
@@ -594,8 +598,12 @@ def schema(
                 if found:
                     settings = load_config(found)
                     conninfo = settings.rdb.constring
-            except Exception:
+            except FileNotFoundError:
                 pass
+            except Exception as e:
+                console.print(
+                    f"[yellow]Warning: config found but could not be loaded: {e}[/yellow]"
+                )
             render_schemas(conninfo=conninfo)
         return
 

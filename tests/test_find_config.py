@@ -26,13 +26,9 @@ class TestFindConfig:
         monkeypatch.chdir(tmp_path)
         import pdbminebuilder.config as cfg
 
-        original = cfg.CONFIG_SEARCH_PATHS[:]
-        cfg.CONFIG_SEARCH_PATHS[:] = [tmp_path / "nope.yml"]
-        try:
-            result = find_config(None)
-            assert result is None
-        finally:
-            cfg.CONFIG_SEARCH_PATHS[:] = original
+        monkeypatch.setattr(cfg, "CONFIG_SEARCH_PATHS", (tmp_path / "nope.yml",))
+        result = find_config(None)
+        assert result is None
 
     def test_finds_cwd_config(self, monkeypatch, tmp_path) -> None:
         """Should find config.yml in CWD."""
@@ -41,10 +37,18 @@ class TestFindConfig:
         monkeypatch.chdir(tmp_path)
         import pdbminebuilder.config as cfg
 
-        original = cfg.CONFIG_SEARCH_PATHS[:]
-        cfg.CONFIG_SEARCH_PATHS[:] = [tmp_path / "config.yml"]
-        try:
-            result = find_config(None)
-            assert result == tmp_path / "config.yml"
-        finally:
-            cfg.CONFIG_SEARCH_PATHS[:] = original
+        monkeypatch.setattr(cfg, "CONFIG_SEARCH_PATHS", (tmp_path / "config.yml",))
+        result = find_config(None)
+        assert result == tmp_path / "config.yml"
+
+    def test_search_order_priority(self, monkeypatch, tmp_path) -> None:
+        """Should return first matching config when multiple exist."""
+        first = tmp_path / "first.yml"
+        second = tmp_path / "second.yml"
+        first.write_text("rdb:\n  constring: first\n")
+        second.write_text("rdb:\n  constring: second\n")
+        import pdbminebuilder.config as cfg
+
+        monkeypatch.setattr(cfg, "CONFIG_SEARCH_PATHS", (first, second))
+        result = find_config(None)
+        assert result == first
