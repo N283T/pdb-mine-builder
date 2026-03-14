@@ -24,6 +24,7 @@ const sidebars: SidebarsConfig = {
         'cli-reference',
       ],
     },
+    'changelog',
   ],
   database: [
     {
