@@ -12,6 +12,7 @@ from pdbminebuilder.commands.schema import (
     render_columns,
     render_schemas,
     render_tables,
+    search_columns,
 )
 
 
@@ -160,3 +161,45 @@ class TestRenderSmoke:
     def test_render_column_detail(self) -> None:
         """render_column_detail should not raise."""
         render_column_detail("pdbj", "brief_summary", "pdbid")
+
+
+class TestSearchColumns:
+    """Tests for search_columns."""
+
+    def test_finds_by_column_name(self) -> None:
+        """Should find columns matching by name."""
+        results = search_columns("pdbid")
+        assert len(results) > 0
+        assert all("pdbid" in r.column.lower() for r in results)
+
+    def test_finds_by_comment(self) -> None:
+        """Should find columns matching by comment text."""
+        results = search_columns("deposition date")
+        assert len(results) > 0
+        assert any("deposition" in (r.comment or "").lower() for r in results)
+
+    def test_case_insensitive(self) -> None:
+        """Search should be case-insensitive."""
+        results_lower = search_columns("pdbid")
+        results_upper = search_columns("PDBID")
+        assert len(results_lower) == len(results_upper)
+
+    def test_no_results(self) -> None:
+        """Should return empty list for no matches."""
+        results = search_columns("xyzzy_nonexistent_12345")
+        assert results == []
+
+    def test_result_has_schema_and_table(self) -> None:
+        """Each result should include schema and table info."""
+        results = search_columns("resolution")
+        assert len(results) > 0
+        for r in results:
+            assert r.schema
+            assert r.table
+            assert r.column
+
+    def test_searches_across_schemas(self) -> None:
+        """Should find matches across multiple schemas."""
+        results = search_columns("pdbid")
+        schemas = {r.schema for r in results}
+        assert len(schemas) > 1
