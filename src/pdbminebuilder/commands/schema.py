@@ -1,6 +1,8 @@
 """Schema command - inspect SQLAlchemy model definitions."""
 
-from dataclasses import dataclass
+import dataclasses
+import json
+from dataclasses import asdict, dataclass
 
 from rich.console import Console
 from rich.table import Table as RichTable
@@ -125,6 +127,33 @@ class SearchResult:
     column: str
     type_str: str
     comment: str | None
+
+
+def describe_schema_full(schema_name: str) -> dict:
+    """Describe all tables and columns in a schema (for JSON output).
+
+    Returns a dict with schema name, entry_pk, and all tables with their columns.
+    """
+    meta = get_metadata(schema_name)
+    entry_pk = meta.info.get("entry_pk") if meta.info else None
+    tables = []
+    for table in meta.sorted_tables:
+        columns = describe_table(schema_name, table.name)
+        tables.append({"name": table.name, "columns": [asdict(c) for c in columns]})
+    return {"schema": schema_name, "entry_pk": entry_pk, "tables": tables}
+
+
+def to_json(data: object) -> str:
+    """Convert dataclass, list of dataclasses, or dict to JSON string."""
+    if isinstance(data, list):
+        serializable = [
+            asdict(item) if dataclasses.is_dataclass(item) else item for item in data
+        ]
+    elif dataclasses.is_dataclass(data):
+        serializable = asdict(data)
+    else:
+        serializable = data
+    return json.dumps(serializable, ensure_ascii=False, indent=2)
 
 
 def search_columns(query: str) -> list[SearchResult]:

@@ -440,6 +440,10 @@ def schema(
             "--search", "-s", help="Search column names and comments across all schemas"
         ),
     ] = None,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Output in JSON format (machine-readable)"),
+    ] = False,
 ) -> None:
     """Inspect database schema definitions.
 
@@ -453,15 +457,28 @@ def schema(
         pmb schema pdbj.brief_summary.pdbid   # Show single column detail
         pmb schema -s resolution              # Search for 'resolution'
         pmb schema -s "deposition date"       # Search comments
+        pmb schema pdbj --json                # Full schema as JSON (for AI)
+        pmb schema -s resolution --json       # Search results as JSON
     """
+    import sys
+
     from pdbminebuilder.commands.schema import (
+        describe_column,
+        describe_schema_full,
+        describe_table,
+        list_schemas,
         render_column_detail,
         render_columns,
         render_schemas,
         render_search_results,
         render_tables,
         search_columns,
+        to_json,
     )
+
+    def _write_json(data: object) -> None:
+        sys.stdout.write(to_json(data))
+        sys.stdout.write("\n")
 
     if search is not None:
         if name is not None:
@@ -473,28 +490,42 @@ def schema(
             console.print("[red]Error: search query must not be empty.[/red]")
             raise typer.Exit(1)
         results = search_columns(search)
-        render_search_results(search, results)
+        if json_output:
+            _write_json(results)
+        else:
+            render_search_results(search, results)
         return
 
     if name is None:
-        # Parse conninfo from config (best-effort, no DB needed)
-        conninfo: str | None = None
-        try:
-            settings = load_config(config)
-            conninfo = settings.rdb.constring
-        except Exception:
-            pass
-        render_schemas(conninfo=conninfo)
+        if json_output:
+            _write_json(list_schemas())
+        else:
+            conninfo: str | None = None
+            try:
+                settings = load_config(config)
+                conninfo = settings.rdb.constring
+            except Exception:
+                pass
+            render_schemas(conninfo=conninfo)
         return
 
     parts = name.split(".")
     try:
         if len(parts) == 1:
-            render_tables(parts[0])
+            if json_output:
+                _write_json(describe_schema_full(parts[0]))
+            else:
+                render_tables(parts[0])
         elif len(parts) == 2:
-            render_columns(parts[0], parts[1])
+            if json_output:
+                _write_json(describe_table(parts[0], parts[1]))
+            else:
+                render_columns(parts[0], parts[1])
         elif len(parts) == 3:
-            render_column_detail(parts[0], parts[1], parts[2])
+            if json_output:
+                _write_json(describe_column(parts[0], parts[1], parts[2]))
+            else:
+                render_column_detail(parts[0], parts[1], parts[2])
         else:
             console.print(
                 f"[red]Error: invalid name '{name}'. "

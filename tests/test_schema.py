@@ -6,6 +6,7 @@ from pdbminebuilder.commands.schema import (
     _redact_conninfo,
     describe_column,
     describe_table,
+    describe_schema_full,
     list_schemas,
     list_tables,
     render_column_detail,
@@ -14,6 +15,7 @@ from pdbminebuilder.commands.schema import (
     render_search_results,
     render_tables,
     search_columns,
+    to_json,
 )
 
 
@@ -213,3 +215,78 @@ class TestSearchColumns:
         results = search_columns("pdbid")
         schemas = {r.schema for r in results}
         assert len(schemas) > 1
+
+
+class TestDescribeSchemaFull:
+    """Tests for describe_schema_full."""
+
+    def test_returns_all_tables_with_columns(self) -> None:
+        """Should return all tables with their columns."""
+        result = describe_schema_full("contacts")
+        assert "schema" in result
+        assert result["schema"] == "contacts"
+        assert "tables" in result
+        assert len(result["tables"]) > 0
+        first_table = result["tables"][0]
+        assert "name" in first_table
+        assert "columns" in first_table
+        assert len(first_table["columns"]) > 0
+
+    def test_columns_have_all_fields(self) -> None:
+        """Each column should have name, type_str, nullable, primary_key, comment."""
+        result = describe_schema_full("contacts")
+        col = result["tables"][0]["columns"][0]
+        assert "name" in col
+        assert "type_str" in col
+        assert "nullable" in col
+        assert "primary_key" in col
+        assert "comment" in col
+
+    def test_unknown_schema_raises(self) -> None:
+        """Unknown schema should raise KeyError."""
+        with pytest.raises(KeyError):
+            describe_schema_full("nonexistent")
+
+
+class TestToJson:
+    """Tests for to_json."""
+
+    def test_schemas_json(self) -> None:
+        """Should produce valid JSON for schemas."""
+        import json
+
+        schemas = list_schemas()
+        output = to_json(schemas)
+        parsed = json.loads(output)
+        assert isinstance(parsed, list)
+        assert len(parsed) > 0
+        assert "name" in parsed[0]
+
+    def test_schema_full_json(self) -> None:
+        """Should produce valid JSON for full schema."""
+        import json
+
+        result = describe_schema_full("contacts")
+        output = to_json(result)
+        parsed = json.loads(output)
+        assert parsed["schema"] == "contacts"
+        assert "tables" in parsed
+
+    def test_search_results_json(self) -> None:
+        """Should produce valid JSON for search results."""
+        import json
+
+        results = search_columns("pdbid")
+        output = to_json(results)
+        parsed = json.loads(output)
+        assert isinstance(parsed, list)
+        assert len(parsed) > 0
+
+    def test_column_detail_json(self) -> None:
+        """Should produce valid JSON for column detail."""
+        import json
+
+        detail = describe_column("pdbj", "brief_summary", "pdbid")
+        output = to_json(detail)
+        parsed = json.loads(output)
+        assert parsed["name"] == "pdbid"
