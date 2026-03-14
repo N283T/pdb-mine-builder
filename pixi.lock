@@ -2048,8 +2048,8 @@ packages:
   timestamp: 1763655726735
 - pypi: ./
   name: pdbminebuilder
-  version: 0.3.0
-  sha256: fdca920c492383f9dfb55a2005ac7549e9706ebac393b81c08043e0274700817
+  version: 0.2.3
+  sha256: a6bfb55b623e955a057a88d7fd27aea30f690bc1cbf257fde031b7395ffa83d4
   requires_dist:
   - alembic>=1.13.0
   - ccd2rdmol>=0.2.0
