@@ -424,5 +424,61 @@ def stats(
     run_stats(settings)
 
 
+@app.command()
+def schema(
+    name: Annotated[
+        Optional[str],
+        typer.Argument(help="Schema name, or schema.table, or schema.table.column"),
+    ] = None,
+    config: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Config file path"),
+    ] = Path("config.yml"),
+) -> None:
+    """Inspect database schema definitions.
+
+    Show schema, table, and column information from model definitions.
+    No database connection required.
+
+    Examples:
+        pmb schema                            # List all schemas
+        pmb schema pdbj                       # List tables in pdbj
+        pmb schema pdbj.brief_summary         # Show columns in table
+        pmb schema pdbj.brief_summary.pdbid   # Show single column detail
+    """
+    from pdbminebuilder.commands.schema import (
+        render_column_detail,
+        render_columns,
+        render_schemas,
+        render_tables,
+    )
+
+    # Parse conninfo from config (best-effort, no DB needed)
+    conninfo: str | None = None
+    try:
+        settings = load_config(config)
+        conninfo = settings.rdb.constring
+    except FileNotFoundError:
+        pass
+
+    if name is None:
+        render_schemas(conninfo=conninfo)
+        return
+
+    parts = name.split(".")
+    if len(parts) == 1:
+        render_tables(parts[0])
+    elif len(parts) == 2:
+        render_columns(parts[0], parts[1])
+    elif len(parts) == 3:
+        render_column_detail(parts[0], parts[1], parts[2])
+    else:
+        console.print(
+            f"[red]Error: invalid name '{name}'. "
+            "Use: schema, schema.table, or schema.table.column[/red]"
+        )
+        raise typer.Exit(1)
+
+
 if __name__ == "__main__":
     app()
