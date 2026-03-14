@@ -12,6 +12,16 @@ const sidebars: SidebarsConfig = {
         'getting-started/sync',
         'getting-started/update',
         'getting-started/migration',
+        'getting-started/schema',
+        'getting-started/query',
+      ],
+    },
+    {
+      type: 'category',
+      label: 'CLI Reference',
+      collapsed: true,
+      items: [
+        'cli-reference',
       ],
     },
   ],
