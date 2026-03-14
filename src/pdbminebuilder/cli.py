@@ -424,6 +424,9 @@ def stats(
     run_stats(settings)
 
 
+DEFAULT_CONFIG_DIR: Path = Path.home().joinpath(".config", "pmb")
+
+
 @app.command()
 def config(
     config_path: Annotated[
@@ -434,6 +437,10 @@ def config(
         bool,
         typer.Option("--json", help="Output in JSON format"),
     ] = False,
+    init: Annotated[
+        bool,
+        typer.Option("--init", help="Generate config file from bundled template"),
+    ] = False,
 ) -> None:
     """Show configuration file location and contents.
 
@@ -442,14 +449,22 @@ def config(
       1. ./config.yml (current directory)
       2. ~/.config/pmb/config.yml
 
+    Use --init to generate a config file from the bundled template.
+
     Examples:
         pmb config                    # Show active config
         pmb config --json             # Show as JSON
         pmb config -c /path/to.yml    # Show specific config
+        pmb config --init             # Generate ~/.config/pmb/config.yml
+        pmb config --init -c ./       # Generate config.yml in current directory
     """
     import json
     import re
     import sys
+
+    if init:
+        _config_init(config_path)
+        return
 
     try:
         found = find_config(config_path)
@@ -465,7 +480,7 @@ def config(
             console.print(f"  {p.resolve()}")
         console.print()
         console.print(
-            "[dim]Create a config file at one of these locations, "
+            "[dim]Run [bold]pmb config --init[/bold] to generate a config file, "
             "or use --config to specify a path.[/dim]"
         )
         raise typer.Exit(1)
@@ -514,6 +529,35 @@ def config(
         for name, target in settings.sync.items():
             sources = target.get_sources()
             console.print(f"  {name}: {sources[0]} → {target.dest}")
+
+
+def _config_init(dest_path: Path | None) -> None:
+    """Generate config file from bundled template."""
+    import importlib.resources
+
+    template = importlib.resources.files("pdbminebuilder").joinpath(
+        "config.example.yml"
+    )
+    content = template.read_text(encoding="utf-8")
+
+    if dest_path is not None:
+        # If dest_path is a directory, put config.yml inside it
+        if dest_path.is_dir():
+            target = dest_path.joinpath("config.yml")
+        else:
+            target = dest_path
+    else:
+        target = DEFAULT_CONFIG_DIR.joinpath("config.yml")
+
+    if target.exists():
+        console.print(f"[yellow]Config file already exists: {target}[/yellow]")
+        console.print("[dim]Remove it first or specify a different path with -c.[/dim]")
+        raise typer.Exit(1)
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content, encoding="utf-8")
+    console.print(f"[green]Config file created: {target}[/green]")
+    console.print("[dim]Edit the file to adjust paths and connection settings.[/dim]")
 
 
 @app.command()

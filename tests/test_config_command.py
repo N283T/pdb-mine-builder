@@ -87,3 +87,72 @@ class TestConfigCommand:
         result = runner.invoke(app, ["config", "-c", str(config)])
         assert result.exit_code == 1
         assert "Error loading config" in result.output
+
+    def test_no_config_suggests_init(self, monkeypatch, tmp_path) -> None:
+        """Should suggest --init when no config found."""
+        monkeypatch.chdir(tmp_path)
+        import pdbminebuilder.config as cfg
+
+        monkeypatch.setattr(cfg, "CONFIG_SEARCH_PATHS", (tmp_path / "nope.yml",))
+        result = runner.invoke(app, ["config"])
+        assert "pmb config --init" in result.output
+
+
+class TestConfigInit:
+    """Tests for pmb config --init."""
+
+    def test_init_creates_default_config(self, monkeypatch, tmp_path) -> None:
+        """Should create config at ~/.config/pmb/config.yml."""
+        import pdbminebuilder.cli as cli_mod
+
+        monkeypatch.setattr(cli_mod, "DEFAULT_CONFIG_DIR", tmp_path / ".config" / "pmb")
+        result = runner.invoke(app, ["config", "--init"])
+        assert result.exit_code == 0
+        target = tmp_path / ".config" / "pmb" / "config.yml"
+        assert target.exists()
+        content = target.read_text()
+        assert "constring" in content
+        assert "Config file created" in result.output
+
+    def test_init_to_directory(self, tmp_path) -> None:
+        """Should create config.yml in specified directory."""
+        result = runner.invoke(app, ["config", "--init", "-c", str(tmp_path)])
+        assert result.exit_code == 0
+        target = tmp_path / "config.yml"
+        assert target.exists()
+        content = target.read_text()
+        assert "constring" in content
+
+    def test_init_refuses_overwrite(self, monkeypatch, tmp_path) -> None:
+        """Should refuse to overwrite existing config."""
+        import pdbminebuilder.cli as cli_mod
+
+        config_dir = tmp_path / ".config" / "pmb"
+        config_dir.mkdir(parents=True)
+        existing = config_dir / "config.yml"
+        existing.write_text("existing config")
+        monkeypatch.setattr(cli_mod, "DEFAULT_CONFIG_DIR", config_dir)
+        result = runner.invoke(app, ["config", "--init"])
+        assert result.exit_code == 1
+        assert "already exists" in result.output
+        assert existing.read_text() == "existing config"
+
+    def test_init_to_explicit_path(self, tmp_path) -> None:
+        """Should create config at explicit file path."""
+        target = tmp_path / "my-config.yml"
+        result = runner.invoke(app, ["config", "--init", "-c", str(target)])
+        assert result.exit_code == 0
+        assert target.exists()
+
+    def test_init_template_matches_example(self, tmp_path) -> None:
+        """Generated config should match bundled template."""
+        import importlib.resources
+
+        template = importlib.resources.files("pdbminebuilder").joinpath(
+            "config.example.yml"
+        )
+        expected = template.read_text(encoding="utf-8")
+        result = runner.invoke(app, ["config", "--init", "-c", str(tmp_path)])
+        assert result.exit_code == 0
+        actual = (tmp_path / "config.yml").read_text()
+        assert actual == expected

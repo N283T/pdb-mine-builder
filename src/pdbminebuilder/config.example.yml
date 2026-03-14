@@ -1,0 +1,122 @@
+# pdb-mine-builder configuration
+# Copy this file to config.yml and adjust paths to your environment.
+#
+# Available variables:
+#   ${CWD}      - Current working directory
+#   ${DATA_DIR} - Resolved from data-dir config or DATA_DIR env variable
+#   ${HOME}     - User home directory
+
+# Base directory for synced data (used by pmb sync)
+# Also available as ${DATA_DIR} in path values below.
+# Priority: data-dir config > DATA_DIR env variable > current directory
+data-dir: /path/to/data
+
+rdb:
+  # Number of worker processes (omit for auto-detect, or override with --workers)
+  # nworkers: 8
+  constring: "host=localhost port=5433 dbname=pmb user=pdbj"
+
+# Sync targets - define rsync sources, destinations, and options.
+# Only targets listed here will be synced by `pmb sync`.
+# Remove targets you don't need.
+sync:
+  # --- CIF targets (wwPDB data) ---
+  # Default sources use PDBj (Japan). For other regions, replace the source URL:
+  #   RCSB (US):  rsync.rcsb.org::ftp_data/structures/divided/mmCIF/
+  #   PDBe (EU):  rsync.ebi.ac.uk::pub/databases/pdb/data/structures/divided/mmCIF/
+  pdbj:
+    source: "data.pdbj.org::ftp_data/structures/divided/mmCIF/"
+    dest: ${DATA_DIR}/data/structures/divided/mmCIF/
+    options: ["-av", "--delete", "--size-only"]
+  cc:
+    source: "data.pdbj.org::ftp_data/monomers/components.cif.gz"
+    dest: ${DATA_DIR}/data/monomers/
+    options: ["-av", "--size-only"]
+  ccmodel:
+    source: "data.pdbj.org::ftp_data/component-models/complete/chem_comp_model.cif.gz"
+    dest: ${DATA_DIR}/data/component-models/complete/
+    options: ["-av", "--size-only"]
+  prd:
+    sources:
+      - "data.pdbj.org::ftp_data/bird/prd/prd-all.cif.gz"
+      - "data.pdbj.org::ftp_data/bird/prd/prdcc-all.cif.gz"
+    dest: ${DATA_DIR}/data/bird/prd/
+    options: ["-av", "--size-only"]
+  prd-family:
+    source: "data.pdbj.org::ftp_data/bird/family/family-all.cif.gz"
+    dest: ${DATA_DIR}/data/bird/family/
+    options: ["-av", "--size-only"]
+  vrpt:
+    source: "data.pdbj.org::ftp/validation_reports/"
+    dest: ${DATA_DIR}/validation_reports/
+    options: ["-av", "--size-only", "--include=*/", "--include=*_validation.cif.gz", "--exclude=*"]
+
+  # --- mmJSON targets (PDBj-specific) ---
+  # pdbj-json:
+  #   source: "data.pdbj.org::rsync/pdbjplus/data/pdb/mmjson/"
+  #   dest: ${DATA_DIR}/data/mmjson-noatom/
+  #   options: ["-av", "--delete", "--size-only"]
+  # cc-json:
+  #   source: "data.pdbj.org::rsync/pdbjplus/data/cc/mmjson/"
+  #   dest: ${DATA_DIR}/data/cc/
+  #   options: ["-av", "--delete", "--size-only"]
+  # ccmodel-json:
+  #   source: "data.pdbj.org::rsync/pdbjplus/data/ccmodel/"
+  #   dest: ${DATA_DIR}/data/ccmodel/
+  #   options: ["-av", "--delete", "--size-only"]
+  # prd-json:
+  #   source: "data.pdbj.org::rsync/pdbjplus/data/prd/"
+  #   dest: ${DATA_DIR}/data/prd/
+  #   options: ["-av", "--delete", "--size-only"]
+
+  # --- Plus data targets (PDBj-specific) ---
+  # pdbj-plus:
+  #   source: "data.pdbj.org::rsync/pdbjplus/data/pdb/mmjson-plus/"
+  #   dest: ${DATA_DIR}/data/mmjson-plus/
+  #   options: ["-av", "--delete", "--size-only"]
+  # nextgen-plus:
+  #   source: "data.pdbj.org::rsync/pdbjplus/data/pdb_nextgen/mmjson-plus/"
+  #   dest: ${DATA_DIR}/data/pdb_nextgen/mmjson-plus/
+  #   options: ["-av", "--delete", "--size-only"]
+
+  # --- Other targets ---
+  # contacts:
+  #   source: "data.pdbj.org::rsync/pdbjplus/data/pdb/contacts/"
+  #   dest: ${DATA_DIR}/data/contacts/
+  #   options: ["-av", "--delete", "--size-only"]
+
+pipelines:
+  # Main PDB structure data (~248k entries)
+  pdbj:
+    format: cif  # "cif" (default) or "mmjson"
+    data: ${DATA_DIR}/data/structures/divided/mmCIF/
+    # data-plus: ${DATA_DIR}/data/mmjson-plus/
+    # data-nextgen-plus: ${DATA_DIR}/data/pdb_nextgen/mmjson-plus/
+
+  # Chemical component dictionary (single file)
+  cc:
+    format: cif
+    data: ${DATA_DIR}/data/monomers/components.cif.gz
+
+  # Chemical component models (single file)
+  ccmodel:
+    format: cif
+    data: ${DATA_DIR}/data/component-models/complete/chem_comp_model.cif.gz
+
+  # BIRD reference dictionary
+  prd:
+    format: cif
+    data: ${DATA_DIR}/data/bird/prd/prd-all.cif.gz
+    prdcc: ${DATA_DIR}/data/bird/prd/prdcc-all.cif.gz
+
+  # BIRD family data (single file)
+  prd_family:
+    data: ${DATA_DIR}/data/bird/family/family-all.cif.gz
+
+  # Validation reports (nested directory structure)
+  vrpt:
+    data: ${DATA_DIR}/validation_reports/
+
+  # Protein-protein contact data (JSON array format)
+  contacts:
+    data: ${DATA_DIR}/data/contacts/
