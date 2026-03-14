@@ -464,6 +464,14 @@ def schema(
     )
 
     if search is not None:
+        if name is not None:
+            console.print(
+                "[red]Error: cannot use --search with a positional name.[/red]"
+            )
+            raise typer.Exit(1)
+        if not search.strip():
+            console.print("[red]Error: search query must not be empty.[/red]")
+            raise typer.Exit(1)
         results = search_columns(search)
         render_search_results(search, results)
         return

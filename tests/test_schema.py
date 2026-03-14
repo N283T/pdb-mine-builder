@@ -11,6 +11,7 @@ from pdbminebuilder.commands.schema import (
     render_column_detail,
     render_columns,
     render_schemas,
+    render_search_results,
     render_tables,
     search_columns,
 )
@@ -161,6 +162,15 @@ class TestRenderSmoke:
     def test_render_column_detail(self) -> None:
         """render_column_detail should not raise."""
         render_column_detail("pdbj", "brief_summary", "pdbid")
+
+    def test_render_search_results(self) -> None:
+        """render_search_results should not raise."""
+        results = search_columns("pdbid")
+        render_search_results("pdbid", results)
+
+    def test_render_search_results_empty(self) -> None:
+        """render_search_results with no matches should not raise."""
+        render_search_results("xyzzy_nonexistent", [])
 
 
 class TestSearchColumns:
