@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `pmb schema` command to inspect database schema definitions (no DB connection required)
+  - `pmb schema` - list all schemas with table counts and entry PK
+  - `pmb schema <name>` - list tables in a schema with column counts
+  - `pmb schema <name>.<table>` - show columns with types, nullable, PK, and comments
+  - `pmb schema <name>.<table>.<column>` - show single column detail
+
 ## [0.2.2] - 2026-03-08
 
 ### Added
