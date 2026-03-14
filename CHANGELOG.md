@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pmb config` command to display active configuration and resolved settings
   - Shows config file location, connection string (redacted), data directory, workers, pipelines, sync targets
   - `pmb config --json` for machine-readable output
+  - `pmb config --init` to generate config from bundled template (`~/.config/pmb/config.yml`)
 - Config file auto-discovery: `./config.yml` → `~/.config/pmb/config.yml`
 - `pmb schema` command to inspect database schema definitions (no DB connection required)
   - `pmb schema` - list all schemas with table counts and entry PK

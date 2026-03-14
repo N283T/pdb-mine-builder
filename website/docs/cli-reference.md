@@ -97,9 +97,12 @@ Display active configuration and resolved settings. Useful for verifying which c
 pmb config                  # Show config summary
 pmb config --json           # JSON output
 pmb config -c /path/to/config.yml  # Show specific config
+pmb config --init           # Generate config at ~/.config/pmb/config.yml
+pmb config --init -c ./     # Generate config.yml in current directory
 ```
 
 Config file is discovered automatically: `./config.yml` → `~/.config/pmb/config.yml`.
+Use `--init` to generate a config file from the bundled template.
 
 ## Administration Commands
 
