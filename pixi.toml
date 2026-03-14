@@ -13,8 +13,7 @@ check = { depends-on = ["lint", "format-check"] }
 format-check = "ruff format --check src/pdbminebuilder"
 test = "pytest tests -v"
 
-# Run (also available as 'pmb' command in pixi shell)
-pmb = "python -m pdbminebuilder"
+# Run: use 'pixi run pmb' (runs entrypoint directly, not as task)
 
 # Database (local development)
 db-init = "initdb -D $PGDATA"
