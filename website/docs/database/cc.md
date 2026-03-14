@@ -7,6 +7,39 @@ sidebar_position: 2
 - **Primary Key**: `comp_id`
 - **Tables**: 12
 
+## RDKit Integration
+
+The `cc` pipeline automatically sets up [RDKit PostgreSQL Cartridge](https://www.rdkit.org/docs/Cartridge.html) for chemical structure searching. This includes:
+
+1. **RDKit extension** (`CREATE EXTENSION IF NOT EXISTS rdkit`)
+2. **`mol` column** on `cc.brief_summary` -- stores RDKit molecule objects generated from canonical SMILES
+3. **Chemical search SQL functions**:
+   - `similar_compounds(smiles, threshold)` -- Tanimoto similarity search
+   - `substructure_search(smarts)` -- substructure matching
+   - Additional helper functions for chemical queries
+
+To set up RDKit on an existing database without re-running the full `cc` pipeline:
+
+```bash
+pixi run pmb setup-rdkit
+```
+
+:::note
+RDKit requires the `postgresql-rdkit` extension to be installed on the PostgreSQL server. The Docker-based setup includes this by default.
+:::
+
+### Example Queries
+
+```sql
+-- Substructure search: find compounds containing a benzene ring
+SELECT comp_id, name FROM cc.brief_summary WHERE mol @> 'c1ccccc1'::mol;
+
+-- Similarity search: find compounds similar to aspirin (Tanimoto > 0.5)
+SELECT * FROM similar_compounds('CC(=O)Oc1ccccc1C(O)=O', 0.5);
+```
+
+See the [SQL Examples](/sql-examples) page for more chemical search examples.
+
 ## brief_summary
 
 | Column | Type | Description |
