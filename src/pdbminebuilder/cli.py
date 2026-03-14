@@ -453,31 +453,34 @@ def schema(
         render_tables,
     )
 
-    # Parse conninfo from config (best-effort, no DB needed)
-    conninfo: str | None = None
-    try:
-        settings = load_config(config)
-        conninfo = settings.rdb.constring
-    except FileNotFoundError:
-        pass
-
     if name is None:
+        # Parse conninfo from config (best-effort, no DB needed)
+        conninfo: str | None = None
+        try:
+            settings = load_config(config)
+            conninfo = settings.rdb.constring
+        except Exception:
+            pass
         render_schemas(conninfo=conninfo)
         return
 
     parts = name.split(".")
-    if len(parts) == 1:
-        render_tables(parts[0])
-    elif len(parts) == 2:
-        render_columns(parts[0], parts[1])
-    elif len(parts) == 3:
-        render_column_detail(parts[0], parts[1], parts[2])
-    else:
-        console.print(
-            f"[red]Error: invalid name '{name}'. "
-            "Use: schema, schema.table, or schema.table.column[/red]"
-        )
-        raise typer.Exit(1)
+    try:
+        if len(parts) == 1:
+            render_tables(parts[0])
+        elif len(parts) == 2:
+            render_columns(parts[0], parts[1])
+        elif len(parts) == 3:
+            render_column_detail(parts[0], parts[1], parts[2])
+        else:
+            console.print(
+                f"[red]Error: invalid name '{name}'. "
+                "Use: schema, schema.table, or schema.table.column[/red]"
+            )
+            raise typer.Exit(1)
+    except KeyError as e:
+        console.print(f"[red]Error: {e}[/red]")
+        raise typer.Exit(1) from None
 
 
 if __name__ == "__main__":

@@ -3,10 +3,15 @@
 import pytest
 
 from pdbminebuilder.commands.schema import (
+    _redact_conninfo,
     describe_column,
     describe_table,
     list_schemas,
     list_tables,
+    render_column_detail,
+    render_columns,
+    render_schemas,
+    render_tables,
 )
 
 
@@ -118,3 +123,40 @@ class TestDescribeColumn:
         """Unknown column should raise KeyError."""
         with pytest.raises(KeyError):
             describe_column("pdbj", "brief_summary", "nonexistent_col")
+
+
+class TestRedactConninfo:
+    """Tests for _redact_conninfo."""
+
+    def test_redacts_password(self) -> None:
+        """Should redact password from conninfo."""
+        conninfo = "host=localhost port=5433 dbname=pmb user=pdbj password=secret"
+        result = _redact_conninfo(conninfo)
+        assert "secret" not in result
+        assert "password=****" in result
+
+    def test_no_password_unchanged(self) -> None:
+        """Conninfo without password should be unchanged."""
+        conninfo = "host=localhost port=5433 dbname=pmb user=pdbj"
+        result = _redact_conninfo(conninfo)
+        assert result == conninfo
+
+
+class TestRenderSmoke:
+    """Smoke tests for render functions."""
+
+    def test_render_schemas(self) -> None:
+        """render_schemas should not raise."""
+        render_schemas(conninfo="host=localhost dbname=test")
+
+    def test_render_tables(self) -> None:
+        """render_tables should not raise."""
+        render_tables("pdbj")
+
+    def test_render_columns(self) -> None:
+        """render_columns should not raise."""
+        render_columns("pdbj", "brief_summary")
+
+    def test_render_column_detail(self) -> None:
+        """render_column_detail should not raise."""
+        render_column_detail("pdbj", "brief_summary", "pdbid")

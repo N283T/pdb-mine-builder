@@ -119,10 +119,17 @@ def describe_column(
 console = Console()
 
 
+def _redact_conninfo(conninfo: str) -> str:
+    """Redact password from connection string for display."""
+    import re
+
+    return re.sub(r"password=\S+", "password=****", conninfo)
+
+
 def render_schemas(conninfo: str | None = None) -> None:
     """Render schema list with rich."""
     if conninfo:
-        console.print(f"[dim]Connection: {conninfo}[/dim]")
+        console.print(f"[dim]Connection: {_redact_conninfo(conninfo)}[/dim]")
         console.print()
 
     schemas = list_schemas()
