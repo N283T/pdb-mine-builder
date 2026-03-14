@@ -476,6 +476,10 @@ def schema(
         to_json,
     )
 
+    def _write_json(data: object) -> None:
+        sys.stdout.write(to_json(data))
+        sys.stdout.write("\n")
+
     if search is not None:
         if name is not None:
             console.print(
@@ -487,16 +491,14 @@ def schema(
             raise typer.Exit(1)
         results = search_columns(search)
         if json_output:
-            sys.stdout.write(to_json(results))
-            sys.stdout.write("\n")
+            _write_json(results)
         else:
             render_search_results(search, results)
         return
 
     if name is None:
         if json_output:
-            sys.stdout.write(to_json(list_schemas()))
-            sys.stdout.write("\n")
+            _write_json(list_schemas())
         else:
             conninfo: str | None = None
             try:
@@ -511,20 +513,17 @@ def schema(
     try:
         if len(parts) == 1:
             if json_output:
-                sys.stdout.write(to_json(describe_schema_full(parts[0])))
-                sys.stdout.write("\n")
+                _write_json(describe_schema_full(parts[0]))
             else:
                 render_tables(parts[0])
         elif len(parts) == 2:
             if json_output:
-                sys.stdout.write(to_json(describe_table(parts[0], parts[1])))
-                sys.stdout.write("\n")
+                _write_json(describe_table(parts[0], parts[1]))
             else:
                 render_columns(parts[0], parts[1])
         elif len(parts) == 3:
             if json_output:
-                sys.stdout.write(to_json(describe_column(parts[0], parts[1], parts[2])))
-                sys.stdout.write("\n")
+                _write_json(describe_column(parts[0], parts[1], parts[2]))
             else:
                 render_column_detail(parts[0], parts[1], parts[2])
         else:

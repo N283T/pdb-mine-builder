@@ -233,11 +233,11 @@ class TestDescribeSchemaFull:
         assert len(first_table["columns"]) > 0
 
     def test_columns_have_all_fields(self) -> None:
-        """Each column should have name, type, nullable, primary_key, comment."""
+        """Each column should have name, type_str, nullable, primary_key, comment."""
         result = describe_schema_full("contacts")
         col = result["tables"][0]["columns"][0]
         assert "name" in col
-        assert "type" in col
+        assert "type_str" in col
         assert "nullable" in col
         assert "primary_key" in col
         assert "comment" in col

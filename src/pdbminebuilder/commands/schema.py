@@ -1,5 +1,6 @@
 """Schema command - inspect SQLAlchemy model definitions."""
 
+import dataclasses
 import json
 from dataclasses import asdict, dataclass
 
@@ -137,18 +138,8 @@ def describe_schema_full(schema_name: str) -> dict:
     entry_pk = meta.info.get("entry_pk") if meta.info else None
     tables = []
     for table in meta.sorted_tables:
-        pk_cols = {col.name for col in table.primary_key.columns}
-        columns = [
-            {
-                "name": col.name,
-                "type": _type_to_str(col.type),
-                "nullable": col.nullable if col.nullable is not None else True,
-                "primary_key": col.name in pk_cols,
-                "comment": col.comment,
-            }
-            for col in table.columns
-        ]
-        tables.append({"name": table.name, "columns": columns})
+        columns = describe_table(schema_name, table.name)
+        tables.append({"name": table.name, "columns": [asdict(c) for c in columns]})
     return {"schema": schema_name, "entry_pk": entry_pk, "tables": tables}
 
 
@@ -156,10 +147,9 @@ def to_json(data: object) -> str:
     """Convert dataclass, list of dataclasses, or dict to JSON string."""
     if isinstance(data, list):
         serializable = [
-            asdict(item) if hasattr(item, "__dataclass_fields__") else item
-            for item in data
+            asdict(item) if dataclasses.is_dataclass(item) else item for item in data
         ]
-    elif hasattr(data, "__dataclass_fields__"):
+    elif dataclasses.is_dataclass(data):
         serializable = asdict(data)
     else:
         serializable = data
