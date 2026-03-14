@@ -9,7 +9,7 @@ import typer
 from rich.console import Console
 
 from pdbminebuilder import __version__
-from pdbminebuilder.config import load_config
+from pdbminebuilder.config import CONFIG_SEARCH_PATHS, find_config, load_config
 
 app = typer.Typer(
     name="pmb",
@@ -425,6 +425,94 @@ def stats(
 
 
 @app.command()
+def config(
+    config_path: Annotated[
+        Optional[Path],
+        typer.Option("--config", "-c", help="Config file path"),
+    ] = None,
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Output in JSON format"),
+    ] = False,
+) -> None:
+    """Show configuration file location and contents.
+
+    Displays which config file is active and its resolved settings.
+    Without --config, searches standard locations:
+      1. ./config.yml (current directory)
+      2. ~/.config/pmb/config.yml
+
+    Examples:
+        pmb config                    # Show active config
+        pmb config --json             # Show as JSON
+        pmb config -c /path/to.yml    # Show specific config
+    """
+    import json
+    import re
+
+    found = find_config(config_path)
+
+    if found is None:
+        console.print("[dim]No config file found.[/dim]")
+        console.print()
+        console.print("[bold]Search locations:[/bold]")
+        for p in CONFIG_SEARCH_PATHS:
+            console.print(f"  {p.resolve()}")
+        console.print()
+        console.print(
+            "[dim]Create a config file at one of these locations, "
+            "or use --config to specify a path.[/dim]"
+        )
+        raise typer.Exit(1)
+
+    if json_output:
+        settings = load_config(found)
+        data = {
+            "config_path": str(found.resolve()),
+            "connection": re.sub(
+                r"password=\S+", "password=****", settings.rdb.constring
+            ),
+            "data_dir": str(settings.data_dir),
+            "workers": settings.rdb.get_workers(),
+            "pipelines": list(settings.pipelines.keys()),
+            "sync_targets": list(settings.sync.keys()),
+        }
+        import sys
+
+        sys.stdout.write(json.dumps(data, ensure_ascii=False, indent=2))
+        sys.stdout.write("\n")
+        return
+
+    console.print(f"[bold]Config:[/bold] {found.resolve()}")
+    console.print()
+
+    try:
+        settings = load_config(found)
+        conninfo = re.sub(r"password=\S+", "password=****", settings.rdb.constring)
+        console.print(f"[bold]Connection:[/bold] {conninfo}")
+        console.print(f"[bold]Data dir:[/bold] {settings.data_dir}")
+        console.print(f"[bold]Workers:[/bold] {settings.rdb.get_workers()}")
+
+        if settings.pipelines:
+            console.print()
+            console.print(f"[bold]Pipelines ({len(settings.pipelines)}):[/bold]")
+            for name, pipeline in settings.pipelines.items():
+                console.print(
+                    f"  {name}: format={pipeline.format}, data={pipeline.data}"
+                )
+
+        if settings.sync:
+            console.print()
+            console.print(f"[bold]Sync targets ({len(settings.sync)}):[/bold]")
+            for name, target in settings.sync.items():
+                sources = target.get_sources()
+                console.print(f"  {name}: {sources[0]} → {target.dest}")
+    except Exception as e:
+        console.print(f"[red]Error loading config: {e}[/red]")
+        raise typer.Exit(1) from None
+
+
+@app.command()
 def schema(
     name: Annotated[
         Optional[str],
@@ -502,8 +590,10 @@ def schema(
         else:
             conninfo: str | None = None
             try:
-                settings = load_config(config)
-                conninfo = settings.rdb.constring
+                found = find_config(config if config != Path("config.yml") else None)
+                if found:
+                    settings = load_config(found)
+                    conninfo = settings.rdb.constring
             except Exception:
                 pass
             render_schemas(conninfo=conninfo)
