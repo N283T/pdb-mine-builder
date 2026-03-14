@@ -177,17 +177,13 @@ def render_columns(schema_name: str, table_name: str) -> None:
     console.print(table)
 
 
-def render_column_detail(
-    schema_name: str, table_name: str, column_name: str
-) -> None:
+def render_column_detail(schema_name: str, table_name: str, column_name: str) -> None:
     """Render single column detail (mmcif-dict item style)."""
     col = describe_column(schema_name, table_name, column_name)
     console.print(f"[bold]Column:[/bold] {schema_name}.{table_name}.{col.name}")
     console.print(f"[bold]Type:[/bold] {col.type_str}")
     console.print(f"[bold]Nullable:[/bold] {'yes' if col.nullable else 'no'}")
-    console.print(
-        f"[bold]Primary Key:[/bold] {'yes' if col.primary_key else 'no'}"
-    )
+    console.print(f"[bold]Primary Key:[/bold] {'yes' if col.primary_key else 'no'}")
     if col.comment:
         console.print()
         console.print("[bold]Comment:[/bold]")

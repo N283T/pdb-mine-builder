@@ -3,7 +3,6 @@
 import pytest
 
 from pdbminebuilder.commands.schema import (
-    ColumnDetail,
     describe_column,
     describe_table,
     list_schemas,
