@@ -7,11 +7,7 @@ from pathlib import Path
 from typing import Any
 
 import gemmi
-import psycopg
-from ccd2rdmol import read_ccd_block
-from rdkit import Chem
 from rich.console import Console
-from rich.prompt import Confirm
 from rich.progress import (
     BarColumn,
     Progress,
@@ -40,34 +36,13 @@ from pdbminebuilder.pipelines.base import (
     sync_entry_tables,
     transform_category,
 )
+from pdbminebuilder.pipelines.rdkit_utils import (
+    ensure_rdkit_setup,
+    generate_canonical_smiles,
+)
 
 logger = logging.getLogger(__name__)
 console = Console()
-
-
-def _generate_canonical_smiles(block: gemmi.cif.Block) -> str | None:
-    """Generate canonical SMILES from a CIF block using ccd2rdmol.
-
-    Args:
-        block: gemmi CIF block containing chemical component data
-
-    Returns:
-        Canonical SMILES string, or None if conversion failed
-    """
-    try:
-        # Suppress RDKit C++ warnings (ring finding, hydrogen removal, etc.)
-        from rdkit import RDLogger
-
-        RDLogger.DisableLog("rdApp.*")
-        try:
-            result = read_ccd_block(block, sanitize_mol=True, add_conformers=False)
-            if result.mol is not None:
-                return Chem.MolToSmiles(result.mol, canonical=True)
-        finally:
-            RDLogger.EnableLog("rdApp.*")
-    except Exception as e:
-        logger.warning(f"SMILES generation failed for {block.name}: {e}")
-    return None
 
 
 def _read_mmjson_block(filepath: Path) -> gemmi.cif.Block | None:
@@ -180,7 +155,7 @@ def _parse_cif_block(
         table_rows: dict[str, list[dict]] = {}
 
         # Generate canonical SMILES using ccd2rdmol
-        canonical_smiles = _generate_canonical_smiles(block)
+        canonical_smiles = generate_canonical_smiles(block)
 
         for table in get_all_tables(meta):
             # brief_summary is a derived table, generate it
@@ -246,7 +221,7 @@ class CcPipeline(BasePipeline):
 
             # Generate canonical SMILES using ccd2rdmol (same as CIF pipeline)
             # This is more reliable than extracting SMILES from CCD data
-            canonical_smiles = _generate_canonical_smiles(block)
+            canonical_smiles = generate_canonical_smiles(block)
 
             # Load all tables from schema
             for table in get_all_tables(meta):
@@ -419,223 +394,20 @@ class CcCifPipeline(BaseCifBatchPipeline):
         return None
 
 
-def _add_rdkit_descriptor_columns(cur: "psycopg.Cursor[tuple[Any, ...]]") -> None:
-    """Add RDKit molecular descriptor columns to brief_summary.
-
-    These are regular columns populated via trigger since PostgreSQL does not
-    allow generated columns to reference other generated columns (mol is generated
-    from canonical_smiles).
-
-    When mol is NULL (invalid SMILES), all descriptors will also be NULL.
-
-    SECURITY: All column definitions are hardcoded allowlists.
-    DO NOT accept external input for column names, types, or functions.
-    """
-    # Check if table and mol column exist
-    cur.execute("""
-        SELECT EXISTS (
-            SELECT 1 FROM information_schema.tables
-            WHERE table_schema = 'cc' AND table_name = 'brief_summary'
-        ) AND EXISTS (
-            SELECT 1 FROM information_schema.columns
-            WHERE table_schema = 'cc'
-            AND table_name = 'brief_summary'
-            AND column_name = 'mol'
-        )
-    """)
-    result = cur.fetchone()
-    if not result or not result[0]:
-        return  # Table or mol column doesn't exist yet
-
-    # Hardcoded descriptors - NEVER derive from external sources
-    # Format: (column_name, column_type, rdkit_function)
-    descriptors = [
-        ("rdkit_mw", "double precision", "mol_amw"),
-        ("rdkit_logp", "double precision", "mol_logp"),
-        ("rdkit_tpsa", "double precision", "mol_tpsa"),
-        ("rdkit_hba", "integer", "mol_hba"),
-        ("rdkit_hbd", "integer", "mol_hbd"),
-        ("rdkit_rotbonds", "integer", "mol_numrotatablebonds"),
-        ("rdkit_rings", "integer", "mol_numrings"),
-        ("rdkit_formula", "text", "mol_formula"),
-    ]
-
-    # Add columns if they don't exist, or drop and recreate if they're generated columns
-    for col_name, col_type, _ in descriptors:
-        # Check if column exists and if it's a generated column
-        cur.execute(
-            """
-            SELECT
-                EXISTS (
-                    SELECT 1 FROM information_schema.columns
-                    WHERE table_schema = 'cc'
-                    AND table_name = 'brief_summary'
-                    AND column_name = %s
-                ),
-                (
-                    SELECT is_generated FROM information_schema.columns
-                    WHERE table_schema = 'cc'
-                    AND table_name = 'brief_summary'
-                    AND column_name = %s
-                )
-        """,
-            (col_name, col_name),
-        )
-        result = cur.fetchone()
-        col_exists = result[0] if result else False
-        is_generated = result[1] if result else None
-
-        if col_exists and is_generated == "ALWAYS":
-            # Column exists as generated column - drop and recreate as regular
-            cur.execute(f"ALTER TABLE cc.brief_summary DROP COLUMN {col_name}")  # type: ignore[arg-type]
-            col_exists = False
-
-        if not col_exists:
-            # Column doesn't exist, add it as regular column
-            # Safe: col_name and col_type are from hardcoded list above
-            cur.execute(
-                f"ALTER TABLE cc.brief_summary ADD COLUMN {col_name} {col_type}"
-            )  # type: ignore[arg-type]
-
-    # Create or replace trigger function to compute descriptors
-    cur.execute("""
-        CREATE OR REPLACE FUNCTION cc.compute_rdkit_descriptors()
-        RETURNS TRIGGER AS $$
-        DECLARE
-            mol_obj mol;
-        BEGIN
-            -- Only compute if mol would be valid
-            IF NEW.canonical_smiles IS NOT NULL
-               AND is_valid_smiles(NEW.canonical_smiles::cstring) THEN
-                -- Compute mol once and reuse for all descriptors
-                mol_obj := mol_from_smiles(NEW.canonical_smiles::cstring);
-                NEW.rdkit_mw := mol_amw(mol_obj);
-                NEW.rdkit_logp := mol_logp(mol_obj);
-                NEW.rdkit_tpsa := mol_tpsa(mol_obj);
-                NEW.rdkit_hba := mol_hba(mol_obj);
-                NEW.rdkit_hbd := mol_hbd(mol_obj);
-                NEW.rdkit_rotbonds := mol_numrotatablebonds(mol_obj);
-                NEW.rdkit_rings := mol_numrings(mol_obj);
-                NEW.rdkit_formula := mol_formula(mol_obj);
-            ELSE
-                NEW.rdkit_mw := NULL;
-                NEW.rdkit_logp := NULL;
-                NEW.rdkit_tpsa := NULL;
-                NEW.rdkit_hba := NULL;
-                NEW.rdkit_hbd := NULL;
-                NEW.rdkit_rotbonds := NULL;
-                NEW.rdkit_rings := NULL;
-                NEW.rdkit_formula := NULL;
-            END IF;
-            RETURN NEW;
-        END;
-        $$ LANGUAGE plpgsql;
-    """)
-
-    # Create trigger if it doesn't exist
-    cur.execute("""
-        DO $$
-        BEGIN
-            IF NOT EXISTS (
-                SELECT 1 FROM pg_trigger
-                WHERE tgname = 'trg_compute_rdkit_descriptors'
-            ) THEN
-                CREATE TRIGGER trg_compute_rdkit_descriptors
-                BEFORE INSERT OR UPDATE OF canonical_smiles
-                ON cc.brief_summary
-                FOR EACH ROW
-                EXECUTE FUNCTION cc.compute_rdkit_descriptors();
-            END IF;
-        END $$
-    """)
-
-    # Populate existing rows that have NULL descriptor values
-    # This handles rows inserted before the trigger was created
-    cur.execute("""
-        UPDATE cc.brief_summary
-        SET rdkit_mw = mol_amw(mol),
-            rdkit_logp = mol_logp(mol),
-            rdkit_tpsa = mol_tpsa(mol),
-            rdkit_hba = mol_hba(mol),
-            rdkit_hbd = mol_hbd(mol),
-            rdkit_rotbonds = mol_numrotatablebonds(mol),
-            rdkit_rings = mol_numrings(mol),
-            rdkit_formula = mol_formula(mol)
-        WHERE canonical_smiles IS NOT NULL
-          AND mol IS NOT NULL
-          AND rdkit_mw IS NULL
-    """)
-
-
 def _ensure_rdkit_setup(conninfo: str) -> None:
-    """Ensure RDKit extension, mol column, and SQL functions exist.
+    """Ensure RDKit extension, mol column, and SQL functions exist for cc schema.
 
-    This is idempotent - safe to call on every pipeline run.
+    Delegates to shared ensure_rdkit_setup. Kept as wrapper for backward compatibility
+    with CLI and tests.
     """
-    with psycopg.connect(conninfo) as conn:
-        with conn.cursor() as cur:
-            # Create RDKit extension (database-level, requires superuser or rds_superuser)
-            try:
-                cur.execute("CREATE EXTENSION IF NOT EXISTS rdkit")
-            except psycopg.errors.InsufficientPrivilege:
-                conn.rollback()
-                msg = "Cannot create RDKit extension (insufficient privileges)."
-                logger.warning(msg)
-                console.print(f"  [yellow]{msg}[/yellow]")
-                console.print(
-                    "  Run: psql -U <superuser> -d <dbname> -c 'CREATE EXTENSION rdkit'"
-                )
-                if not Confirm.ask("  Continue without RDKit?", default=False):
-                    raise SystemExit(1)
-                return
-
-            # Add mol column if table exists but column doesn't
-            cur.execute("""
-                DO $$
-                BEGIN
-                    IF EXISTS (
-                        SELECT 1 FROM information_schema.tables
-                        WHERE table_schema = 'cc' AND table_name = 'brief_summary'
-                    ) AND NOT EXISTS (
-                        SELECT 1 FROM information_schema.columns
-                        WHERE table_schema = 'cc'
-                        AND table_name = 'brief_summary'
-                        AND column_name = 'mol'
-                    ) THEN
-                        ALTER TABLE cc.brief_summary
-                        ADD COLUMN mol mol GENERATED ALWAYS AS (
-                            CASE
-                                WHEN canonical_smiles IS NOT NULL
-                                     AND is_valid_smiles(canonical_smiles::cstring)
-                                THEN mol_from_smiles(canonical_smiles::cstring)
-                                ELSE NULL
-                            END
-                        ) STORED;
-
-                        -- Create GiST index for substructure searches
-                        CREATE INDEX IF NOT EXISTS brief_summary_mol_idx
-                        ON cc.brief_summary USING gist(mol);
-                    END IF;
-                END $$
-            """)
-
-            # Add RDKit descriptor columns (regular columns populated via trigger)
-            _add_rdkit_descriptor_columns(cur)
-
-            # Load RDKit SQL functions (CREATE OR REPLACE is idempotent)
-            sql_path = (
-                Path(__file__).parent.parent.parent.parent
-                / "scripts"
-                / "rdkit_functions.sql"
-            )
-            if sql_path.exists():
-                # Trusted SQL file from codebase - type: ignore for LiteralString
-                sql_content = sql_path.read_text()
-                cur.execute(sql_content)  # type: ignore[arg-type]
-                logger.debug(f"Loaded RDKit functions from {sql_path}")
-
-        conn.commit()
-    console.print("  [green]RDKit setup verified[/green]")
+    sql_path = (
+        Path(__file__).parent.parent.parent.parent / "scripts" / "rdkit_functions.sql"
+    )
+    ensure_rdkit_setup(
+        conninfo,
+        schema="cc",
+        sql_functions_path=sql_path if sql_path.exists() else None,
+    )
 
 
 def _process_cif_block(
@@ -752,7 +524,7 @@ def _process_cc_mmjson_load(
         data = parse_block(block)
         table_rows: dict[str, list[dict[str, Any]]] = {}
 
-        canonical_smiles = _generate_canonical_smiles(block)
+        canonical_smiles = generate_canonical_smiles(block)
 
         for table in get_all_tables(meta):
             if table.name == "brief_summary":
