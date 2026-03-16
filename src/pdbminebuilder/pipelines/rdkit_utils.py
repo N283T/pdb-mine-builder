@@ -36,8 +36,8 @@ def generate_canonical_smiles(block: gemmi.cif.Block) -> str | None:
                 return Chem.MolToSmiles(result.mol, canonical=True)
         finally:
             RDLogger.EnableLog("rdApp.*")
-    except Exception as e:
-        logger.warning(f"SMILES generation failed for {block.name}: {e}")
+    except (ValueError, RuntimeError, KeyError, OSError) as e:
+        logger.warning("SMILES generation failed for %s: %s", block.name, e)
     return None
 
 

@@ -86,7 +86,8 @@ def _ensure_schema_and_table(conninfo: str) -> None:
                         name TEXT,
                         formula TEXT,
                         cc_comp_ids TEXT[],
-                        PRIMARY KEY (source, id)
+                        PRIMARY KEY (source, id),
+                        CONSTRAINT ck_compounds_source CHECK (source IN ('cc', 'prd'))
                     )
                 """)
                 console.print("  Created chem.compounds table")

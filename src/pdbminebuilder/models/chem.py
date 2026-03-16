@@ -2,6 +2,7 @@
 
 from sqlalchemy import (
     ARRAY,
+    CheckConstraint,
     Column,
     MetaData,
     PrimaryKeyConstraint,
@@ -55,4 +56,5 @@ compounds = Table(
         comment="Linked CCD comp_ids for cross-reference",
     ),
     PrimaryKeyConstraint("source", "id"),
+    CheckConstraint("source IN ('cc', 'prd')", name="ck_compounds_source"),
 )
