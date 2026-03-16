@@ -59,6 +59,18 @@ brief_summary = Table(
         comment="Entry update date (within the RDB).",
     ),
     Column("keywords", ARRAY(Text), nullable=True, comment="Array of keywords."),
+    Column(
+        "canonical_smiles",
+        Text,
+        nullable=True,
+        comment="Canonical SMILES from PRDCC block via ccd2rdmol",
+    ),
+    Column(
+        "chem_comp_id",
+        Text,
+        nullable=True,
+        comment="Linked CCD comp_id (from pdbx_reference_molecule)",
+    ),
     PrimaryKeyConstraint("prd_id"),
     Index("ix_prd_brief_summary_docid", "docid"),
     Index("ix_prd_brief_summary_keywords", "keywords"),

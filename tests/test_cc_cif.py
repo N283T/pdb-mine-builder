@@ -12,11 +12,13 @@ from sqlalchemy import Column, MetaData, PrimaryKeyConstraint, Table, Text
 from pdbminebuilder.config import PipelineConfig, RdbConfig, Settings
 from pdbminebuilder.pipelines.cc import (
     CcCifPipeline,
-    _add_rdkit_descriptor_columns,
     _ensure_rdkit_setup,
-    _generate_canonical_smiles,
     _process_cif_block,
     _read_mmjson_block,
+)
+from pdbminebuilder.pipelines.rdkit_utils import (
+    _add_rdkit_descriptor_columns,
+    generate_canonical_smiles,
 )
 
 
@@ -288,7 +290,8 @@ class TestEnsureRdkitSetup:
         mock_conn.__exit__ = MagicMock(return_value=False)
 
         with patch(
-            "pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn
+            "pdbminebuilder.pipelines.rdkit_utils.psycopg.connect",
+            return_value=mock_conn,
         ):
             _ensure_rdkit_setup("test_conninfo")
 
@@ -311,9 +314,12 @@ class TestEnsureRdkitSetup:
 
         with (
             patch(
-                "pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn
+                "pdbminebuilder.pipelines.rdkit_utils.psycopg.connect",
+                return_value=mock_conn,
             ),
-            patch("pdbminebuilder.pipelines.cc.Confirm.ask", return_value=True),
+            patch(
+                "pdbminebuilder.pipelines.rdkit_utils.Confirm.ask", return_value=True
+            ),
         ):
             _ensure_rdkit_setup("test_conninfo")
 
@@ -334,9 +340,12 @@ class TestEnsureRdkitSetup:
 
         with (
             patch(
-                "pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn
+                "pdbminebuilder.pipelines.rdkit_utils.psycopg.connect",
+                return_value=mock_conn,
             ),
-            patch("pdbminebuilder.pipelines.cc.Confirm.ask", return_value=False),
+            patch(
+                "pdbminebuilder.pipelines.rdkit_utils.Confirm.ask", return_value=False
+            ),
             pytest.raises(SystemExit),
         ):
             _ensure_rdkit_setup("test_conninfo")
@@ -344,6 +353,8 @@ class TestEnsureRdkitSetup:
     def test_executes_mol_column_ddl(self) -> None:
         """Executes DDL for mol column creation."""
         mock_cursor = MagicMock()
+        # Simulate table exists, mol column doesn't exist
+        mock_cursor.fetchone.return_value = (True, False)
         mock_conn = MagicMock()
         mock_conn.cursor.return_value.__enter__ = MagicMock(return_value=mock_cursor)
         mock_conn.cursor.return_value.__exit__ = MagicMock(return_value=False)
@@ -351,17 +362,18 @@ class TestEnsureRdkitSetup:
         mock_conn.__exit__ = MagicMock(return_value=False)
 
         with patch(
-            "pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn
+            "pdbminebuilder.pipelines.rdkit_utils.psycopg.connect",
+            return_value=mock_conn,
         ):
             _ensure_rdkit_setup("test_conninfo")
 
-        # Verify at least 3 execute calls: extension + mol column DDL + functions
-        assert mock_cursor.execute.call_count >= 2
-        # Second call should be the DO block for mol column
-        second_call_sql = mock_cursor.execute.call_args_list[1][0][0]
-        assert "cc.brief_summary" in second_call_sql
-        assert "mol" in second_call_sql
-        assert "is_valid_smiles" in second_call_sql
+        # Collect all SQL
+        all_sql = " ".join(
+            str(call[0][0]) for call in mock_cursor.execute.call_args_list
+        )
+        # Should contain mol column DDL
+        assert "mol" in all_sql
+        assert "is_valid_smiles" in all_sql
 
     def test_idempotent_multiple_calls(self) -> None:
         """Multiple calls work without error (idempotent)."""
@@ -373,7 +385,8 @@ class TestEnsureRdkitSetup:
         mock_conn.__exit__ = MagicMock(return_value=False)
 
         with patch(
-            "pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn
+            "pdbminebuilder.pipelines.rdkit_utils.psycopg.connect",
+            return_value=mock_conn,
         ):
             # Call twice - should not raise
             _ensure_rdkit_setup("test_conninfo")
@@ -393,7 +406,8 @@ class TestEnsureRdkitSetup:
         mock_conn.__exit__ = MagicMock(return_value=False)
 
         with patch(
-            "pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn
+            "pdbminebuilder.pipelines.rdkit_utils.psycopg.connect",
+            return_value=mock_conn,
         ):
             _ensure_rdkit_setup("test_conninfo")
 
@@ -416,7 +430,8 @@ class TestEnsureRdkitSetup:
         mock_conn.__exit__ = MagicMock(return_value=False)
 
         with patch(
-            "pdbminebuilder.pipelines.cc.psycopg.connect", return_value=mock_conn
+            "pdbminebuilder.pipelines.rdkit_utils.psycopg.connect",
+            return_value=mock_conn,
         ):
             _ensure_rdkit_setup("test_conninfo")
 
@@ -448,7 +463,7 @@ class TestAddRdkitDescriptorColumns:
         """Adds all 8 RDKit descriptor columns."""
         mock_cursor = MagicMock()
 
-        _add_rdkit_descriptor_columns(mock_cursor)
+        _add_rdkit_descriptor_columns(mock_cursor, "cc")
 
         # Should execute:
         # 1 (check mol column) + 8 (check each descriptor) +
@@ -478,7 +493,7 @@ class TestAddRdkitDescriptorColumns:
         """Uses correct RDKit functions for each descriptor."""
         mock_cursor = MagicMock()
 
-        _add_rdkit_descriptor_columns(mock_cursor)
+        _add_rdkit_descriptor_columns(mock_cursor, "cc")
 
         all_sql = " ".join(
             str(call[0][0]) for call in mock_cursor.execute.call_args_list
@@ -502,7 +517,7 @@ class TestAddRdkitDescriptorColumns:
         """Uses trigger function to compute descriptor columns."""
         mock_cursor = MagicMock()
 
-        _add_rdkit_descriptor_columns(mock_cursor)
+        _add_rdkit_descriptor_columns(mock_cursor, "cc")
 
         all_sql = " ".join(
             str(call[0][0]) for call in mock_cursor.execute.call_args_list
@@ -630,7 +645,7 @@ class TestGenerateCanonicalSmilesFromMmjson:
         block = _read_mmjson_block(hoh_path)
         assert block is not None
 
-        smiles = _generate_canonical_smiles(block)
+        smiles = generate_canonical_smiles(block)
 
         # Water should produce "O" as canonical SMILES
         assert smiles == "O"
@@ -641,7 +656,7 @@ class TestGenerateCanonicalSmilesFromMmjson:
         block = _read_mmjson_block(eoh_path)
         assert block is not None
 
-        smiles = _generate_canonical_smiles(block)
+        smiles = generate_canonical_smiles(block)
 
         # Ethanol canonical SMILES
         assert smiles == "CCO"
@@ -652,7 +667,7 @@ class TestGenerateCanonicalSmilesFromMmjson:
         block = _read_mmjson_block(atp_path)
         assert block is not None
 
-        smiles = _generate_canonical_smiles(block)
+        smiles = generate_canonical_smiles(block)
 
         # ATP should produce a valid SMILES string
         assert smiles is not None
@@ -677,7 +692,7 @@ class TestCcPipelineMmjsonSmiles:
         assert block is not None
 
         # Generate SMILES using ccd2rdmol (same as CIF pipeline)
-        smiles = _generate_canonical_smiles(block)
+        smiles = generate_canonical_smiles(block)
 
         # Should be "O" - generated from structure, not extracted from descriptor
         assert smiles == "O"
@@ -696,5 +711,5 @@ class TestCcPipelineMmjsonSmiles:
         # ccd2rdmol requires chem_comp_atom and chem_comp_bond tables
         # which are present in our fixtures
         # If SMILES generation works, the structure is correct
-        smiles = _generate_canonical_smiles(block)
+        smiles = generate_canonical_smiles(block)
         assert smiles is not None

@@ -1,6 +1,7 @@
 services:
   postgres-test:
     image: mcs07/postgres-rdkit:latest
+    platform: linux/amd64
     container_name: pmb-postgres-test
     environment:
       POSTGRES_USER: pdbj

@@ -11,9 +11,9 @@ from pdbminebuilder.config import PipelineConfig, RdbConfig, Settings
 from pdbminebuilder.db.loader import Job
 from pdbminebuilder.pipelines.cc import (
     CcPipeline,
-    _generate_canonical_smiles,
     _read_mmjson_block,
 )
+from pdbminebuilder.pipelines.rdkit_utils import generate_canonical_smiles
 
 
 def create_test_settings(data_dir: Path, conninfo: str) -> Settings:
@@ -204,7 +204,7 @@ class TestCcSmilesGeneration:
         block = _read_mmjson_block(hoh_path)
         assert block is not None
 
-        smiles = _generate_canonical_smiles(block)
+        smiles = generate_canonical_smiles(block)
         assert smiles == "O"
 
     def test_eoh_generates_ethanol_smiles(self, cc_fixtures_dir: Path) -> None:
@@ -213,7 +213,7 @@ class TestCcSmilesGeneration:
         block = _read_mmjson_block(eoh_path)
         assert block is not None
 
-        smiles = _generate_canonical_smiles(block)
+        smiles = generate_canonical_smiles(block)
         assert smiles == "CCO"
 
     def test_atp_generates_valid_smiles(self, cc_fixtures_dir: Path) -> None:
@@ -222,7 +222,7 @@ class TestCcSmilesGeneration:
         block = _read_mmjson_block(atp_path)
         assert block is not None
 
-        smiles = _generate_canonical_smiles(block)
+        smiles = generate_canonical_smiles(block)
         assert smiles is not None
         assert len(smiles) > 0
         assert "N" in smiles  # Adenine has nitrogen

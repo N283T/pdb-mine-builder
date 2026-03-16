@@ -257,6 +257,30 @@ def run_all(
     console.print("\n[bold green]Full cycle completed![/bold green]")
 
 
+@app.command()
+def compounds(
+    config: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Config file path"),
+    ] = Path("config.yml"),
+    force: Annotated[
+        bool,
+        typer.Option("--force", "-f", help="Skip confirmation"),
+    ] = False,
+) -> None:
+    """Refresh the unified chem.compounds table.
+
+    Truncates and repopulates from cc.brief_summary and prd.brief_summary.
+    Includes RDKit mol column, GiST index, and descriptor triggers.
+    """
+    from pdbminebuilder.commands.compounds import refresh_compounds
+
+    settings = load_config(config)
+    console.print("[bold]Refreshing chem.compounds...[/bold]")
+    refresh_compounds(settings, force=force)
+    console.print("[bold green]Compounds table refreshed![/bold green]")
+
+
 @app.command(name="setup-rdkit")
 def setup_rdkit(
     config: Annotated[
@@ -266,17 +290,30 @@ def setup_rdkit(
 ) -> None:
     """Setup RDKit extension and SQL functions.
 
-    Creates RDKit extension, mol column on cc.brief_summary,
-    and loads chemical search functions (similar_compounds, substructure_search, etc.).
+    Creates RDKit extension, mol column, and descriptor columns/triggers
+    on cc.brief_summary and prd.brief_summary.
+    Loads chemical search SQL functions.
 
-    This is automatically run by the cc pipeline, but can be run
+    This is automatically run by the cc/prd pipelines, but can be run
     independently to add functions to an existing database.
     """
-    from pdbminebuilder.pipelines.cc import _ensure_rdkit_setup
+    from pdbminebuilder.pipelines.rdkit_utils import ensure_rdkit_setup
 
     settings = load_config(config)
     console.print("[bold]Setting up RDKit extension and functions...[/bold]")
-    _ensure_rdkit_setup(settings.rdb.constring)
+
+    sql_path = Path(__file__).parent.parent.parent.parent.joinpath(
+        "scripts", "rdkit_functions.sql"
+    )
+    sql_functions_path = sql_path if sql_path.exists() else None
+
+    for schema in ("cc", "prd"):
+        ensure_rdkit_setup(
+            settings.rdb.constring,
+            schema=schema,
+            sql_functions_path=sql_functions_path,
+        )
+
     console.print("[bold green]RDKit setup completed![/bold green]")
 
 

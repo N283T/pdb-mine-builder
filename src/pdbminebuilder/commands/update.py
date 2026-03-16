@@ -177,7 +177,28 @@ def run_update(
     finally:
         close_pool()
 
-    console.print("\n[bold green]Update completed![/bold green]")
+    # Refresh unified compounds table if cc or prd was updated
+    compounds_failed = False
+    if {"cc", "prd"} & set(pipelines):
+        console.print("\n[bold blue]Refreshing chem.compounds...[/bold blue]")
+        try:
+            from pdbminebuilder.commands.compounds import refresh_compounds
+
+            refresh_compounds(settings, force=True)
+        except Exception as e:
+            compounds_failed = True
+            logging.getLogger("pdbminebuilder.update").error(
+                "Compounds refresh failed", exc_info=True
+            )
+            console.print(f"  [red]Compounds refresh failed: {e}[/red]")
+
+    if compounds_failed:
+        console.print(
+            "\n[bold yellow]Update completed with warnings: "
+            "chem.compounds refresh failed.[/bold yellow]"
+        )
+    else:
+        console.print("\n[bold green]Update completed![/bold green]")
 
 
 def _get_pipeline_runner(pipeline_name: str, config: PipelineConfig) -> tuple[str, str]:

@@ -137,6 +137,8 @@ def create_test_meta() -> MetaData:
         Column("name", Text),
         Column("formula", Text),
         Column("description", Text),
+        Column("canonical_smiles", Text),
+        Column("chem_comp_id", Text),
         PrimaryKeyConstraint("prd_id"),
     )
     Table(
@@ -171,15 +173,36 @@ class TestGenerateBriefSummaryPrd:
                     "name": "Cyclosporin A",
                     "formula": "C62H111N11O12",
                     "description": "Immunosuppressant",
+                    "chem_comp_id": "CYS",
+                },
+            ]
+        }
+        result = _generate_brief_summary_prd(data, "PRD_000001", "CC(=O)N")
+
+        assert len(result) == 1
+        assert result[0]["prd_id"] == "PRD_000001"
+        assert result[0]["name"] == "Cyclosporin A"
+        assert result[0]["formula"] == "C62H111N11O12"
+        assert result[0]["canonical_smiles"] == "CC(=O)N"
+        assert result[0]["chem_comp_id"] == "CYS"
+
+    def test_without_smiles(self) -> None:
+        """Generate brief_summary with None canonical_smiles."""
+        data = {
+            "pdbx_reference_molecule": [
+                {
+                    "prd_id": "PRD_000001",
+                    "name": "Test",
+                    "formula": "C10H20",
+                    "description": "Test",
                 },
             ]
         }
         result = _generate_brief_summary_prd(data, "PRD_000001")
 
         assert len(result) == 1
-        assert result[0]["prd_id"] == "PRD_000001"
-        assert result[0]["name"] == "Cyclosporin A"
-        assert result[0]["formula"] == "C62H111N11O12"
+        assert result[0]["canonical_smiles"] is None
+        assert result[0]["chem_comp_id"] is None
 
     def test_without_data(self) -> None:
         """Return empty list when no pdbx_reference_molecule data."""

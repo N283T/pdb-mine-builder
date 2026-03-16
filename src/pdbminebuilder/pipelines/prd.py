@@ -28,13 +28,21 @@ from pdbminebuilder.db.loader import (
     get_entry_pk,
     run_loader,
 )
-from pdbminebuilder.parsers.cif import parse_block, parse_mmjson_file_blocks
+from pdbminebuilder.parsers.cif import (
+    _read_mmjson_gz,
+    parse_block,
+    parse_mmjson_blocks,
+)
 from pdbminebuilder.parsers.mmjson import normalize_column_name
 from pdbminebuilder.pipelines.base import (
     BaseCifBatchPipeline,
     BasePipeline,
     sync_entry_tables,
     transform_category,
+)
+from pdbminebuilder.pipelines.rdkit_utils import (
+    ensure_rdkit_setup,
+    generate_canonical_smiles,
 )
 
 console = Console()
@@ -82,10 +90,15 @@ def _parse_prd_cif_block(
         prd_data = parse_block(prd_block)
         prdcc_data = parse_block(prdcc_block) if prdcc_block else {}
 
+        # Generate canonical SMILES from PRDCC block
+        canonical_smiles = (
+            generate_canonical_smiles(prdcc_block) if prdcc_block else None
+        )
+
         table_rows: dict[str, list[dict]] = {}
 
         # Generate brief_summary
-        brief_rows = _generate_brief_summary_prd(prd_data, prd_id)
+        brief_rows = _generate_brief_summary_prd(prd_data, prd_id, canonical_smiles)
         if brief_rows:
             table_rows["brief_summary"] = brief_rows
 
@@ -113,7 +126,11 @@ def _parse_prd_cif_block(
         return (prd_id, {}, error_msg)
 
 
-def _generate_brief_summary_prd(data: dict[str, Any], prd_id: str) -> list[dict]:
+def _generate_brief_summary_prd(
+    data: dict[str, Any],
+    prd_id: str,
+    canonical_smiles: str | None = None,
+) -> list[dict]:
     """Generate brief_summary from pdbx_reference_molecule data."""
     rows = data.get("pdbx_reference_molecule", [])
     if not rows:
@@ -127,6 +144,8 @@ def _generate_brief_summary_prd(data: dict[str, Any], prd_id: str) -> list[dict]
                 "name": row.get("name"),
                 "formula": row.get("formula"),
                 "description": row.get("description"),
+                "canonical_smiles": canonical_smiles,
+                "chem_comp_id": row.get("chem_comp_id"),
             }
         )
     return result
@@ -166,8 +185,9 @@ class PrdPipeline(BasePipeline):
             meta = get_metadata(schema_name)
             entry_pk = get_entry_pk(meta)
 
-            # Load all data blocks (PRD files have two: PRD and PRDCC)
-            all_blocks = parse_mmjson_file_blocks(job.filepath)
+            # Read file once, parse both dict data and gemmi blocks
+            doc = _read_mmjson_gz(job.filepath)
+            all_blocks = parse_mmjson_blocks(doc)
 
             table_rows: dict[str, list[dict[str, Any]]] = {}
 
@@ -178,8 +198,16 @@ class PrdPipeline(BasePipeline):
             prdcc_id = job.entry_id.replace("PRD_", "PRDCC_")
             prdcc_data = all_blocks.get(prdcc_id, {})
 
+            # Generate canonical SMILES from PRDCC gemmi block
+            prdcc_block = self._find_block(doc, prdcc_id)
+            canonical_smiles = (
+                generate_canonical_smiles(prdcc_block) if prdcc_block else None
+            )
+
             # Generate and load brief_summary from pdbx_reference_molecule
-            brief_rows = self._generate_brief_summary(prd_data, job.entry_id)
+            brief_rows = self._generate_brief_summary(
+                prd_data, job.entry_id, canonical_smiles
+            )
             if brief_rows:
                 table_rows["brief_summary"] = brief_rows
 
@@ -222,7 +250,12 @@ class PrdPipeline(BasePipeline):
                 error=error_msg,
             )
 
-    def _generate_brief_summary(self, data: dict[str, Any], prd_id: str) -> list[dict]:
+    def _generate_brief_summary(
+        self,
+        data: dict[str, Any],
+        prd_id: str,
+        canonical_smiles: str | None = None,
+    ) -> list[dict]:
         """Generate brief_summary from pdbx_reference_molecule data."""
         rows = data.get("pdbx_reference_molecule", [])
         if not rows:
@@ -236,9 +269,19 @@ class PrdPipeline(BasePipeline):
                     "name": row.get("name"),
                     "formula": row.get("formula"),
                     "description": row.get("description"),
+                    "canonical_smiles": canonical_smiles,
+                    "chem_comp_id": row.get("chem_comp_id"),
                 }
             )
         return result
+
+    @staticmethod
+    def _find_block(doc: gemmi.cif.Document, block_name: str) -> gemmi.cif.Block | None:
+        """Find a named block in a gemmi Document."""
+        for block in doc:
+            if block.name == block_name:
+                return block
+        return None
 
     def _transform_category(
         self,
@@ -489,6 +532,7 @@ def run(
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the prd pipeline (mmJSON version)."""
+    ensure_rdkit_setup(settings.rdb.constring, schema="prd")
     pipeline = PrdPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)
 
@@ -501,6 +545,7 @@ def run_cif(
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run the prd pipeline in CIF mode."""
+    ensure_rdkit_setup(settings.rdb.constring, schema="prd")
     pipeline = PrdCifPipeline(settings, config, meta)
     return pipeline.run(limit, logger=logger)
 
@@ -513,6 +558,7 @@ def run_cif_load(
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run prd pipeline in load mode (COPY, no delta sync) - CIF version."""
+    ensure_rdkit_setup(settings.rdb.constring, schema="prd")
     pipeline = PrdCifPipeline(settings, config, meta)
 
     block_pairs = pipeline._load_block_pairs(limit)
@@ -544,12 +590,21 @@ def _process_prd_mmjson_load(
         meta = get_metadata(schema_name)
         entry_pk = get_entry_pk(meta)
 
-        all_blocks = parse_mmjson_file_blocks(job.filepath)
+        # Read file once, parse both dict data and gemmi blocks
+        doc = _read_mmjson_gz(job.filepath)
+        all_blocks = parse_mmjson_blocks(doc)
         table_rows: dict[str, list[dict[str, Any]]] = {}
 
         prd_data = all_blocks.get(job.entry_id, {})
         prdcc_id = job.entry_id.replace("PRD_", "PRDCC_")
         prdcc_data = all_blocks.get(prdcc_id, {})
+
+        # Generate canonical SMILES from PRDCC gemmi block
+        canonical_smiles = None
+        for block in doc:
+            if block.name == prdcc_id:
+                canonical_smiles = generate_canonical_smiles(block)
+                break
 
         # Generate brief_summary
         ref_rows = prd_data.get("pdbx_reference_molecule", [])
@@ -560,6 +615,8 @@ def _process_prd_mmjson_load(
                     "name": row.get("name"),
                     "formula": row.get("formula"),
                     "description": row.get("description"),
+                    "canonical_smiles": canonical_smiles,
+                    "chem_comp_id": row.get("chem_comp_id"),
                 }
                 for row in ref_rows
             ]
@@ -608,6 +665,7 @@ def run_load(
     logger: logging.Logger | None = None,
 ) -> list[LoaderResult]:
     """Run prd pipeline in load mode (COPY, no delta sync) - mmJSON version."""
+    ensure_rdkit_setup(settings.rdb.constring, schema="prd")
     pipeline = PrdPipeline(settings, config, meta)
     jobs = pipeline.find_jobs(limit)
 
