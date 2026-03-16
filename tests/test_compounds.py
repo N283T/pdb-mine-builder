@@ -99,14 +99,19 @@ class TestRefreshCompounds:
     def test_aborts_when_not_confirmed(self) -> None:
         """Aborts when user declines confirmation prompt."""
         mock_settings = MagicMock()
-        with patch(
-            "pdbminebuilder.commands.compounds.Confirm.ask",
-            return_value=False,
+        with (
+            patch(
+                "pdbminebuilder.commands.compounds.Confirm.ask",
+                return_value=False,
+            ),
+            patch(
+                "pdbminebuilder.commands.compounds._ensure_schema_and_table",
+            ) as mock_ensure,
         ):
             refresh_compounds(mock_settings, force=False)
 
-        # Should not have connected to DB
-        mock_settings.rdb.constring.assert_not_called  # noqa: B018
+        # Should not have attempted any DB operations
+        mock_ensure.assert_not_called()
 
     def test_force_skips_confirmation(self) -> None:
         """force=True skips the confirmation prompt."""

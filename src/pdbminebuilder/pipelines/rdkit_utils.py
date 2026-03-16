@@ -298,7 +298,7 @@ def ensure_rdkit_setup(
             if sql_functions_path and sql_functions_path.exists():
                 sql_content = sql_functions_path.read_text()
                 cur.execute(sql_content)  # type: ignore[arg-type]
-                logger.debug(f"Loaded RDKit functions from {sql_functions_path}")
+                logger.debug("Loaded RDKit functions from %s", sql_functions_path)
 
         conn.commit()
     console.print(f"  [green]RDKit setup verified ({schema})[/green]")
