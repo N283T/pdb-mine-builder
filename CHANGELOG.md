@@ -21,6 +21,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Extracted shared RDKit utilities to `pipelines/rdkit_utils.py` (from cc.py)
 - `pmb setup-rdkit` now sets up both cc and prd schemas
+- Docker test tasks use `docker-compose` (standalone) instead of `docker compose` (subcommand)
+
+### Fixed
+
+- Docker test container crashes on ARM Mac (`mcs07/postgres-rdkit` amd64-only image) by adding `platform: linux/amd64`
 
 ## [0.2.3] - 2026-03-14
 
