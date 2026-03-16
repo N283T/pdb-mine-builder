@@ -7,25 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.5] - 2026-03-16
+
 ### Added
 
-- SMILES generation for PRD pipeline via ccd2rdmol on PRDCC blocks
-- `canonical_smiles` and `chem_comp_id` columns on `prd.brief_summary`
-- RDKit mol column, GiST index, and descriptor triggers for prd schema
-- Unified `chem.compounds` table for cross-schema chemical searches (cc + prd)
-- `pmb compounds` command to refresh chem.compounds table
-- `scripts/rdkit_functions_chem.sql` with similarity/substructure search functions for chem schema
-- Automatic compounds refresh after `pmb update` when cc/prd pipelines run
+- Documentation for PRD SMILES coverage by `represent_as` type (#127)
+- "Why This Table Exists" section in `chem.md` explaining unified table rationale (#127)
 
 ### Changed
 
-- Extracted shared RDKit utilities to `pipelines/rdkit_utils.py` (from cc.py)
-- `pmb setup-rdkit` now sets up both cc and prd schemas
-- Docker test tasks use `docker-compose` (standalone) instead of `docker compose` (subcommand)
+- `__version__` now derived dynamically via `importlib.metadata` instead of hardcoded string (#129)
 
 ### Fixed
 
-- Docker test container crashes on ARM Mac (`mcs07/postgres-rdkit` amd64-only image) by adding `platform: linux/amd64`
+- `pmb --version` displayed "0.2.3" in 0.2.4 release due to hardcoded `__version__` (#128, #129)
+
+## [0.2.4] - 2026-03-16
+
+### Added
+
+- SMILES generation for PRD pipeline via ccd2rdmol on PRDCC blocks (#110, #122)
+- `canonical_smiles` and `chem_comp_id` columns on `prd.brief_summary` (#110, #122)
+- RDKit mol column, GiST index, and descriptor triggers for prd schema (#110, #122)
+- Unified `chem.compounds` table for cross-schema chemical searches (cc + prd) (#110, #122)
+- `pmb compounds` command to refresh `chem.compounds` table (#110, #122)
+- `scripts/rdkit_functions_chem.sql` with similarity/substructure search functions for chem schema (#110, #122)
+- Automatic compounds refresh after `pmb update` when cc/prd pipelines run (#110, #122)
+- `pmb config --init` to generate config from bundled template (#121)
+- Website documentation for `chem` schema and `prd` RDKit integration (#125)
+
+### Changed
+
+- Extracted shared RDKit utilities to `pipelines/rdkit_utils.py` (from cc.py) (#110, #122)
+- `pmb setup-rdkit` now sets up both cc and prd schemas (#110, #122)
+- Docker test tasks use `docker-compose` (standalone) instead of `docker compose` (subcommand) (#122)
+- `RdkitDescriptor` uses `NamedTuple` for self-documenting descriptor definitions (#124)
+
+### Fixed
+
+- Docker test container crashes on ARM Mac (`mcs07/postgres-rdkit` amd64-only image) by adding `platform: linux/amd64` (#122)
+- Double file read in PRD pipeline when processing PRDCC blocks (#124)
+- `refresh_compounds` missing confirmation prompt when `force=False` (#124)
 
 ## [0.2.3] - 2026-03-14
 
