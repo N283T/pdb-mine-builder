@@ -26,9 +26,9 @@ db-bulkload-mode = { cmd = "cat scripts/postgresql_bulkload.conf >> $PGDATA/post
 db-safe-mode = { cmd = "echo '' > $PGDATA/postgresql.auto.conf && pg_ctl reload -D $PGDATA", description = "Restore safe settings after bulk load" }
 
 # Test Database (Docker)
-test-db-up = "docker compose -f docker/docker-compose.test.yml up -d --wait"
-test-db-down = "docker compose -f docker/docker-compose.test.yml down -v"
-test-db-status = "docker compose -f docker/docker-compose.test.yml ps"
+test-db-up = "docker-compose -f docker/docker-compose.test.yml up -d --wait"
+test-db-down = "docker-compose -f docker/docker-compose.test.yml down -v"
+test-db-status = "docker-compose -f docker/docker-compose.test.yml ps"
 
 # Database migrations (Alembic)
 db-migrate = { cmd = "alembic revision --autogenerate -m", description = "Generate migration (pass message)" }
