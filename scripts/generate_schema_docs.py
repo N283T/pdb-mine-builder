@@ -33,10 +33,11 @@ SIDEBAR_POSITIONS: dict[str, int] = {
     "ccmodel": 3,
     "prd": 4,
     "prd_family": 5,
-    "vrpt": 6,
-    "contacts": 7,
-    "emdb": 8,
-    "ihm": 9,
+    "chem": 6,
+    "vrpt": 7,
+    "contacts": 8,
+    "emdb": 9,
+    "ihm": 10,
 }
 
 SKIP_JSON_FILES: set[str] = {

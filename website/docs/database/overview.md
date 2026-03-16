@@ -17,10 +17,11 @@ pdb-mine-builder creates a PostgreSQL database with multiple schemas, each conta
 | [ccmodel](./ccmodel.md) | `model_id` | ~23k | 8 | 174 MB | Chemical component 3D models |
 | [prd](./prd.md) | `prd_id` | ~1.2k | 17 | 50 MB | BIRD reference dictionary |
 | [prd_family](./prd_family.md) | `family_prd_id` | ~200 | 10 | 2.3 MB | BIRD family classifications |
+| [chem](./chem.md) | `(source, id)` | ~50k | 1 | — | Unified chemical compounds (cc + prd) |
 | [emdb](./emdb.md) | `emdb_id` | — | 79 | — | Electron Microscopy Data Bank (experimental) |
 | [ihm](./ihm.md) | `pdbid` | — | 114 | — | Integrative/Hybrid Methods (experimental) |
 
-**Total: 368 tables, ~349 GB** (excluding emdb/ihm which have no data pipeline yet, as of 2026-03-08)
+**Total: 369 tables, ~349 GB** (excluding emdb/ihm which have no data pipeline yet, as of 2026-03-16)
 
 **[Schema Search](/schema-search)** — Search across all schemas, tables, and columns in one place.
 **[Table Relations](/table-relations)** — Explore relationships between tables interactively.
@@ -83,5 +84,7 @@ SELECT 'pdbj' AS schema, COUNT(*) FROM pdbj.brief_summary
 UNION ALL
 SELECT 'cc', COUNT(*) FROM cc.brief_summary
 UNION ALL
-SELECT 'vrpt', COUNT(*) FROM vrpt.brief_summary;
+SELECT 'vrpt', COUNT(*) FROM vrpt.brief_summary
+UNION ALL
+SELECT 'chem', COUNT(*) FROM chem.compounds;
 ```

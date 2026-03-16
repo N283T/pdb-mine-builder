@@ -23,8 +23,9 @@ export const SCHEMA_PRIORITY: Record<string, number> = {
   ccmodel: 2,
   prd: 3,
   prd_family: 4,
-  vrpt: 5,
-  contacts: 6,
-  emdb: 7,
-  ihm: 8,
+  chem: 5,
+  vrpt: 6,
+  contacts: 7,
+  emdb: 8,
+  ihm: 9,
 };
