@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- SMILES generation for PRD pipeline via ccd2rdmol on PRDCC blocks
+- `canonical_smiles` and `chem_comp_id` columns on `prd.brief_summary`
+- RDKit mol column, GiST index, and descriptor triggers for prd schema
+- Unified `chem.compounds` table for cross-schema chemical searches (cc + prd)
+- `pmb compounds` command to refresh chem.compounds table
+- `scripts/rdkit_functions_chem.sql` with similarity/substructure search functions for chem schema
+- Automatic compounds refresh after `pmb update` when cc/prd pipelines run
+
+### Changed
+
+- Extracted shared RDKit utilities to `pipelines/rdkit_utils.py` (from cc.py)
+- `pmb setup-rdkit` now sets up both cc and prd schemas
+
 ## [0.2.3] - 2026-03-14
 
 ### Added

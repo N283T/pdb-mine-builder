@@ -1,8 +1,7 @@
 """Tests for chem.compounds table and refresh logic."""
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
 
 from pdbminebuilder.commands.compounds import (
     _insert_cc_compounds,

@@ -104,6 +104,19 @@ pmb config --init -c ./     # Generate config.yml in current directory
 Config file is discovered automatically: `./config.yml` → `~/.config/pmb/config.yml`.
 Use `--init` to generate a config file from the bundled template.
 
+### `pmb compounds`
+
+Refresh the unified `chem.compounds` table from `cc.brief_summary` and `prd.brief_summary`. Includes RDKit mol column, GiST index, and descriptor triggers.
+
+```bash
+pmb compounds              # Refresh compounds table
+pmb compounds --force      # Skip confirmation
+```
+
+:::note
+This is automatically run after `pmb update` when cc or prd pipelines are included. Use this command to manually refresh the compounds table.
+:::
+
 ## Administration Commands
 
 ### `pmb reset`
@@ -119,14 +132,14 @@ See [Updating the Database - Reset Schemas](./getting-started/update.md#reset-sc
 
 ### `pmb setup-rdkit`
 
-Set up RDKit PostgreSQL extension, create `mol` column on `cc.brief_summary`, and load chemical search SQL functions.
+Set up RDKit PostgreSQL extension, create `mol` columns on `cc.brief_summary` and `prd.brief_summary`, and load chemical search SQL functions.
 
 ```bash
 pmb setup-rdkit
 ```
 
 :::note
-This is automatically run by the `cc` pipeline. Use this command only when you need to add RDKit functions to an existing database without re-running the full pipeline.
+This is automatically run by the `cc` and `prd` pipelines. Use this command only when you need to add RDKit functions to an existing database without re-running the full pipeline.
 :::
 
 See [cc Schema - RDKit Integration](./database/cc.md#rdkit-integration) for details.

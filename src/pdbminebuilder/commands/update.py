@@ -177,6 +177,16 @@ def run_update(
     finally:
         close_pool()
 
+    # Refresh unified compounds table if cc or prd was updated
+    if {"cc", "prd"} & set(pipelines):
+        console.print("\n[bold blue]Refreshing chem.compounds...[/bold blue]")
+        try:
+            from pdbminebuilder.commands.compounds import refresh_compounds
+
+            refresh_compounds(settings)
+        except Exception as e:
+            console.print(f"  [yellow]Compounds refresh failed: {e}[/yellow]")
+
     console.print("\n[bold green]Update completed![/bold green]")
 
 
