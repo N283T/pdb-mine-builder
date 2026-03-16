@@ -9,15 +9,27 @@ sidebar_position: 8
 
 The `chem` schema provides a unified view of chemical compounds from both the [cc](./cc.md) (Chemical Component Dictionary) and [prd](./prd.md) (BIRD Reference Dictionary) schemas. This enables cross-schema chemical searches without needing to query each source separately.
 
+## Why This Table Exists
+
+The `prd.brief_summary` table only has `canonical_smiles` for PRD entries that have their own PRDCC file (~802 of ~1175 entries). The remaining ~373 entries are "single molecule" PRDs whose structure is defined by a CCD component -- they don't have PRDCC files, so `prd.brief_summary.canonical_smiles` is NULL. Their SMILES exist in `cc.brief_summary` instead.
+
+The `chem.compounds` table solves this by combining **all** compounds from both sources into one searchable table. You don't need to worry about which source has the SMILES -- just query `chem.compounds`.
+
+See [PRD SMILES Coverage](./prd.md#smiles-coverage) for details.
+
 ## How It Works
 
 The `chem.compounds` table is populated by the `pmb compounds` command, which:
 
-1. Extracts compounds from `cc.brief_summary` (CCD entries)
-2. Extracts compounds from `prd.brief_summary` (BIRD entries)
+1. Extracts compounds from `cc.brief_summary` (~50k CCD entries)
+2. Extracts compounds from `prd.brief_summary` (~802 BIRD entries with SMILES)
 3. Combines them into a single table with a `source` column (`'cc'` or `'prd'`) to distinguish origin
 
 The table is also automatically refreshed after `pmb update` when the cc or prd pipelines run.
+
+:::tip
+"Single molecule" PRDs are already included as `source = 'cc'` entries (via their `chem_comp_id`), so all PRD-related compounds are searchable in this table.
+:::
 
 ## RDKit Integration
 

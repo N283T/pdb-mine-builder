@@ -49,8 +49,29 @@ SELECT prd_id, name, rdkit_mw FROM prd.brief_summary
 WHERE rdkit_mw > 500 ORDER BY rdkit_mw DESC;
 ```
 
-:::note
-SMILES are generated from PRDCC blocks (the `_chem_comp_atom` / `_chem_comp_bond` data within each PRD entry). Approximately 68% of PRD entries have SMILES (~802 of ~1175).
+### SMILES Coverage
+
+SMILES are generated from PRDCC files (the `_chem_comp_atom` / `_chem_comp_bond` data). Coverage depends on how the molecule is represented in wwPDB:
+
+| `represent_as` | Entries | SMILES in `prd.brief_summary` | Reason |
+|----------------|---------|-------------------------------|--------|
+| polymer | ~649 | Yes | PRDCC file exists with full atom/bond data |
+| branched | ~153 | Yes | PRDCC file exists with full atom/bond data |
+| single molecule | ~373 | **No** | No PRDCC file -- structure is defined by a single CCD entry |
+
+**"single molecule" entries** are PRDs whose structure is fully described by one CCD component (`chem_comp_id` in `pdbx_reference_molecule`). wwPDB does not generate separate PRDCC files for these because the structure already exists in CCD. Their SMILES can be found via the linked CCD entry:
+
+```sql
+-- Get SMILES for single-molecule PRDs via CCD
+SELECT bs.prd_id, pm.chem_comp_id, cc.canonical_smiles
+FROM prd.brief_summary bs
+JOIN prd.pdbx_reference_molecule pm USING (prd_id)
+JOIN cc.brief_summary cc ON pm.chem_comp_id = cc.comp_id
+WHERE bs.canonical_smiles IS NULL;
+```
+
+:::tip
+The [`chem.compounds`](./chem.md) table combines both sources, so you can search all compounds (cc + prd) with SMILES in one place without worrying about this distinction.
 :::
 
 ## chem_comp
