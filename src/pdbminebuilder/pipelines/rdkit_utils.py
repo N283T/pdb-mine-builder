@@ -2,7 +2,7 @@
 
 import logging
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 
 import gemmi
 import psycopg
@@ -41,18 +41,25 @@ def generate_canonical_smiles(block: gemmi.cif.Block) -> str | None:
     return None
 
 
-# Hardcoded descriptors - NEVER derive from external sources
-# Format: (column_name, column_type, rdkit_function)
-RDKIT_DESCRIPTORS: list[tuple[str, str, str]] = [
-    ("rdkit_mw", "double precision", "mol_amw"),
-    ("rdkit_logp", "double precision", "mol_logp"),
-    ("rdkit_tpsa", "double precision", "mol_tpsa"),
-    ("rdkit_hba", "integer", "mol_hba"),
-    ("rdkit_hbd", "integer", "mol_hbd"),
-    ("rdkit_rotbonds", "integer", "mol_numrotatablebonds"),
-    ("rdkit_rings", "integer", "mol_numrings"),
-    ("rdkit_formula", "text", "mol_formula"),
-]
+class RdkitDescriptor(NamedTuple):
+    """A single RDKit molecular descriptor definition."""
+
+    column_name: str
+    column_type: str
+    rdkit_function: str
+
+
+# Hardcoded descriptors - NEVER derive from external sources (prevents SQL injection)
+RDKIT_DESCRIPTORS: tuple[RdkitDescriptor, ...] = (
+    RdkitDescriptor("rdkit_mw", "double precision", "mol_amw"),
+    RdkitDescriptor("rdkit_logp", "double precision", "mol_logp"),
+    RdkitDescriptor("rdkit_tpsa", "double precision", "mol_tpsa"),
+    RdkitDescriptor("rdkit_hba", "integer", "mol_hba"),
+    RdkitDescriptor("rdkit_hbd", "integer", "mol_hbd"),
+    RdkitDescriptor("rdkit_rotbonds", "integer", "mol_numrotatablebonds"),
+    RdkitDescriptor("rdkit_rings", "integer", "mol_numrings"),
+    RdkitDescriptor("rdkit_formula", "text", "mol_formula"),
+)
 
 # Allowed schema names for RDKit setup (security allowlist)
 _ALLOWED_SCHEMAS = frozenset({"cc", "prd", "chem"})
@@ -62,7 +69,9 @@ def _add_rdkit_descriptor_columns(
     cur: "psycopg.Cursor[tuple[Any, ...]]",
     schema: str,
 ) -> None:
-    """Add RDKit molecular descriptor columns to brief_summary.
+    """Add RDKit molecular descriptor columns to the target table.
+
+    Operates on brief_summary (cc/prd) or compounds (chem).
 
     SECURITY: All column definitions are hardcoded allowlists.
     DO NOT accept external input for column names, types, or functions.
@@ -89,11 +98,17 @@ def _add_rdkit_descriptor_columns(
     )
     result = cur.fetchone()
     if not result or not result[0]:
-        return  # Table or mol column doesn't exist yet
+        logger.debug(
+            "Skipping descriptor columns: %s.%s or mol column not found",
+            schema,
+            table_name,
+        )
+        return
 
     fqn = f"{schema}.{table_name}"
 
-    for col_name, col_type, _ in RDKIT_DESCRIPTORS:
+    for desc in RDKIT_DESCRIPTORS:
+        col_name, col_type = desc.column_name, desc.column_type
         cur.execute(
             """
             SELECT
@@ -211,7 +226,8 @@ def ensure_rdkit_setup(
     Args:
         conninfo: PostgreSQL connection string
         schema: Schema name (must be in _ALLOWED_SCHEMAS)
-        sql_functions_path: Path to SQL functions file to load (optional)
+        sql_functions_path: Path to SQL functions file to load (optional;
+            silently skipped if file does not exist)
     """
     if schema not in _ALLOWED_SCHEMAS:
         raise ValueError(f"Schema {schema!r} not in allowed list: {_ALLOWED_SCHEMAS}")

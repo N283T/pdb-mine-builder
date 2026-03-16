@@ -6,6 +6,7 @@ import pytest
 
 from pdbminebuilder.pipelines.rdkit_utils import (
     RDKIT_DESCRIPTORS,
+    RdkitDescriptor,
     _ALLOWED_SCHEMAS,
     _add_rdkit_descriptor_columns,
     ensure_rdkit_setup,
@@ -24,6 +25,44 @@ class TestGenerateCanonicalSmiles:
         result = generate_canonical_smiles(block)
         assert result is None or isinstance(result, str)
 
+    def test_returns_none_on_value_error(self) -> None:
+        """Return None and log warning when ccd2rdmol raises ValueError."""
+        import gemmi
+
+        block = gemmi.cif.read_string("data_EMPTY\n")[0]
+        with patch(
+            "pdbminebuilder.pipelines.rdkit_utils.read_ccd_block",
+            side_effect=ValueError("bad data"),
+        ):
+            result = generate_canonical_smiles(block)
+        assert result is None
+
+    def test_returns_none_on_runtime_error(self) -> None:
+        """Return None and log warning when RDKit raises RuntimeError."""
+        import gemmi
+
+        block = gemmi.cif.read_string("data_TEST\n")[0]
+        with patch(
+            "pdbminebuilder.pipelines.rdkit_utils.read_ccd_block",
+            side_effect=RuntimeError("RDKit internal error"),
+        ):
+            result = generate_canonical_smiles(block)
+        assert result is None
+
+    def test_returns_none_when_mol_is_none(self) -> None:
+        """Return None when read_ccd_block produces mol=None."""
+        import gemmi
+
+        block = gemmi.cif.read_string("data_NOMOL\n")[0]
+        mock_result = MagicMock()
+        mock_result.mol = None
+        with patch(
+            "pdbminebuilder.pipelines.rdkit_utils.read_ccd_block",
+            return_value=mock_result,
+        ):
+            result = generate_canonical_smiles(block)
+        assert result is None
+
 
 class TestRdkitDescriptors:
     """Tests for RDKIT_DESCRIPTORS constant."""
@@ -32,13 +71,17 @@ class TestRdkitDescriptors:
         """Should have exactly 8 descriptor definitions."""
         assert len(RDKIT_DESCRIPTORS) == 8
 
-    def test_all_tuples_have_three_elements(self) -> None:
-        """Each descriptor should be (column_name, column_type, rdkit_function)."""
+    def test_is_immutable_tuple(self) -> None:
+        """Should be a tuple (immutable), not a list."""
+        assert isinstance(RDKIT_DESCRIPTORS, tuple)
+
+    def test_elements_are_named_tuples(self) -> None:
+        """Each descriptor should be an RdkitDescriptor NamedTuple."""
         for desc in RDKIT_DESCRIPTORS:
-            assert len(desc) == 3
-            assert desc[0].startswith("rdkit_")
-            assert desc[1] in ("double precision", "integer", "text")
-            assert desc[2].startswith("mol_")
+            assert isinstance(desc, RdkitDescriptor)
+            assert desc.column_name.startswith("rdkit_")
+            assert desc.column_type in ("double precision", "integer", "text")
+            assert desc.rdkit_function.startswith("mol_")
 
 
 class TestAllowedSchemas:
@@ -76,6 +119,17 @@ class TestAddRdkitDescriptorColumns:
         params = first_call_args[0][1]
         assert params[0] == "chem"
         assert params[1] == "compounds"
+
+    def test_early_return_when_table_missing(self) -> None:
+        """Returns early without ALTER when table/mol column not found."""
+        mock_cursor = MagicMock()
+        mock_cursor.fetchone.return_value = (False,)
+        _add_rdkit_descriptor_columns(mock_cursor, "cc")
+
+        # Only the EXISTS check query should have been executed
+        assert mock_cursor.execute.call_count == 1
+        sql = str(mock_cursor.execute.call_args_list[0][0][0])
+        assert "information_schema" in sql
 
     def test_parameterized_for_prd_schema(self) -> None:
         """Uses prd schema correctly."""
