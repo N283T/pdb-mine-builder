@@ -53,7 +53,7 @@ compounds = Table(
         "cc_comp_ids",
         ARRAY(Text),
         nullable=True,
-        comment="Linked CCD comp_ids for cross-reference",
+        comment="Associated CCD comp_ids (self-referential for cc, linked chem_comp_id for prd)",
     ),
     PrimaryKeyConstraint("source", "id"),
     CheckConstraint("source IN ('cc', 'prd')", name="ck_compounds_source"),
