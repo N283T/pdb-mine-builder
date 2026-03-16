@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-03-16
+
 ### Added
 
 - SMILES generation for PRD pipeline via ccd2rdmol on PRDCC blocks
