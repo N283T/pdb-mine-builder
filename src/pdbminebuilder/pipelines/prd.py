@@ -32,7 +32,6 @@ from pdbminebuilder.parsers.cif import (
     _read_mmjson_gz,
     parse_block,
     parse_mmjson_blocks,
-    parse_mmjson_file_blocks,
 )
 from pdbminebuilder.parsers.mmjson import normalize_column_name
 from pdbminebuilder.pipelines.base import (
