@@ -19,7 +19,39 @@ sidebar_position: 4
 | pdbx_initial_date | date | Inclusion date to the PDB of an entry |
 | pdbx_modified_date | date | Modification date of an entry |
 | update_date | timestamp without time zone | Entry update date (within the RDB). |
+| canonical_smiles | text | `[pmb]` Canonical SMILES string generated from PRDCC block via ccd2rdmol |
+| chem_comp_id | text | `[pmb]` Chemical component ID linking to cc.brief_summary (from pdbx_reference_molecule) |
 | keywords | text[] | Array of keywords. |
+
+## RDKit Integration
+
+The `prd` pipeline automatically sets up [RDKit PostgreSQL Cartridge](https://www.rdkit.org/docs/Cartridge.html) for chemical structure searching, similar to the [cc](./cc.md) schema. This includes:
+
+1. **RDKit extension** (`CREATE EXTENSION IF NOT EXISTS rdkit`)
+2. **`mol` column** on `prd.brief_summary` -- stores RDKit molecule objects generated from canonical SMILES
+3. **GiST index** on `mol` for fast substructure and similarity searches
+4. **RDKit descriptor columns** -- `rdkit_mw`, `rdkit_logp`, `rdkit_tpsa`, `rdkit_hba`, `rdkit_hbd`, `rdkit_rotbonds`, `rdkit_rings`, `rdkit_formula`
+
+To set up RDKit on an existing database:
+
+```bash
+pixi run pmb setup-rdkit
+```
+
+### Example Queries
+
+```sql
+-- Find PRD entries by substructure
+SELECT prd_id, name FROM prd.brief_summary WHERE mol @> 'c1ccccc1'::mol;
+
+-- PRD entries with molecular weight > 500
+SELECT prd_id, name, rdkit_mw FROM prd.brief_summary
+WHERE rdkit_mw > 500 ORDER BY rdkit_mw DESC;
+```
+
+:::note
+SMILES are generated from PRDCC blocks (the `_chem_comp_atom` / `_chem_comp_bond` data within each PRD entry). Approximately 68% of PRD entries have SMILES (~802 of ~1175).
+:::
 
 ## chem_comp
 

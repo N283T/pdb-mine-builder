@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `pmb compounds` command to refresh chem.compounds table
 - `scripts/rdkit_functions_chem.sql` with similarity/substructure search functions for chem schema
 - Automatic compounds refresh after `pmb update` when cc/prd pipelines run
+- Documentation for `chem` schema and `prd` RDKit integration
 
 ### Changed
 
