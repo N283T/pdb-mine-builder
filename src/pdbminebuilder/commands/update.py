@@ -183,7 +183,7 @@ def run_update(
         try:
             from pdbminebuilder.commands.compounds import refresh_compounds
 
-            refresh_compounds(settings)
+            refresh_compounds(settings, force=True)
         except Exception as e:
             console.print(f"  [yellow]Compounds refresh failed: {e}[/yellow]")
 

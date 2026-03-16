@@ -302,7 +302,9 @@ def setup_rdkit(
     settings = load_config(config)
     console.print("[bold]Setting up RDKit extension and functions...[/bold]")
 
-    sql_path = Path(__file__).parent.parent.joinpath("scripts", "rdkit_functions.sql")
+    sql_path = Path(__file__).parent.parent.parent.parent.joinpath(
+        "scripts", "rdkit_functions.sql"
+    )
     sql_functions_path = sql_path if sql_path.exists() else None
 
     for schema in ("cc", "prd"):

@@ -5,6 +5,7 @@ from pathlib import Path
 
 import psycopg
 from rich.console import Console
+from rich.prompt import Confirm
 
 from pdbminebuilder.config import Settings
 from pdbminebuilder.pipelines.rdkit_utils import ensure_rdkit_setup
@@ -20,6 +21,13 @@ def refresh_compounds(settings: Settings, *, force: bool = False) -> None:
         settings: Application settings with DB connection info
         force: Skip confirmation prompt
     """
+    if not force:
+        if not Confirm.ask(
+            "This will truncate and repopulate chem.compounds. Continue?"
+        ):
+            console.print("[yellow]Aborted.[/yellow]")
+            return
+
     conninfo = settings.rdb.constring
 
     # Ensure chem schema and table exist

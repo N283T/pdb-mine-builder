@@ -28,7 +28,12 @@ from pdbminebuilder.db.loader import (
     get_entry_pk,
     run_loader,
 )
-from pdbminebuilder.parsers.cif import parse_block, parse_mmjson_file_blocks
+from pdbminebuilder.parsers.cif import (
+    _read_mmjson_gz,
+    parse_block,
+    parse_mmjson_blocks,
+    parse_mmjson_file_blocks,
+)
 from pdbminebuilder.parsers.mmjson import normalize_column_name
 from pdbminebuilder.pipelines.base import (
     BaseCifBatchPipeline,
@@ -181,8 +186,9 @@ class PrdPipeline(BasePipeline):
             meta = get_metadata(schema_name)
             entry_pk = get_entry_pk(meta)
 
-            # Load all data blocks (PRD files have two: PRD and PRDCC)
-            all_blocks = parse_mmjson_file_blocks(job.filepath)
+            # Read file once, parse both dict data and gemmi blocks
+            doc = _read_mmjson_gz(job.filepath)
+            all_blocks = parse_mmjson_blocks(doc)
 
             table_rows: dict[str, list[dict[str, Any]]] = {}
 
@@ -193,9 +199,8 @@ class PrdPipeline(BasePipeline):
             prdcc_id = job.entry_id.replace("PRD_", "PRDCC_")
             prdcc_data = all_blocks.get(prdcc_id, {})
 
-            # Generate canonical SMILES from PRDCC block (mmJSON)
-            # Read the mmJSON file as gemmi blocks for ccd2rdmol
-            prdcc_block = self._read_prdcc_block(job.filepath, prdcc_id)
+            # Generate canonical SMILES from PRDCC gemmi block
+            prdcc_block = self._find_block(doc, prdcc_id)
             canonical_smiles = (
                 generate_canonical_smiles(prdcc_block) if prdcc_block else None
             )
@@ -271,13 +276,11 @@ class PrdPipeline(BasePipeline):
             )
         return result
 
-    def _read_prdcc_block(
-        self, filepath: Path, prdcc_id: str
-    ) -> gemmi.cif.Block | None:
-        """Read PRDCC block from mmJSON file for ccd2rdmol SMILES generation."""
-        doc = gemmi.cif.read_mmjson(str(filepath))
+    @staticmethod
+    def _find_block(doc: gemmi.cif.Document, block_name: str) -> gemmi.cif.Block | None:
+        """Find a named block in a gemmi Document."""
         for block in doc:
-            if block.name == prdcc_id:
+            if block.name == block_name:
                 return block
         return None
 
@@ -588,16 +591,17 @@ def _process_prd_mmjson_load(
         meta = get_metadata(schema_name)
         entry_pk = get_entry_pk(meta)
 
-        all_blocks = parse_mmjson_file_blocks(job.filepath)
+        # Read file once, parse both dict data and gemmi blocks
+        doc = _read_mmjson_gz(job.filepath)
+        all_blocks = parse_mmjson_blocks(doc)
         table_rows: dict[str, list[dict[str, Any]]] = {}
 
         prd_data = all_blocks.get(job.entry_id, {})
         prdcc_id = job.entry_id.replace("PRD_", "PRDCC_")
         prdcc_data = all_blocks.get(prdcc_id, {})
 
-        # Generate canonical SMILES from PRDCC block
+        # Generate canonical SMILES from PRDCC gemmi block
         canonical_smiles = None
-        doc = gemmi.cif.read_mmjson(str(job.filepath))
         for block in doc:
             if block.name == prdcc_id:
                 canonical_smiles = generate_canonical_smiles(block)

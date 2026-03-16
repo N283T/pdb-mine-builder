@@ -400,8 +400,8 @@ def _ensure_rdkit_setup(conninfo: str) -> None:
     Delegates to shared ensure_rdkit_setup. Kept as wrapper for backward compatibility
     with CLI and tests.
     """
-    sql_path = (
-        Path(__file__).parent.parent.parent.parent / "scripts" / "rdkit_functions.sql"
+    sql_path = Path(__file__).parent.parent.parent.parent.joinpath(
+        "scripts", "rdkit_functions.sql"
     )
     ensure_rdkit_setup(
         conninfo,
