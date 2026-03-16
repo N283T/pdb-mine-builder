@@ -11,6 +11,7 @@ from sqlalchemy import MetaData
 from pdbminebuilder.models import (
     cc,
     ccmodel,
+    chem,
     contacts,
     emdb,
     ihm,
@@ -23,6 +24,7 @@ from pdbminebuilder.models import (
 ALL_METADATA: dict[str, MetaData] = {
     "cc": cc.metadata,
     "ccmodel": ccmodel.metadata,
+    "chem": chem.metadata,
     "contacts": contacts.metadata,
     "emdb": emdb.metadata,
     "ihm": ihm.metadata,

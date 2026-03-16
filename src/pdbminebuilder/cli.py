@@ -257,6 +257,30 @@ def run_all(
     console.print("\n[bold green]Full cycle completed![/bold green]")
 
 
+@app.command()
+def compounds(
+    config: Annotated[
+        Path,
+        typer.Option("--config", "-c", help="Config file path"),
+    ] = Path("config.yml"),
+    force: Annotated[
+        bool,
+        typer.Option("--force", "-f", help="Skip confirmation"),
+    ] = False,
+) -> None:
+    """Refresh the unified chem.compounds table.
+
+    Truncates and repopulates from cc.brief_summary and prd.brief_summary.
+    Includes RDKit mol column, GiST index, and descriptor triggers.
+    """
+    from pdbminebuilder.commands.compounds import refresh_compounds
+
+    settings = load_config(config)
+    console.print("[bold]Refreshing chem.compounds...[/bold]")
+    refresh_compounds(settings, force=force)
+    console.print("[bold green]Compounds table refreshed![/bold green]")
+
+
 @app.command(name="setup-rdkit")
 def setup_rdkit(
     config: Annotated[
