@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "docusaurus": "docusaurus",
+    "prestart": "bash ../scripts/sync_changelog.sh",
     "start": "docusaurus start",
+    "prebuild": "bash ../scripts/sync_changelog.sh",
     "build": "docusaurus build",
     "swizzle": "docusaurus swizzle",
     "deploy": "docusaurus deploy",
